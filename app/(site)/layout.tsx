@@ -254,7 +254,8 @@ export default async function SiteLayout({
         Ga4TrackingProvider — injects gtag.js so pageviews + the visitor_id user
         property reach GA4 (feeding the GA4 History enricher). Mounted only when the
         tenant enabled client-mode GA4 with a Measurement ID; consent-gated (analytics)
-        and self-guarding on an invalid id/visitorId.
+        and self-guarding on an invalid id/visitorId. It tells Google what the visitor
+        allowed before its config (see tracking/google-consent.ts).
       */}
       {ga4 && ga4VisitorId && (
         <Ga4TrackingProvider

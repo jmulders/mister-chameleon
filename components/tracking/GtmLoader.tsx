@@ -18,6 +18,7 @@ import { useEffect } from "react";
 import { getConsent, onConsentChange } from "@/tracking/consent-store";
 import { createGtmGate } from "@/tracking/gtm-consent";
 import type { ConsentState } from "@/tracking/consent-types";
+import { insertAsyncScript, pageConsentSignal, pageDataLayer } from "./google-tag-page";
 
 // One gate per container for the life of the page, so a second mount (React
 // strict mode, a layout that renders again) cannot load the container twice.
@@ -27,17 +28,10 @@ function gateFor(containerId: string): (state: ConsentState) => void {
   let gate = gates.get(containerId);
   if (!gate) {
     gate = createGtmGate(containerId, {
-      layer: () => {
-        const w = window as unknown as { dataLayer?: unknown[] };
-        return (w.dataLayer = w.dataLayer || []);
-      },
-      insertScript: (src) => {
-        const script = document.createElement("script");
-        script.async = true;
-        script.src   = src;
-        document.head.appendChild(script);
-      },
-      now: () => Date.now(),
+      layer:        pageDataLayer,
+      signal:       pageConsentSignal(),
+      insertScript: insertAsyncScript,
+      now:          () => Date.now(),
     });
     gates.set(containerId, gate);
   }

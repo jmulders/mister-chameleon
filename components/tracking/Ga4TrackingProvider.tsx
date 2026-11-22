@@ -1,19 +1,22 @@
 /**
  * Ga4TrackingProvider
  *
- * Client component that injects the Google Analytics 4 gtag.js loader and
- * initialises the tracker with the platform visitor ID as a GA4 user property.
+ * Client component that starts Google Analytics 4 (gtag.js) with the platform
+ * visitor ID as a GA4 user property, once the visitor allowed analytics.
  *
  * ─── How it works ─────────────────────────────────────────────────────────────
  *
- *   1. The server layout (app/layout.tsx) reads `mc_session_id` from the
+ *   1. The server layout (app/(site)/layout.tsx) reads `mc_session_id` from the
  *      request cookie and passes it as the `visitorId` prop — the stable,
  *      first-party identifier for this browser session.
  *
- *   2. This component renders two <Script> tags via next/script:
- *        a. The gtag.js loader from Google Tag Manager CDN.
- *        b. An inline init block that calls `gtag('config', measurementId, …)`
- *           with the visitor ID set as a User Property.
+ *   2. In an effect this component hands the consent state to the GA4 gate
+ *      (tracking/ga4-consent.ts), now and on every change. With analytics
+ *      allowed the gate fills the dataLayer in this order and adds gtag.js:
+ *        a. the consent state in Google's terms (`consent default`), through
+ *           the page's one signal shared with the Tag Manager loader, so
+ *           Google never sees a `config` before it knows what was allowed;
+ *        b. `js`, `set` with the visitor ID as a user property, and `config`.
  *
  *   3. Because the visitor ID is a User Property on every gtag event, GA4's
  *      Data API can filter/group by the same ID using the custom dimension
@@ -28,8 +31,9 @@
  *   is non-secret (it is a session correlation ID, not a credential).
  *
  *   `measurementId` and `visitorIdParamName` are non-secret config values.
- *   All three are interpolated into the inline script using a strict allowlist
- *   regex to prevent injection.
+ *   Nothing is written into script text any more: the values go into the
+ *   dataLayer as data. The gate still checks all three against a strict
+ *   allowlist and starts nothing when one fails.
  *
  * ─── GA4 custom dimension setup ───────────────────────────────────────────────
  *
@@ -41,8 +45,11 @@
 
 "use client";
 
-import Script from "next/script";
-import { hasConsent } from "@/tracking/consent-store";
+import { useEffect } from "react";
+import { getConsent, onConsentChange } from "@/tracking/consent-store";
+import { createGa4Gate } from "@/tracking/ga4-consent";
+import type { ConsentState } from "@/tracking/consent-types";
+import { ensureGlobalGtag, insertAsyncScript, pageConsentSignal, pageDataLayer } from "./google-tag-page";
 
 // ── Props ──────────────────────────────────────────────────────────────────────
 
@@ -65,14 +72,26 @@ export interface Ga4TrackingProviderProps {
   visitorIdParamName: string;
 }
 
-// ── Allowlist regex for safe inline script interpolation ──────────────────────
+// One gate per stream for the life of the page, so a second mount (React
+// strict mode, a layout that renders again) cannot start GA4 twice.
+const gates = new Map<string, (state: ConsentState) => void>();
 
-/** GA4 Measurement IDs: "G-" followed by alphanumeric characters and hyphens. */
-const SAFE_MEASUREMENT_ID = /^G-[A-Z0-9]+$/i;
-/** UUID v4: hex digits and hyphens (mc_session_id format). */
-const SAFE_VISITOR_ID = /^[0-9a-f-]{32,36}$/i;
-/** Custom dimension names: letters, digits, underscores only. */
-const SAFE_PARAM_NAME = /^[A-Za-z_][A-Za-z0-9_]{0,99}$/;
+function gateFor(stream: Ga4TrackingProviderProps): (state: ConsentState) => void {
+  let gate = gates.get(stream.measurementId);
+  if (!gate) {
+    gate = createGa4Gate(stream, {
+      layer:  pageDataLayer,
+      signal: pageConsentSignal(),
+      insertScript: (src) => {
+        ensureGlobalGtag();
+        insertAsyncScript(src);
+      },
+      now: () => new Date(),
+    });
+    gates.set(stream.measurementId, gate);
+  }
+  return gate;
+}
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
@@ -80,73 +99,15 @@ export function Ga4TrackingProvider({
   measurementId,
   visitorId,
   visitorIdParamName,
-}: Ga4TrackingProviderProps) {
-  // Consent gate: GA4 tracking is analytics. Without analytics consent, inject no
-  // gtag scripts. (Consistent with the other client trackers; self-guarding so the
-  // component is safe to mount unconditionally.)
-  if (!hasConsent("analytics")) return null;
+}: Ga4TrackingProviderProps): null {
+  // Consent gate: GA4 tracking is analytics. The gate starts nothing without
+  // analytics consent or with an invalid value, so the component is safe to
+  // mount unconditionally. It starts GA4 the moment the visitor agrees.
+  useEffect(() => {
+    const gate = gateFor({ measurementId, visitorId, visitorIdParamName });
+    gate(getConsent());
+    return onConsentChange(gate);
+  }, [measurementId, visitorId, visitorIdParamName]);
 
-  // Validate all interpolated values against allowlists before use.
-  // If any value fails validation, bail out — emit no scripts and no error.
-  if (
-    !SAFE_MEASUREMENT_ID.test(measurementId) ||
-    !SAFE_VISITOR_ID.test(visitorId) ||
-    !SAFE_PARAM_NAME.test(visitorIdParamName)
-  ) {
-    return null;
-  }
-
-  return (
-    <>
-      {/*
-       * gtag.js loader — loaded after the page is interactive so it does
-       * not block first paint.  The `id` parameter must match `measurementId`
-       * so the gtag('config') call below can target the right stream.
-       */}
-      <Script
-        src={`https://www.googletagmanager.com/gtag/js?id=${measurementId}`}
-        strategy="afterInteractive"
-      />
-
-      {/*
-       * Inline init block — runs immediately after the loader.
-       * Sets `window.dataLayer`, registers the `gtag` function, then:
-       *
-       *   1. gtag('set', { user_properties: … })
-       *      Registers visitor_id as a GLOBAL user property before any event
-       *      fires.  Global properties persist for the entire session and are
-       *      automatically attached to every subsequent gtag event — including
-       *      the page_view fired by gtag('config') below.  This is the
-       *      belt-and-suspenders approach: even if the config call is replayed
-       *      (e.g. on SPA navigation), the user property remains set.
-       *
-       *   2. gtag('config', measurementId)
-       *      Initialises the GA4 stream and fires the initial page_view.
-       *      user_properties is NOT repeated here — it is already registered
-       *      globally by the preceding gtag('set') call.
-       *
-       * Because visitor_id is set only via user_properties (never as an event
-       * param), GA4 correctly records it as a User-scoped custom dimension.
-       * The GA4 Data API filter `customUser:{visitorIdParamName} == visitorId`
-       * in the GA4 History enricher will then find rows for this visitor.
-       */}
-      <Script
-        id="mc-gtag-init"
-        strategy="afterInteractive"
-        dangerouslySetInnerHTML={{
-          __html: [
-            "window.dataLayer=window.dataLayer||[];",
-            "function gtag(){dataLayer.push(arguments);}",
-            "gtag('js',new Date());",
-            // Set visitor_id globally FIRST so it is attached to all events,
-            // including the page_view fired by the config call below.
-            `gtag('set',{user_properties:{'${visitorIdParamName}':'${visitorId}'}});`,
-            // Initialise the GA4 stream (fires page_view automatically).
-            // No user_properties here — they are already registered globally above.
-            `gtag('config','${measurementId}');`,
-          ].join(""),
-        }}
-      />
-    </>
-  );
+  return null;
 }
