@@ -463,6 +463,9 @@ export default async function RootLayout({
       // Dark or light, worked out from the page background of the look this
       // request gets. For stylesheets that need to know (lib/theme/scheme.ts).
       data-scheme={schemeFor(resolvedTheme.vars["--background"], resolvedTheme.vars["--bg"], finalThemePreset.colors.background.bg)}
+      // Headings in capitals run wider. A stylesheet that sizes a headline to
+      // fit one line needs to know (app/brand/mister-chameleon.css, part 6b).
+      data-headings={resolvedTheme.vars["--block-heading-transform"] === "uppercase" ? "caps" : undefined}
       {...(themeTraceAttr ? { "data-theme-trace": themeTraceAttr } : {})}
       suppressHydrationWarning
       className={`${geistSans.variable} ${geistMono.variable} ${ALL_FONT_VARIABLES}`}

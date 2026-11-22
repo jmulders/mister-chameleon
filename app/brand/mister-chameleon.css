@@ -303,11 +303,34 @@
   max-width: none !important;
 }
 @media (min-width: 1024px) {
-  [data-brand="mister-chameleon"] [data-part="display-title"] { font-size: 2.0625rem !important; }
+  [data-brand="mister-chameleon"] [data-part="display-title"] { font-size: 2rem !important; }
   [data-brand="mister-chameleon"] [data-part="display-title"][data-align="center"] { font-size: 3rem !important; }
 }
 @media (min-width: 1280px) {
   [data-brand="mister-chameleon"] [data-part="display-title"]:not([data-align="center"]) { font-size: 2.375rem !important; }
+}
+
+/* ── 6b. The same headline in capitals ──────────────────────────────────────
+ *
+ * The house style sets headings in bold capitals (the presets "Mister
+ * Chameleon", "Zwart-wit" and "Wit-zwart"). Capitals run wider, and the
+ * headlines grew to twenty-five characters. Measured on production on
+ * 22 Nov 2026: the longest, "VIER KLANTEN, ÉÉN VERHAAL", is 16.1 em wide in
+ * Montserrat 800 and broke over two lines at every width.
+ *
+ * The sizes below fit 16.5 em in the same columns: the width of the phone less
+ * its two gutters of 16 px, 384 px at 768, 416 px at 1024 and 480 px from
+ * 1280. The layout says when headings are in capitals (data-headings).
+ */
+[data-brand="mister-chameleon"][data-headings="caps"] [data-part="display-title"] {
+  font-size: clamp(1rem, calc((100vw - 32px) / 16.5), 1.4375rem) !important;
+}
+@media (min-width: 1024px) {
+  [data-brand="mister-chameleon"][data-headings="caps"] [data-part="display-title"] { font-size: 1.5625rem !important; }
+  [data-brand="mister-chameleon"][data-headings="caps"] [data-part="display-title"][data-align="center"] { font-size: 3rem !important; }
+}
+@media (min-width: 1280px) {
+  [data-brand="mister-chameleon"][data-headings="caps"] [data-part="display-title"]:not([data-align="center"]) { font-size: 1.8125rem !important; }
 }
 
 @media (prefers-reduced-motion: reduce) {

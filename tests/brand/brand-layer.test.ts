@@ -281,6 +281,32 @@ describe("the brand stylesheet", () => {
     assert.ok(fits(Number(at1280[1]) * 16, 480), "from 1280");
   });
 
+  it("keeps a headline of twenty-five capitals on one line", () => {
+    const css = readFileSync("app/brand/mister-chameleon.css", "utf8");
+    // "VIER KLANTEN, ÉÉN VERHAAL" in Montserrat 800, measured on production on
+    // 22 Nov 2026 in the presets with capitals: 16.1 em.
+    const LONGEST = 16.1;
+    const caps = '\\[data-brand="mister-chameleon"\\]\\[data-headings="caps"\\] \\[data-part="display-title"\\]';
+    const base = new RegExp(caps + " \\{\\s*font-size: clamp\\(([\\d.]+)rem, calc\\(\\(100vw - (\\d+)px\\) / ([\\d.]+)\\), ([\\d.]+)rem\\) !important;").exec(css);
+    assert.ok(base, "capitals have a size of their own");
+    const at1024 = new RegExp("min-width: 1024px\\) \\{\\s*" + caps + " \\{ font-size: ([\\d.]+)rem").exec(css);
+    const at1280 = new RegExp("min-width: 1280px\\) \\{\\s*" + caps + ':not\\(\\[data-align="center"\\]\\) \\{ font-size: ([\\d.]+)rem').exec(css);
+    assert.ok(at1024 && at1280, "capitals have a size for a wide screen");
+    const [floor, gutters, divisor, cap] = [Number(base[1]) * 16, Number(base[2]), Number(base[3]), Number(base[4]) * 16];
+    const sizeAt = (viewport: number) => Math.min(cap, Math.max(floor, (viewport - gutters) / divisor));
+    // The column is the viewport less two gutters of 16 px on a phone, 384 px at 768.
+    for (const viewport of [360, 375, 390, 414]) {
+      assert.ok(LONGEST * sizeAt(viewport) <= viewport - 32, `on a phone of ${viewport} px`);
+    }
+    assert.ok(LONGEST * sizeAt(768) <= 384, "at 768");
+    assert.ok(LONGEST * Number(at1024[1]) * 16 <= 416, "at 1024");
+    assert.ok(LONGEST * Number(at1280[1]) * 16 <= 480, "from 1280");
+    // A centred hero has the full width and keeps its large size on a wide screen.
+    assert.match(css, new RegExp("min-width: 1024px\\) \\{[^}]*\\}\\s*" + caps + '\\[data-align="center"\\] \\{ font-size: 3rem'));
+    // The layout tells the stylesheet when headings are in capitals.
+    assert.match(readFileSync("app/layout.tsx", "utf8"), /data-headings=\{resolvedTheme\.vars\["--block-heading-transform"\] === "uppercase" \? "caps" : undefined\}/);
+  });
+
   it("switches its movement off for visitors who ask for less motion", () => {
     assert.match(css, /prefers-reduced-motion: reduce/);
   });
