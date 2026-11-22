@@ -141,11 +141,18 @@ Code: `tenant/design-presets-mister-chameleon.ts`. Test:
 
 - Stapnummers als volle cirkel met een wit cijfer, zoals de hoofdstuknummers.
 - Icoontjes van functiekaarten als kleine krantenfoto in een cirkel: een echt
-  voorwerp in zwart-wit op het papier van de huisstijl, met een klein gekleurd
-  bolletje ernaast. Foto's zijn altijd zwart-wit en staan altijd in een cirkel
-  (15-11-2026). De bestanden staan in `public/brand/icoon` en komen uit
-  `tools/mc-iconen` in de CMS-repo. Een icoonnaam zonder bestand houdt het
-  lijnicoon in een volle gekleurde cirkel.
+  voorwerp in zwart-wit op het papier van de huisstijl. Foto's zijn altijd
+  zwart-wit en staan altijd in een cirkel (15-11-2026). De bestanden staan in
+  `public/brand/icoon` en komen uit `tools/mc-iconen` in de CMS-repo. Een
+  icoonnaam zonder bestand houdt het lijnicoon in een volle gekleurde cirkel.
+- Om elke icoonfoto spelen twee of drie gekleurde cirkels (22-11-2026). Eerst
+  stond er bij elk icoon hetzelfde bolletje op dezelfde plek. Nu ligt er
+  minstens één cirkel half achter de foto en schijnt hij erdoorheen, net als
+  bij de grote beelden. Plek, aantal en kleur wisselen per kaart: acht
+  indelingen en zeven kleurstellen, die samen pas na 56 kaarten terugkomen. De
+  cirkels zelf blijven vol van kleur en raken elkaar niet. Voor de grote
+  beelden geldt hetzelfde spel, met twee tot vier cirkels. Dat staat in
+  `tools/mc-beeld/LEESMIJ.md` in de CMS-repo.
 - In een cirkel staat geen tekst (15-11-2026). Stapnummers zijn de uitzondering.
 - Minder lucht tussen de secties dan de presets uit de galerij meegeven. Die
   geven op een breed scherm 115 pixels boven en onder elke sectie. De huisstijl
