@@ -64,6 +64,7 @@ import { NextRequest, NextResponse }   from "next/server";
 import { headers }                      from "next/headers";
 import { getFormDefinition, resolveFormKey } from "@/forms";
 import { validateSubmission }           from "@/forms/validation";
+import { addressFieldKeys, lookupDutchAddress } from "@/lib/forms/address-lookup";
 import { buildSystemVars }              from "@/forms/validation";
 import {
   dispatchBackofficeNotification,
@@ -375,6 +376,32 @@ async function handlePost(
       { ok: false, errors: validation.errors },
       { status: 422 },
     );
+  }
+
+  // ── 4b. A postcode with a house number has to be a real address ───────────
+  //
+  //   The form checks this while the visitor types (useAddressAutofill). This
+  //   is the same check for a submission that did not come through that hook.
+  //   Only a definite "no such address" stops the form. A postcode that is not
+  //   Dutch, or an address register that does not answer, lets it through.
+  const addressKeys = addressFieldKeys(effectiveFields.map((f) => f.key));
+  if (addressKeys) {
+    const found = await lookupDutchAddress(
+      validation.values[addressKeys.postcode],
+      validation.values[addressKeys.houseNumber],
+    );
+    if (found.status === "not_found") {
+      return NextResponse.json(
+        { ok: false, errors: { [addressKeys.houseNumber]: t.address.notFound } },
+        { status: 422 },
+      );
+    }
+    if (found.status === "ok") {
+      // Street and town left empty are filled in, so the stored submission and
+      // the notification carry the whole address.
+      if (addressKeys.street && !validation.values[addressKeys.street]) validation.values[addressKeys.street] = found.street;
+      if (addressKeys.city   && !validation.values[addressKeys.city])   validation.values[addressKeys.city]   = found.city;
+    }
   }
 
   // ── 5. Resolve session from cookie ────────────────────────────────────────

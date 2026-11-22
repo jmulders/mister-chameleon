@@ -73,6 +73,7 @@ import { getFormDefinition, resolveFormKey } from "@/forms";
 import type { FormField } from "@/forms";
 import { selectFormRender } from "@/forms/context/resolve";
 import { useTenantForm } from "@/components/blocks/forms/useTenantForm";
+import { useAddressAutofill } from "@/components/blocks/forms/useAddressAutofill";
 import { useSiteLocale } from "@/components/site/SiteLocale";
 import { FORM_TEXTS } from "@/lib/site-texts/forms";
 import { TurnstileWidget } from "@/components/blocks/forms/TurnstileWidget";
@@ -501,6 +502,11 @@ function FormFields({
     return () => { cancelled = true; };
   }, []);
 
+  // A form with a postcode and a house number fills in the street and the town
+  // itself, and says so when the address does not exist. Nothing happens for a
+  // form without those two fields.
+  const address = useAddressAutofill(formRef, fields.map((f) => f.key), t.address.notFound);
+
   // Focus the first field with an error after each validation round.
   // Skips the initial mount (errorRevision === 0) so no unwanted auto-focus.
   useEffect(() => {
@@ -599,7 +605,8 @@ function FormFields({
           <FieldRenderer
             key={field.key}
             field={field}
-            error={fieldErrors[field.key]}
+            error={fieldErrors[field.key] ?? address.errors[field.key]}
+            hint={address.hints[field.key]}
           />
         ))}
 
@@ -642,9 +649,11 @@ function FormFields({
 interface FieldRendererProps {
   field: FormField;
   error?: string;
+  /** Shown under a text field in place of its help text, e.g. a found address. */
+  hint?: string;
 }
 
-function FieldRenderer({ field, error }: FieldRendererProps) {
+function FieldRenderer({ field, error, hint }: FieldRendererProps) {
   const t          = FORM_TEXTS[useSiteLocale()];
   const isRequired = field.validation?.required === true;
   const hasError   = Boolean(error);
@@ -781,7 +790,7 @@ function FieldRenderer({ field, error }: FieldRendererProps) {
       label={field.label}
       htmlFor={field.key}
       required={isRequired}
-      hint={field.helpText}
+      hint={hint ?? field.helpText}
       error={error}
     >
       {(errorId) => (
