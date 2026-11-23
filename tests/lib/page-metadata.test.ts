@@ -9,7 +9,7 @@
 
 import { describe, it } from "node:test";
 import assert           from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { ownCanonical, ownOpenGraph } from "@/lib/seo/page-metadata";
 import { sitemapPathsFor } from "@/lib/seo/sitemap";
 
@@ -47,15 +47,34 @@ describe("ownOpenGraph", () => {
 });
 
 describe("the pages and the layout", () => {
-  const pages = ["[slug]", "blog/[slug]", "cases/[slug]", "team/[slug]", "careers/[slug]", "news/[slug]", "events/[slug]"];
+  // Every page under app/(site), found on disk. A list by hand missed four
+  // page types the first time (vacancies, jobs, companies and contact).
+  const pages = (readdirSync("app/(site)", { recursive: true }) as string[])
+    .filter((file) => file.endsWith("page.tsx"))
+    .map((file) => ({ file, source: readFileSync(`app/(site)/${file}`, "utf8") }));
 
-  it("no CMS page hands the layout an empty canonical or Open Graph", () => {
-    for (const page of pages) {
-      const source = readFileSync(`app/(site)/${page}/page.tsx`, "utf8");
-      assert.doesNotMatch(source, /alternates:\s*[^,\n]*: undefined/, `${page} can wipe the canonical`);
-      assert.doesNotMatch(source, /openGraph:[\s\S]{0,400}?: undefined,\n\s*\}/, `${page} can wipe the Open Graph tags`);
-      assert.match(source, /\.\.\.ownCanonical\(page\),\s*\.\.\.ownOpenGraph\(page\),/, `${page} does not use the shared rule`);
+  it("no page hands the layout an empty canonical or Open Graph", () => {
+    assert.ok(pages.length > 15, `only found ${pages.length} pages`);
+    for (const { file, source } of pages) {
+      assert.doesNotMatch(source, /alternates:\s*[^,\n]*: undefined/, `${file} can wipe the canonical`);
+      assert.doesNotMatch(source, /openGraph:[\s\S]{0,400}?: undefined,\n\s*\}/, `${file} can wipe the Open Graph tags`);
     }
+  });
+
+  it("a page that sets alternates of its own names its canonical too", () => {
+    // An alternates object replaces the layout's as a whole. A page that only
+    // lists its translations there loses its canonical.
+    for (const { file, source } of pages) {
+      const own = /^\s*alternates:\s*\{([\s\S]*?)\n  \}/m.exec(source);
+      if (own) assert.match(own[1]!, /canonical:/, `${file} sets alternates without a canonical`);
+    }
+  });
+
+  it("every page type that reads its metadata from the CMS uses the shared rule", () => {
+    // A page type that reads the editor's robots choice builds its metadata from a CMS entry.
+    const fromCms = pages.filter(({ source }) => /generateMetadata/.test(source) && /page\.robots\?\.noindex/.test(source));
+    assert.ok(fromCms.length >= 10, `only found ${fromCms.length} CMS page types`);
+    for (const { file, source } of fromCms) assert.match(source, /\.\.\.ownCanonical\(page\)/, `${file} does not use the shared rule`);
   });
 
   it("the layout gives every page its own address as the canonical", () => {

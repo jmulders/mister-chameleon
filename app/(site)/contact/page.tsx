@@ -52,6 +52,7 @@ import { loadCmsContactPage, withContactForm } from "@/lib/contact-page";
 import { isSupportedLocale, DEFAULT_LOCALE, LOCALE_COOKIE } from "@/lib/locale";
 import { pageNeedsTitleHeading } from "@/lib/page-title";
 import { PLATFORM_EMAIL } from "@/lib/platform-contact";
+import { ownCanonical } from "@/lib/seo/page-metadata";
 
 const FALLBACK_TITLE       = "Contact | Mister Chameleon";
 const FALLBACK_DESCRIPTION = "Stel je vraag over het product, de prijzen of een demo. Je krijgt binnen één werkdag antwoord.";
@@ -95,7 +96,8 @@ export async function generateMetadata(): Promise<Metadata> {
     robots:      (page.robots?.noindex || page.robots?.nofollow)
                    ? { index: !page.robots.noindex, follow: !page.robots.nofollow }
                    : undefined,
-    alternates:  page.canonicalUrl ? { canonical: page.canonicalUrl } : undefined,
+    // Only the canonical the editor filled in. Without one the page keeps its own address, from the layout.
+    ...ownCanonical(page),
   };
 }
 

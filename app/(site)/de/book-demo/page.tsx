@@ -20,6 +20,8 @@ export const metadata: Metadata = {
     description: t.ogDescription,
   },
   alternates: {
+    // Named here because this object replaces the layout's, canonical included.
+    canonical: "/de/book-demo",
     languages: {
       "nl": "/demo",
       "en": "/book-demo",
