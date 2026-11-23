@@ -176,6 +176,54 @@ describe("requests the limit must not disturb", () => {
   });
 });
 
+describe("a timeout that is noticed after a pause", () => {
+  // A serverless instance does not run between requests. A call that was still
+  // under way keeps its timer, and the timer fires the moment the instance
+  // wakes. Found on the live site on 23 Nov 2026: the first request after a
+  // quiet half minute had its database calls rejected at once.
+
+  it("is told apart by how late it comes", () => {
+    assert.equal(db.firedAfterAPause(1_000, 8_000, 9_050), false, "on time");
+    assert.equal(db.firedAfterAPause(1_000, 8_000, 11_900), false, "a busy instance can be a little late");
+    assert.equal(db.firedAfterAPause(1_000, 8_000, 12_100), true);
+    assert.equal(db.firedAfterAPause(1_000, 8_000, 39_000), true, "half a minute later: the instance stood still");
+  });
+
+  /** Two calls that run into their limit while the clock jumps ahead, as after a pause. */
+  async function twoTimeoutsAcrossAPause(): Promise<void> {
+    hang();
+    const realNow = Date.now;
+    const first  = assert.rejects(db.supabaseFetch(REST), (err: Error) => err.name === "TimeoutError");
+    const second = assert.rejects(db.supabaseFetch(REST), (err: Error) => err.name === "TimeoutError");
+    // The instance is frozen for half a minute while both calls are under way.
+    Date.now = () => realNow() + 30_000;
+    try { await Promise.all([first, second]); } finally { Date.now = realNow; }
+  }
+
+  it("does not open the breaker, so the next request reaches the database", async () => {
+    await twoTimeoutsAcrossAPause();
+    calls = []; answer("[]");
+    assert.equal((await db.supabaseFetch(REST)).status, 200);
+    assert.equal(calls.length, 1, "the call was sent");
+  });
+
+  it("still fails the call itself, whose caller is long gone", async () => {
+    hang();
+    const realNow = Date.now;
+    const call = assert.rejects(db.supabaseFetch(REST), (err: Error) => err.name === "TimeoutError");
+    Date.now = () => realNow() + 30_000;
+    try { await call; } finally { Date.now = realNow; }
+  });
+
+  it("leaves real timeouts alone: two in a row still open the breaker", async () => {
+    hang();
+    await Promise.all([assert.rejects(db.supabaseFetch(REST)), assert.rejects(db.supabaseFetch(REST))]);
+    calls = [];
+    await assert.rejects(db.supabaseFetch(REST), (err: Error) => err.name === "DatabaseUnavailableError");
+    assert.equal(calls.length, 0);
+  });
+});
+
 describe("after two timeouts in a row", () => {
   const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
