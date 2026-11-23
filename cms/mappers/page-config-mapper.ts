@@ -381,6 +381,8 @@ function mapSectionToContentBlock(section: PageSectionData): ContentBlock | null
             title:       f.title,
             description: f.description,
             icon:        f.icon,
+            linkHref:    f.linkHref,
+            linkLabel:   f.linkLabel,
           })),
           // Pass the optional CTA button through to the component.
           cta: section.cta

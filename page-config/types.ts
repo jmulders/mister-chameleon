@@ -354,6 +354,10 @@ export interface FeatureItem {
   readonly description: string;
   /** Icon identifier — resolved by the icon registry in the component layer */
   readonly icon?:       string;
+  /** Where "Lees meer" under a card in a grid leads. Absent: a card without a link. */
+  readonly linkHref?:   string;
+  /** The editor's own text for that link. Absent: the site's "Lees meer". */
+  readonly linkLabel?:  string;
 
   // ── Spotlight fields (feature_spotlight only; grid variants ignore them) ──
   // All optional and backward-compatible. `description` doubles as the copy text

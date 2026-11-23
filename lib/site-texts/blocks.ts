@@ -24,6 +24,8 @@ export type BlockTexts = {
 
   // ── Listing and related content ────────────────────────────────────────────
   viewAll:        string;
+  /** The link under a feature card, when the editor gave it no text of its own. */
+  readMore:       string;
   relatedContent: string;
   /** Shown in place of a slider that has no slides yet. */
   sliderEmpty:    string;
@@ -130,6 +132,7 @@ export const BLOCK_TEXTS: SiteTexts<BlockTexts> = {
     dateLocale: "en",
 
     viewAll:        "View all",
+    readMore:       "Read more",
     relatedContent: "Related content",
     sliderEmpty:    "Add slides in the CMS to see the slider",
     filterByTheme:  "Filter by theme",
@@ -241,6 +244,7 @@ export const BLOCK_TEXTS: SiteTexts<BlockTexts> = {
     dateLocale: "nl-NL",
 
     viewAll:        "Bekijk alles",
+    readMore:       "Lees meer",
     relatedContent: "Ook interessant",
     sliderEmpty:    "Voeg slides toe in het CMS om de slider te zien",
     filterByTheme:  "Filter op thema",
