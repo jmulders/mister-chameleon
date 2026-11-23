@@ -34,12 +34,12 @@ export function toSitemapEntries(origin: string, paths: readonly IndexablePath[]
 
 // ── The marketing site ────────────────────────────────────────────────────────
 //
-// On misterchameleon.nl two pages are code, not CMS entries, so the CMS never
+// On misterchameleon.nl three pages are code, not CMS entries, so the CMS never
 // lists them. And two old addresses only redirect now, while the CMS may still
 // hold an entry with that slug.
 
 const PLATFORM_SITE_HOST   = new URL(PLATFORM_SITE_URL).hostname.replace(/^www\./, "");
-const PLATFORM_SITE_PAGES  = ["/prijzen", "/demo"];
+const PLATFORM_SITE_PAGES  = ["/prijzen", "/demo", "/cookies"];
 const PLATFORM_SITE_MOVED  = new Set([
   "/pricing", "/book-demo",
   "/features", "/about", "/werkenbij", "/blog", "/nieuws", "/news",
