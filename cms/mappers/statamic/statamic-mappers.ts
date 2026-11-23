@@ -759,6 +759,20 @@ export function readStatamicBlockEffectRef(block: Record<string, unknown>): Bloc
  * Returns "" when nothing usable is present. getFormDefinition() then matches on
  * the returned handle.
  */
+/**
+ * The address behind "Lees meer" under a feature card, as the editor typed it.
+ *
+ * Kept when it is a path on this site ("/blog/een-artikel") or a web address.
+ * Anything else gives no link: an empty field, a path without its slash, or a
+ * "javascript:" address would each make a link that leads nowhere or worse.
+ */
+export function featureLinkHref(raw: unknown): string | undefined {
+  if (typeof raw !== "string") return undefined;
+  const href = raw.trim();
+  if (/^\/(?!\/)/.test(href) || /^https?:\/\/[^\s]+$/i.test(href)) return href;
+  return undefined;
+}
+
 export function resolveFormHandle(raw: unknown): string {
   const c = Array.isArray(raw) ? raw[0] : raw;
   if (typeof c === "string") return c.trim();
@@ -1176,6 +1190,10 @@ export function mapStatamicPageBlocksToSections(
             // `body` is the Statamic field name; maps to `description` in FeatureItemData.
             description: typeof item.body === "string" ? item.body : (typeof item.description === "string" ? item.description : ""),
             icon:        typeof item.icon === "string" ? item.icon : undefined,
+            // "Lees meer" under the card. Only an address on this site or a
+            // web address counts: anything else would make a link that leads nowhere.
+            linkHref:    featureLinkHref(item.link_href),
+            linkLabel:   typeof item.link_label === "string" && item.link_label.trim() !== "" ? item.link_label.trim() : undefined,
           })),
           cta,
         };

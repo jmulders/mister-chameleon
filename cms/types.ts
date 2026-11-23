@@ -1444,6 +1444,10 @@ export interface FeatureItemData {
   title: string;
   description: string;
   icon?: string;
+  /** Where "Lees meer" under the card leads. Absent: a card without a link. */
+  linkHref?:  string;
+  /** The editor's own text for that link. Absent: the site's "Lees meer". */
+  linkLabel?: string;
 }
 
 export interface FeatureGridCtaData {

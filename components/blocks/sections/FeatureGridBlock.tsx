@@ -43,6 +43,7 @@ import type { FeatureGridBlockData, BlockCTA } from "@/page-config";
 import { resolveSurface, type BlockSurface } from "@/lib/surface";
 import { isRenderableMedia } from "@/lib/media/block-media";
 import { FeatureSpotlightCard } from "./feature/FeatureSpotlightCard";
+import { FeatureLink } from "./feature/FeatureLink";
 import { FeatureSpotlightSlider } from "./feature/FeatureSpotlightSlider";
 
 // ── Feature icon system ────────────────────────────────────────────────────────
@@ -327,6 +328,9 @@ export function FeatureGridBlock({ data, variant: rawVariant, surface }: Feature
                     <Text variant="body-sm" color="muted">
                       <InlineRichText source={feature.description} />
                     </Text>
+                    {feature.linkHref && (
+                      <FeatureLink href={feature.linkHref} label={feature.linkLabel} title={feature.title} />
+                    )}
                   </Stack>
                 ))}
               </Grid>
@@ -389,6 +393,9 @@ export function FeatureGridBlock({ data, variant: rawVariant, surface }: Feature
                       <Text variant="body-sm" color="muted">
                         <InlineRichText source={feature.description} />
                       </Text>
+                      {feature.linkHref && (
+                        <FeatureLink href={feature.linkHref} label={feature.linkLabel} title={feature.title} />
+                      )}
                     </Stack>
                   </div>
                 ))}
@@ -460,6 +467,9 @@ export function FeatureGridBlock({ data, variant: rawVariant, surface }: Feature
                     <Text variant="body-sm" color="muted">
                       <InlineRichText source={feature.description} />
                     </Text>
+                    {feature.linkHref && (
+                      <FeatureLink href={feature.linkHref} label={feature.linkLabel} title={feature.title} />
+                    )}
                   </Stack>
                 ))}
               </Grid>
@@ -526,6 +536,9 @@ export function FeatureGridBlock({ data, variant: rawVariant, surface }: Feature
                     <Text variant="body-sm" color="muted">
                       <InlineRichText source={feature.description} />
                     </Text>
+                    {feature.linkHref && (
+                      <FeatureLink href={feature.linkHref} label={feature.linkLabel} title={feature.title} />
+                    )}
                   </Stack>
                 ))}
               </Grid>
@@ -596,6 +609,9 @@ export function FeatureGridBlock({ data, variant: rawVariant, surface }: Feature
                     <Text variant="body-sm" color="muted">
                       <InlineRichText source={feature.description} />
                     </Text>
+                    {feature.linkHref && (
+                      <FeatureLink href={feature.linkHref} label={feature.linkLabel} title={feature.title} />
+                    )}
                   </Stack>
                 ))}
               </Grid>
@@ -663,6 +679,9 @@ export function FeatureGridBlock({ data, variant: rawVariant, surface }: Feature
                     <Text variant="body-sm" color="muted">
                       <InlineRichText source={feature.description} />
                     </Text>
+                    {feature.linkHref && (
+                      <FeatureLink href={feature.linkHref} label={feature.linkLabel} title={feature.title} />
+                    )}
                   </Stack>
                 ))}
               </Grid>
@@ -738,6 +757,9 @@ export function FeatureGridBlock({ data, variant: rawVariant, surface }: Feature
                   <Text variant="body-sm" color="muted">
                     <InlineRichText source={feature.description} />
                   </Text>
+                  {feature.linkHref && (
+                    <FeatureLink href={feature.linkHref} label={feature.linkLabel} title={feature.title} />
+                  )}
                 </Stack>
               ))}
             </Grid>
