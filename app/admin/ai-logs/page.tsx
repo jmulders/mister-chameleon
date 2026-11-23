@@ -148,7 +148,7 @@ export default async function AdminAiLogsPage({ searchParams }: PageProps) {
         />
         <StatCard
           label="Tenants"
-          value={visibleTenants.length || ", "}
+          value={visibleTenants.length}
           sub={visibleTenants.length > 0 ? visibleTenants.join(", ") : "no tenant data"}
         />
       </div>

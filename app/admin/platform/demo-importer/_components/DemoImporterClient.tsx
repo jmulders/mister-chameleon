@@ -174,7 +174,7 @@ function StatusOverview({ status }: { status: DemoImporterStatus }) {
 
   const lastRun = status.lastRunAt
     ? new Date(status.lastRunAt).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" })
-    : ": ";
+    : "never";
 
   return (
     <section aria-labelledby="status-heading">

@@ -374,9 +374,9 @@ export function StoragePlatformClient({
         <div className="mt-3 space-y-2 text-xs text-neutral-600">
           <div className="grid grid-cols-2 gap-x-4 gap-y-1">
             <span className="font-medium">Project ID</span>
-            <span className="font-mono text-neutral-500">{config.sanityProjectId || ", "}</span>
+            <span className="font-mono text-neutral-500">{config.sanityProjectId || "not set"}</span>
             <span className="font-medium">Dataset</span>
-            <span className="font-mono text-neutral-500">{config.sanityDataset || ", "}</span>
+            <span className="font-mono text-neutral-500">{config.sanityDataset || "not set"}</span>
             <span className="font-medium">Write token</span>
             <span>{config.sanityHasWriteToken ? <SavedBadge /> : <span className="text-amber-600">Not set</span>}</span>
           </div>

@@ -250,7 +250,7 @@ export function RulesMatrix({ config }: RulesMatrixProps) {
             <tr className="border-b border-neutral-100 bg-neutral-50/70 hover:bg-neutral-100/60 transition-colors">
               <td className="sticky left-0 z-10 bg-neutral-50/70 px-3 py-2 text-center">
                 <span className="inline-block rounded border border-neutral-200 bg-white px-1.5 py-0.5 font-mono text-[10px] text-neutral-400">
-, 
+                  none
                 </span>
               </td>
               <td className="px-3 py-2">
