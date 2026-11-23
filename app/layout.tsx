@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { tenantIcons } from "@/lib/seo/icons";
+import { requestOrigin } from "@/lib/seo/site-identity";
 import "./globals.css";
 // Brand layer for Mister Chameleon's own site; every rule is scoped to html[data-brand].
 import "./brand/mister-chameleon.css";
@@ -127,10 +128,20 @@ export async function generateMetadata(): Promise<Metadata> {
   // NOT the active theme's name. Pages with their own generateMetadata (slug,
   // blog, etc.) override this with their CMS SEO title; the homepage inherits
   // this default. Falling back to the theme name only when a tenant has no name.
+  // The address of this site on this request, for the canonical below. Per
+  // host, because every tenant domain is its own site.
+  const origin = requestOrigin(await headers());
   return {
     title:       tenant.name || tenant.theme.meta.name,
     description: tenant.theme.meta.tagline,
+    // Every page names its own address as the canonical: "./" is resolved
+    // against the path of the page that is asked for, without its query. So a
+    // visit with campaign parameters and a plain visit count as one page. A
+    // page whose editor filled in another canonical says so itself.
+    ...(origin ? { metadataBase: new URL(origin), alternates: { canonical: "./" } } : {}),
     // og:site_name, one of the signals Google uses for the site name in results.
+    // With this object in place Next fills og:title and og:description from
+    // each page's own title and description.
     openGraph:   { siteName: tenant.name || tenant.theme.meta.name },
     icons: tenantIcons(tenant.theme.meta.faviconPath),
   };

@@ -141,7 +141,7 @@ it("the marketing site lists its coded pages and drops moved addresses", () => {
   const cms = [{ path: "/pricing" }, { path: "/cases" }, { path: "/book-demo" }];
   for (const origin of ["https://www.misterchameleon.nl", "https://misterchameleon.nl"]) {
     const paths = sitemapPathsFor(origin, cms).map((p) => p.path);
-    assert.deepEqual(paths, ["/cases", "/prijzen", "/demo"], origin);
+    assert.deepEqual(paths, ["/cases", "/prijzen", "/demo", "/cookies"], origin);
   }
 });
 
@@ -154,5 +154,5 @@ it("the marketing site leaves out every address that only redirects", () => {
   const old = ["/features", "/about", "/werkenbij", "/blog", "/nieuws", "/news", "/services", "/compare", "/sector", "/landing", "/eventsevent", "/casescase", "/signup", "/faq"];
   const cms = [...old.map((path) => ({ path })), { path: "/functies" }, { path: "/blog/een-artikel" }];
   const paths = sitemapPathsFor("https://www.misterchameleon.nl", cms).map((p) => p.path);
-  assert.deepEqual(paths, ["/functies", "/blog/een-artikel", "/prijzen", "/demo"]);
+  assert.deepEqual(paths, ["/functies", "/blog/een-artikel", "/prijzen", "/demo", "/cookies"]);
 });

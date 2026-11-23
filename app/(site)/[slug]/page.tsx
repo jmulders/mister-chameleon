@@ -84,6 +84,7 @@ import { mapStatamicPageBlocksToSections } from "@/cms/mappers/statamic";
 import fs                            from "fs";
 import nodePath                      from "path";
 import { parse as parseYaml }        from "yaml";
+import { ownCanonical, ownOpenGraph } from "@/lib/seo/page-metadata";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -256,14 +257,10 @@ export async function generateMetadata({ params, searchParams }: PageProps): Pro
     robots:      (page.robots?.noindex || page.robots?.nofollow)
                    ? { index: !page.robots.noindex, follow: !page.robots.nofollow }
                    : undefined,
-    alternates:  page.canonicalUrl ? { canonical: page.canonicalUrl } : undefined,
-    openGraph:   (page.ogTitle ?? page.ogDescription ?? page.ogImage)
-                   ? {
-                       title:       page.ogTitle       ?? page.seoTitle       ?? page.title,
-                       description: page.ogDescription ?? page.seoDescription,
-                       images:      page.ogImage ? [page.ogImage] : undefined,
-                     }
-                   : undefined,
+    // Only what the editor filled in. Without it the page keeps the layout's:
+    // its own address as canonical, and Open Graph from its title and description.
+    ...ownCanonical(page),
+    ...ownOpenGraph(page),
     // CMS-authored keywords are injected as <meta name="keywords"> so that
     // PageTracker can read them at runtime and merge them with the static
     // page-meta-map keywords for interest-profile scoring.
