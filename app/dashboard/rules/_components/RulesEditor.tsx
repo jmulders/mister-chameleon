@@ -242,6 +242,10 @@ const HERO_KEY_LABELS: Record<HeroVariantKey, string> = {
   hero_churn_risk:           "Churn Risk · we zien je graag blijven",
   hero_careers_job_interest: "Careers Job Interest · deze rol past",
   hero_careers_submitted:    "Careers Submitted · sollicitatie ontvangen",
+  // One banner per demo role
+  hero_role_marketeer:       "Demo role · marketer",
+  hero_role_bureau:          "Demo role · agency owner",
+  hero_role_technisch:       "Demo role · technical lead",
 };
 
 const PROOF_KEY_LABELS: Record<ProofVariantKey, string> = {

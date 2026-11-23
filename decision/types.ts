@@ -110,7 +110,11 @@ export type HeroVariantKey =
   | "hero_high_friction"
   | "hero_churn_risk"
   | "hero_careers_job_interest"
-  | "hero_careers_submitted";
+  | "hero_careers_submitted"
+  // One banner per demo role ("Who are you?" in the Scenario Control panel)
+  | "hero_role_marketeer"
+  | "hero_role_bureau"
+  | "hero_role_technisch";
 
 /**
  * Runtime tuple of all valid hero variant key strings.
@@ -145,6 +149,10 @@ export const HERO_VARIANT_KEYS: readonly HeroVariantKey[] = [
   "hero_churn_risk",
   "hero_careers_job_interest",
   "hero_careers_submitted",
+  // One banner per demo role
+  "hero_role_marketeer",
+  "hero_role_bureau",
+  "hero_role_technisch",
 ] as const;
 
 // ── Proof variant keys ────────────────────────────────────────────────────────
