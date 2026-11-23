@@ -562,8 +562,45 @@ async function fetchContextDataFromSlots(
   // CachedCMSProvider wrapper so draft content is always fresh.
   const cms = providerOverride ?? createCMSProvider(tenant?.cms, tenantId, locale);
 
+  // A hero from one variant of an adaptive block. Carries the variant's
+  // block-level tokens + effects so the renderer can scope/animate this hero.
+  // Absent → no wrapper.
+  const heroFromVariant = (
+    content:  Parameters<typeof adaptiveVariantToHeroBlockData>[0],
+    blockKey: string,
+    slotKey:  string,
+  ): NonNullable<ContextSlotData["hero"]> => {
+    const heroData  = adaptiveVariantToHeroBlockData(content, blockKey);
+    const tokenRef  = tokenRefFromVariant(content);
+    const effectRef = content.effects && (content.effects.effectSet || content.effects.effects?.length || content.effects.disabled)
+      ? content.effects
+      : undefined;
+    return {
+      ...heroData,
+      ctaKey: slotKey,
+      ...(tokenRef  ? { tokenRef }  : {}),
+      ...(effectRef ? { effectRef } : {}),
+    };
+  };
+
   // One hero by key: the regular variant first, then an adaptive block.
-  const loadHero = async (key: string): Promise<NonNullable<ContextSlotData["hero"]> | null> => {
+  //
+  // `preferredVariantKey` is set for a page that names its own hero while the
+  // rule engine picked a hero for this visitor. When the page's block has a
+  // variant under that key, the visitor gets it: the same page, introduced for
+  // his audience. Without such a variant nothing changes.
+  const loadHero = async (
+    key: string,
+    preferredVariantKey?: string,
+  ): Promise<NonNullable<ContextSlotData["hero"]> | null> => {
+    if (preferredVariantKey) {
+      const own = await cms.getAdaptiveBlock(key);
+      if (own?.isActive) {
+        const picked = resolveAdaptiveVariant(own, { variantKey: preferredVariantKey });
+        if (!picked.isDefault) return heroFromVariant(picked.content, own.key, key);
+      }
+    }
+
     const data = await cms.getHeroVariant(key);
     if (data) return { ...data, ctaKey: key };
 
@@ -576,19 +613,7 @@ async function fetchContextDataFromSlots(
     const adaptive = await cms.getAdaptiveBlock(key);
     if (!adaptive || !adaptive.isActive) return null;
     const { content } = resolveAdaptiveVariant(adaptive);
-    const heroData    = adaptiveVariantToHeroBlockData(content, adaptive.key);
-    // Carry the resolved variant's block-level tokens + effects so the
-    // renderer can scope/animate this hero. Absent → no wrapper.
-    const tokenRef  = tokenRefFromVariant(content);
-    const effectRef = content.effects && (content.effects.effectSet || content.effects.effects?.length || content.effects.disabled)
-      ? content.effects
-      : undefined;
-    return {
-      ...heroData,
-      ctaKey: key,
-      ...(tokenRef  ? { tokenRef }  : {}),
-      ...(effectRef ? { effectRef } : {}),
-    };
+    return heroFromVariant(content, adaptive.key, key);
   };
 
   // Fetch all active slots in parallel — no waterfall.
@@ -597,7 +622,7 @@ async function fetchContextDataFromSlots(
       const key = slot.variantKey!;
       switch (slot.slotId) {
         case "hero": {
-          const hero = await loadHero(key);
+          const hero = await loadHero(key, slot.preferredVariantKey);
           if (hero) return { hero };
           // The page's own hero has no content yet: show the banner instead.
           const fallback = slot.fallbackVariantKey ? await loadHero(slot.fallbackVariantKey) : null;

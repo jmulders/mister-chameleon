@@ -604,7 +604,7 @@ export async function resolveSlugPageConfig(
       // page opens with a heading about that page. The banner then only fills
       // in when that hero has no content. See lib/page-hero-key.ts.
       if (slot.slotId === "hero") {
-        return { ...slot, ...resolveHeroSlotKeys(slot.variantKey, resolvedBannerKey) };
+        return { ...slot, ...resolveHeroSlotKeys(slot.variantKey, resolvedBannerKey, plan.heroKey) };
       }
 
       const engineKey = planKeyForSlot(plan, slot.slotId);
