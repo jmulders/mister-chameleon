@@ -172,6 +172,39 @@ export const DEFAULT_REST_BREAKER_OPEN_MS = 15_000;
  */
 export const REST_PROBE_TIMEOUT_MS = 2_000;
 
+// ── A timer that fires after a pause ───────────────────────────────────────────
+//
+// A serverless instance does not run between requests. A call that is still
+// under way when a response has gone out (a tracking write nobody waits for)
+// stays frozen with its timer until the next request wakes the instance. The
+// timer then fires at once: its deadline passed while nothing ran. That is not
+// a database that fails to answer. The answer may be waiting in the socket.
+//
+// Measured on 23 Nov 2026: on the first request after about half a minute
+// without traffic, calls were rejected within a tenth of a second and no
+// request reached the database, whose log shows every other request answered
+// with 200. Only an open breaker rejects without sending, and it opens after
+// two timeouts in a row. The sitemap of that request listed the homepage only,
+// because the tenant's settings could not be read.
+//
+// A timeout that comes this much later than its limit is therefore not held
+// against the database. A real outage ends a call at its limit, not long after.
+
+/** How much later than its limit a timeout may come and still count as one. */
+export const REST_PAUSE_SLACK_MS = 3_000;
+
+/**
+ * True when a call's time limit was noticed so late that the instance cannot
+ * have been running in between.
+ *
+ * @param startedAtMs When the call went out.
+ * @param limitMs     The time it was given.
+ * @param nowMs       When its timeout was noticed.
+ */
+export function firedAfterAPause(startedAtMs: number, limitMs: number, nowMs: number): boolean {
+  return nowMs - startedAtMs > limitMs + REST_PAUSE_SLACK_MS;
+}
+
 /**
  * One breaker per server instance (see ./db-breaker.ts).
  *
@@ -266,6 +299,7 @@ export function supabaseFetch(
       ? AbortSignal.any([init.signal, AbortSignal.timeout(timeoutMs)])
       : AbortSignal.timeout(timeoutMs);
 
+  const startedAt = Date.now();
   const request = fetch(input, {
     ...init,
     ...(signal ? { signal } : {}),
@@ -293,9 +327,12 @@ export function supabaseFetch(
     const causeMessage =
       cause instanceof Error ? cause.message : String(cause);
     const timedOut = cause instanceof Error && cause.name === "TimeoutError";
+    // A limit that was noticed long after it passed says the instance stood
+    // still, not that the database is slow (see "A timer that fires after a pause").
+    const afterPause = timedOut && timeoutMs !== null && firedAfterAPause(startedAt, timeoutMs, Date.now());
 
     if (guarded) {
-      if (!timedOut) {
+      if (!timedOut || afterPause) {
         breaker().inconclusive(admission);
       } else if (breaker().timedOut(Date.now(), admission)) {
         logger.error("[db] Database does not answer, skipping calls for a while", {
@@ -303,6 +340,16 @@ export function supabaseFetch(
           skipMs: breaker().retryInMs(Date.now()),
         });
       }
+    }
+
+    if (afterPause) {
+      logger.warn("[db] A database call outlived a pause of this server instance, not counted as a timeout", {
+        host,
+        method:   (method ?? "GET").toUpperCase(),
+        waitedMs: Date.now() - startedAt,
+        timeoutMs,
+      });
+      throw cause;
     }
 
     logger.error(timedOut ? "[db] Supabase request timed out" : "[db] Supabase fetch failed", {
