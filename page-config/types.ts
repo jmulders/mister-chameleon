@@ -2059,6 +2059,14 @@ export interface ResolvedContextSlot {
    */
   readonly fallbackVariantKey?: string;
   /**
+   * The variant of this slot's OWN block that the rule engine prefers. Set on
+   * the hero slot of a CMS page that names its own hero: the page keeps its
+   * heading, and when its block has a variant under this key (for example the
+   * banner key of a demo role), that variant is shown instead of the default.
+   * No such variant: the default, as before.
+   */
+  readonly preferredVariantKey?: string;
+  /**
    * Structural position relative to content blocks.
    *
    * Used by the template-based rendering path (Sanity, Storyblok) where slots

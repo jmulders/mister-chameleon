@@ -17,6 +17,12 @@
  * The banner stays on the slot as a fallback, for a page whose own hero has no
  * content yet.
  *
+ * A page's own hero can still speak to the visitor. Its block may hold a
+ * variant per audience, filed under the hero key the rule engine picks for
+ * that audience (`hero_role_bureau`, say). The slot carries that key as the
+ * preferred variant, so an agency owner reads the features page with an
+ * intro for agencies, under the same heading as everyone else.
+ *
  * Pure: no I/O.
  */
 
@@ -30,19 +36,29 @@ export function isPageOwnedHeroKey(key: string | null | undefined): boolean {
 }
 
 export type HeroSlotKeys = {
-  variantKey:          string;
-  fallbackVariantKey?: string;
+  variantKey:           string;
+  fallbackVariantKey?:  string;
+  preferredVariantKey?: string;
 };
 
 /**
- * @param pageKey   the key the CMS author set on the page's hero slot
- * @param bannerKey the banner the rule engine picked, when it picked one
+ * @param pageKey     the key the CMS author set on the page's hero slot
+ * @param bannerKey   the banner the rule engine picked, when it picked one
+ * @param planHeroKey the hero the rule engine picked for this visitor. On a
+ *                    page with its own hero it names the variant of that hero
+ *                    to prefer, never a different block.
  */
-export function resolveHeroSlotKeys(pageKey: string, bannerKey: string | undefined): HeroSlotKeys {
+export function resolveHeroSlotKeys(
+  pageKey:      string,
+  bannerKey:    string | undefined,
+  planHeroKey?: string | null,
+): HeroSlotKeys {
   if (isPageOwnedHeroKey(pageKey)) {
-    return bannerKey && bannerKey !== pageKey
-      ? { variantKey: pageKey, fallbackVariantKey: bannerKey }
-      : { variantKey: pageKey };
+    return {
+      variantKey: pageKey,
+      ...(bannerKey && bannerKey !== pageKey ? { fallbackVariantKey: bannerKey } : {}),
+      ...(planHeroKey && planHeroKey !== pageKey ? { preferredVariantKey: planHeroKey } : {}),
+    };
   }
   return { variantKey: bannerKey ?? pageKey };
 }
