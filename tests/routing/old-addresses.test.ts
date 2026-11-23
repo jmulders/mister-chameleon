@@ -46,6 +46,16 @@ describe("old addresses", () => {
     assert.equal(to("/blog/de-bedrijfsnaam-in-je-titel")?.destination, "/blog/van-bezoeker-naar-lead");
   });
 
+  it("sends the name of the use case page to the page, without fixing that for good", () => {
+    const r = to("/toepassingen");
+    assert.ok(r, "no redirect for /toepassingen");
+    assert.equal(r.destination, "/cases");
+    // Temporary on purpose: the page may move to this address one day, and a
+    // browser that kept a permanent redirect would never see it.
+    assert.equal(r.permanent, false);
+    assert.ok(r.has, "/toepassingen must be tied to the marketing host");
+  });
+
   it("never needs a second hop", () => {
     const sources = new Set(redirects.map((r) => r.source));
     const chained = redirects.filter((r) => sources.has(r.destination)).map((r) => `${r.source} -> ${r.destination}`);

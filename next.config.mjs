@@ -327,7 +327,15 @@ const nextConfig = {
       { source: "/nl/book-demo", destination: "/demo", permanent: true },
     ];
 
-    return [...adminMoves, ...siteMoves, ...everywhere];
+    // The page with the use cases is called "Toepassingen" and lives on /cases.
+    // Someone who types the name as an address lands there. Not for good: a
+    // browser keeps a permanent redirect, and /toepassingen may one day become
+    // the address of the page itself, as /prijzen and /functies did.
+    const aliases = [
+      { source: "/toepassingen", destination: "/cases", permanent: false, has: marketingHost },
+    ];
+
+    return [...adminMoves, ...siteMoves, ...everywhere, ...aliases];
   },
 
   async rewrites() {
