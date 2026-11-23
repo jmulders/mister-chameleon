@@ -24,6 +24,7 @@ import { PageTitleHeader }         from "@/components/site/PageTitleHeader";
 import { getSiteLocale } from "@/lib/site-texts/server";
 import { PAGE_TEXTS } from "@/lib/site-texts/pages";
 import { getActiveTenant, getTenantForRender } from "@/tenant/server";
+import { ownCanonical, ownOpenGraph } from "@/lib/seo/page-metadata";
 
 type PageProps = {
   params: Promise<{ slug: string }>;
@@ -47,14 +48,10 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     robots:      (page.robots?.noindex || page.robots?.nofollow)
                    ? { index: !page.robots.noindex, follow: !page.robots.nofollow }
                    : undefined,
-    alternates:  page.canonicalUrl ? { canonical: page.canonicalUrl } : undefined,
-    openGraph:   (page.ogTitle ?? page.ogDescription ?? page.ogImage)
-                   ? {
-                       title:       page.ogTitle       ?? page.seoTitle       ?? page.title,
-                       description: page.ogDescription ?? page.seoDescription,
-                       images:      page.ogImage ? [page.ogImage] : undefined,
-                     }
-                   : undefined,
+    // Only what the editor filled in. Without it the page keeps the layout's:
+    // its own address as canonical, and Open Graph from its title and description.
+    ...ownCanonical(page),
+    ...ownOpenGraph(page),
   };
 }
 

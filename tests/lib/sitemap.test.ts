@@ -5,6 +5,7 @@
 
 import { describe, it } from "node:test";
 import assert           from "node:assert/strict";
+import { readFileSync } from "node:fs";
 
 import { toSitemapEntries, robotsFor, sitemapPathsFor } from "@/lib/seo/sitemap";
 import { StatamicProvider }            from "@/cms/providers/statamic-provider";
@@ -102,9 +103,44 @@ describe("StatamicProvider.listIndexablePaths", () => {
     assert.deepEqual(paths.map((p) => p.path), ["/contact"]);
   });
 
-  it("skips a collection that fails, not the whole list", async () => {
+  it("skips a collection that keeps failing, not the whole list", async () => {
     const paths = await provider({ pages: [{ id: "1", slug: "contact" }], blog: new Error("500") }).listIndexablePaths();
     assert.deepEqual(paths.map((p) => p.path), ["/contact"]);
+  });
+
+  // A client whose first calls for every collection fail. On 23 Nov 2026 the
+  // live sitemap came back with 4 addresses instead of 34 on the first request
+  // after a quiet half minute. A call that fails once is one way that happens.
+  function flaky(collections: Record<string, unknown[]>, failures: number) {
+    const calls: Record<string, number> = {};
+    const client = {
+      fetchAll: async (collection: string) => {
+        calls[collection] = (calls[collection] ?? 0) + 1;
+        if (calls[collection]! <= failures) throw new Error("other side closed");
+        return collections[collection] ?? [];
+      },
+    } as unknown as StatamicClient;
+    return { provider: new StatamicProvider(client, undefined, null), calls };
+  }
+
+  it("asks a collection once more when the first call fails", async () => {
+    const { provider: p, calls } = flaky({ pages: [{ id: "1", slug: "home" }, { id: "2", slug: "contact" }], blog: [{ id: "3", slug: "een-artikel" }] }, 1);
+    const paths = await p.listIndexablePaths();
+    assert.deepEqual(paths.map((x) => x.path).sort(), ["/", "/blog/een-artikel", "/contact"]);
+    assert.equal(calls.pages, 2);
+    assert.equal(calls.blog, 2);
+  });
+
+  it("fails as a whole when the pages cannot be read, so no short list goes out", async () => {
+    const { provider: p } = flaky({ pages: [{ id: "1", slug: "home" }] }, 2);
+    await assert.rejects(() => p.listIndexablePaths(), /pages of the CMS cannot be read/);
+  });
+
+  it("the sitemap route does not answer with the homepage alone when the CMS fails", () => {
+    const route = readFileSync("app/sitemap.ts", "utf8");
+    const guarded = route.slice(route.indexOf("} catch (err) {"), route.indexOf("return toSitemapEntries("));
+    assert.match(guarded, /throw err;/, "a failing CMS gives a short sitemap with status 200 again");
+    assert.match(route, /if \(!settings\) throw new Error/, "unreadable tenant settings give a homepage-only sitemap again");
   });
   it("multisite: lists only the primary site's copy (the one with home)", async () => {
     const paths = await provider({

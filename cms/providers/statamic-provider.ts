@@ -3366,7 +3366,16 @@ export class StatamicProvider implements CMSProvider {
    * Public paths for the sitemap: the pages collection ("home" is "/") plus
    * every collection with a detail route (COLLECTION_PATH_MAP). The REST API
    * returns published entries only; entries with robots_noindex are left out.
-   * A collection that fails to load is skipped, never the whole sitemap.
+   *
+   * Every collection is asked for twice before it counts as failed. Measured on
+   * 23 Nov 2026: on the first request after half a minute without traffic the
+   * live sitemap listed 4 addresses instead of 34, within a tenth of a second
+   * and with status 200. The next request was complete again. Which call
+   * failed was not established. A second try covers a call that fails once.
+   *
+   * A collection that still fails is skipped, never the whole sitemap. The
+   * pages are the exception: without them the list is not the site, so the
+   * call throws and the sitemap answers with an error instead of a short list.
    *
    * Multisite: the API returns every site's copy of an entry, but the site is
    * served under one set of unprefixed URLs. Only the primary site counts
@@ -3378,8 +3387,15 @@ export class StatamicProvider implements CMSProvider {
       { collection: PAGES_COLLECTION, prefix: "" },
       ...Object.entries(COLLECTION_PATH_MAP).map(([prefix, collection]) => ({ collection, prefix })),
     ];
+    const twice = (collection: string) =>
+      this.client.fetchAll<SitemapEntryFields>(collection, SITEMAP_ENTRY_LIMIT)
+        .catch(() => this.client.fetchAll<SitemapEntryFields>(collection, SITEMAP_ENTRY_LIMIT));
     const lists = await Promise.all(sources.map(({ collection }) =>
-      this.client.fetchAll<SitemapEntryFields>(collection, SITEMAP_ENTRY_LIMIT).catch(() => []),
+      collection === PAGES_COLLECTION
+        ? twice(collection).catch((err: unknown) => {
+            throw new Error(`[sitemap] the pages of the CMS cannot be read: ${err instanceof Error ? err.message : String(err)}`);
+          })
+        : twice(collection).catch(() => []),
     ));
     const primary = primarySiteOf(lists[0] ?? []);
 
