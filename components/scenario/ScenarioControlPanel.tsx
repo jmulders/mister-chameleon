@@ -66,7 +66,7 @@ import { type ScenarioPreset, SCENARIO_PRESET_LIST } from "./scenario-presets";
 import { normalizeCustomPresets } from "./custom-presets";
 import { normalizeScenarioOverrides, foldPanelIntoOverrides, applyPresetOverrides, type OverrideMap } from "./scenario-overrides";
 import type { TenantScenarioPanelSettings, TenantScenarioPreset, TenantScenarioOverride } from "@/tenant/types";
-import { DemoStageSection, ROLES } from "./DemoStageSection";
+import { DemoStageSection, NOT_KNOWN, ROLES } from "./DemoStageSection";
 import { DEMO_FLOW_LIST, runDemoFlow, type DemoFlowProgress } from "./demo-flows";
 import { applyScenarioOverride } from "./apply-scenario-override";
 import { shouldPollJourneyState, consoleIsActive, shouldFetchBackendState } from "./journey-poll";
@@ -648,7 +648,7 @@ function EnricherActionsSection({
     if (st.state === "running") return "⏳";
     if (st.state === "success") return `✓ ${st.durationMs}ms${st.mockMode ? " (mock)" : " (live)"}`;
     if (st.state === "error")   return `✗ ${st.error ?? "failed"}`;
-    return ": ";
+    return "not run";
   }
 
   const enricherList = [
@@ -1686,7 +1686,7 @@ function LiveRow({ label, value }: { label: string; value: string | number | boo
       borderBottom: "1px solid #f1f5f9", paddingBottom: 2 }}>
       <span style={{ color: "#9ca3af" }}>{label}</span>
       <span style={{ fontWeight: 600, color: "#374151", fontFamily: "monospace", fontSize: 10 }}>
-        {String(value ?? ", ")}
+        {String(value ?? NOT_KNOWN)}
       </span>
     </div>
   );
@@ -1743,10 +1743,10 @@ function LiveStateTab({ journey, mergedEventCount, onRefresh, lastRefreshed }: {
   });
 
   // Format the last-refreshed timestamp as a relative "X seconds ago" string.
-  const [refreshLabel, setRefreshLabel] = useState(", ");
+  const [refreshLabel, setRefreshLabel] = useState("not yet");
   useEffect(() => {
     function update() {
-      if (!lastRefreshed) { setRefreshLabel(", "); return; }
+      if (!lastRefreshed) { setRefreshLabel("not yet"); return; }
       const s = Math.round((Date.now() - lastRefreshed.getTime()) / 1000);
       setRefreshLabel(s <= 1 ? "just now" : `${s}s ago`);
     }
@@ -1817,8 +1817,8 @@ function LiveStateTab({ journey, mergedEventCount, onRefresh, lastRefreshed }: {
         </LiveSection>
       )}
       <LiveSection open={open} toggle={toggle} k="timing" title="🕐 Timing">
-        <LiveRow label="First seen"   value={journey.firstSeenAt ? new Date(journey.firstSeenAt).toLocaleString() : ", "} />
-        <LiveRow label="Last seen"    value={journey.lastSeenAt  ? new Date(journey.lastSeenAt).toLocaleString()  : ", "} />
+        <LiveRow label="First seen"   value={journey.firstSeenAt ? new Date(journey.firstSeenAt).toLocaleString() : NOT_KNOWN} />
+        <LiveRow label="Last seen"    value={journey.lastSeenAt  ? new Date(journey.lastSeenAt).toLocaleString()  : NOT_KNOWN} />
         <LiveRow label="From DB"      value={journey.fromDatabase} />
       </LiveSection>
     </div>
@@ -2613,8 +2613,8 @@ export function ScenarioControlPanel({ scenarioPanel, scenarioPresets, scenarioO
             display: "flex", justifyContent: "space-between", flexShrink: 0 }}>
             <span>dev only · session-scoped · {autoApply ? "auto-apply ON" : "manual apply"}</span>
             <span>
-              {journey?.funnelStage ?? ", "} ·{" "}
-              {journey ? pct(journey.confidence.overallConfidence) : ", "}
+              {journey?.funnelStage ?? NOT_KNOWN} ·{" "}
+              {journey ? pct(journey.confidence.overallConfidence) : NOT_KNOWN}
             </span>
           </div>
         </div>

@@ -732,6 +732,10 @@ export const ALLOWED_HERO_KEYS: readonly HeroVariantKey[] = [
   "hero_churn_risk",
   "hero_careers_job_interest",
   "hero_careers_submitted",
+  // One banner per demo role ("Who are you?" in the Scenario Control panel)
+  "hero_role_marketeer",
+  "hero_role_bureau",
+  "hero_role_technisch",
 ] as const;
 
 export const ALLOWED_PROOF_KEYS: readonly ProofVariantKey[] = [

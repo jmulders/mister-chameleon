@@ -56,6 +56,15 @@ const ROLE_LABELS: Record<string, string> = {
   "demo-role-technisch": "Technical lead",
 };
 
+/**
+ * What a readout shows for a signal the site has no value for.
+ *
+ * A word, never a punctuation mark: these rows once showed a dash, a sweep that
+ * took the dashes out of the copy left a lone comma and colon behind, and a
+ * visitor read "Role ," as a broken panel.
+ */
+export const NOT_KNOWN = "unknown";
+
 function activeSegment(o: ScenarioOverrides): string | null {
   const seg = o.audienceSegmentIds;
   return typeof seg === "string" && seg ? seg : null;
@@ -160,12 +169,12 @@ export function DemoStageSection({
   }
 
   // ── Readout values ──────────────────────────────────────────────────────────
-  const roleText = active ? (ROLE_LABELS[active] ?? active) : ", ";
+  const roleText = active ? (ROLE_LABELS[active] ?? active) : NOT_KNOWN;
   const interestText = o.interestPrimary
     ? `${o.interestPrimary}${typeof o.interestConfidence === "number" ? ` (${Math.round(o.interestConfidence * 100)}%)` : ""}`
-    : ": ";
-  const stageText  = o.funnelStage ?? ", ";
-  const intentText = typeof o.intentScore === "number" ? String(o.intentScore) : ", ";
+    : NOT_KNOWN;
+  const stageText  = o.funnelStage ?? NOT_KNOWN;
+  const intentText = typeof o.intentScore === "number" ? String(o.intentScore) : NOT_KNOWN;
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
