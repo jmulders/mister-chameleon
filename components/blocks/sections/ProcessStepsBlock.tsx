@@ -16,11 +16,12 @@
  *   compact    — tight inline numbered list; lower vertical footprint
  *   horizontal — horizontal step track with connecting line and numbered nodes;
  *                ideal for short 3–5 step flows on landing pages
- *   arrows     — a row of arrow-shaped blocks, each with its number and title,
- *                and the text of the step under it. All steps stand side by
- *                side on a wide screen; on a narrow one the row slides sideways
- *                and the next arrow peeks in, so it reads as a slider. For
- *                three to five steps with a short text each.
+ *   arrows     — arrow-shaped blocks that point from one step to the next. On a
+ *                wide screen they stand in a row, each with its number and
+ *                title, and the text of the step under it. On a narrow one
+ *                the steps stack: the arrows point down in a column on the
+ *                left and the title and text stand beside them. For three to
+ *                five steps with a short text each.
  *   flow       — a line the steps hang on, cards left and right of it in turn;
  *                for a longer story of five to eight steps, where each step has
  *                a few sentences. A step's `duration` shows as a label on its
@@ -370,22 +371,36 @@ export function ProcessStepsBlock({ data, variant: rawVariant, surface }: Proces
 
   // ── arrows variant ───────────────────────────────────────────────────────────
   //
-  // Each step is an arrow that points at the next one, with its text under it.
-  // The arrow is one element with a clip-path: a point on the right, and a
-  // notch on the left for every arrow but the first. An arrow is pulled left
-  // over the room its neighbour's point leaves, so a thin gap of the section's
-  // background stays between two arrows.
+  // Each step is an arrow that points at the next one. The arrow is one element
+  // with a clip-path: a point on the far side, and a notch on the near side for
+  // every arrow but the first. An arrow is pulled over the room its neighbour's
+  // point leaves, so a thin gap of the section's background stays between two.
   //
-  // The row is a scroll container with snap points and no script. On a wide
-  // screen the steps share the width; below that a step takes most of the
-  // screen and the next one shows at the edge, which invites a swipe. The row
-  // can take focus, so the keyboard can scroll it too.
+  // Wide screen: the arrows stand in a row and point right. Number and title
+  // are in the arrow, the text of the step is under it.
+  //
+  // Below that the steps stack and the arrows point down. They form a column on
+  // the left with the number in it, and the title and the text stand beside
+  // their arrow. So a phone shows every step at once: a row that slides
+  // sideways hid three of the four steps behind a swipe.
+  //
+  // Both shapes are on the element as custom properties and a class picks one
+  // per breakpoint, so there is one arrow per step in the markup. The title is
+  // there twice, in the arrow and beside it. One of the two is always
+  // `display: none`, so a screen reader meets it once.
+  //
+  // With many steps the row can still be wider than a small laptop. Then it
+  // scrolls, and it can take focus so the keyboard can scroll it too.
 
   if (variant === "arrows") {
     const POINT = 18; // px the point sticks out, and the notch cuts in
     const GAP   = 6;  // px of background between two arrows
-    const shapeFirst = `polygon(0 0, calc(100% - ${POINT}px) 0, 100% 50%, calc(100% - ${POINT}px) 100%, 0 100%)`;
-    const shapeNext  = `polygon(0 0, calc(100% - ${POINT}px) 0, 100% 50%, calc(100% - ${POINT}px) 100%, 0 100%, ${POINT}px 50%)`;
+    const right     = `calc(100% - ${POINT}px) 0, 100% 50%, calc(100% - ${POINT}px) 100%, 0 100%`;
+    const down      = `100% 0, 100% calc(100% - ${POINT}px), 50% 100%, 0 calc(100% - ${POINT}px)`;
+    const rightFirst = `polygon(0 0, ${right})`;
+    const rightNext  = `polygon(0 0, ${right}, ${POINT}px 50%)`;
+    const downFirst  = `polygon(0 0, ${down})`;
+    const downNext   = `polygon(0 0, 50% ${POINT}px, ${down})`;
     return (
       <Section
         spacing="lg"
@@ -409,47 +424,50 @@ export function ProcessStepsBlock({ data, variant: rawVariant, surface }: Proces
                 // A row that scrolls must be reachable without a mouse.
                 tabIndex={0}
                 aria-label={heading || undefined}
-                className="-mx-4 grid snap-x snap-mandatory grid-flow-col auto-cols-[78%] overflow-x-auto px-4 pb-3 sm:auto-cols-[46%] lg:mx-0 lg:auto-cols-[minmax(13rem,1fr)] lg:px-0"
-                style={{ scrollbarWidth: "thin", scrollPaddingInline: "1rem" }}
+                className="mx-auto flex w-full max-w-xl flex-col lg:mx-0 lg:grid lg:max-w-none lg:grid-flow-col lg:auto-cols-[minmax(13rem,1fr)] lg:overflow-x-auto lg:pb-3"
+                style={{ scrollbarWidth: "thin" }}
               >
                 {items.map((step, index) => {
                   const first = index === 0;
                   return (
-                    <li key={index} className="snap-start">
+                    <li key={index} className="grid grid-cols-[3.75rem_minmax(0,1fr)] gap-x-4 lg:block">
                       <div
                         // The same hooks as the numbered circle, so a brand layer
                         // colours an arrow as it colours that step's number.
                         data-part="step-number"
                         data-step={(index % 6) + 1}
-                        className="flex h-16 items-center gap-3 text-base font-bold leading-tight"
+                        className="mt-[var(--arrow-pull)] flex justify-center pt-[var(--arrow-inset)] text-base font-bold leading-tight [clip-path:var(--arrow-down)] lg:ml-[var(--arrow-pull)] lg:mt-0 lg:h-16 lg:items-center lg:justify-start lg:gap-3 lg:pl-[var(--arrow-lead)] lg:pr-[var(--arrow-tail)] lg:pt-0 lg:[clip-path:var(--arrow-right)]"
                         style={{
-                          marginLeft:   first ? 0 : -(POINT - GAP),
-                          paddingLeft:  first ? 20 : 20 + (POINT - GAP),
-                          paddingRight: POINT + 10,
-                          clipPath:     first ? shapeFirst : shapeNext,
-                          background:   "color-mix(in srgb, var(--primary) 12%, transparent)",
-                          color:        "var(--primary)",
-                        }}
+                          "--arrow-down":  first ? downFirst : downNext,
+                          "--arrow-right": first ? rightFirst : rightNext,
+                          "--arrow-pull":  `${first ? 0 : -(POINT - GAP)}px`,
+                          "--arrow-inset": `${first ? 14 : 14 + (POINT - GAP)}px`,
+                          "--arrow-lead":  `${first ? 20 : 20 + (POINT - GAP)}px`,
+                          "--arrow-tail":  `${POINT + 10}px`,
+                          background:      "color-mix(in srgb, var(--primary) 12%, transparent)",
+                          color:           "var(--primary)",
+                        } as React.CSSProperties}
                       >
                         <span aria-hidden="true" className="text-2xl tabular-nums" style={{ opacity: 0.75 }}>
                           {index + 1}
                         </span>
-                        <span>{step.title}</span>
+                        <span className="hidden lg:inline">{step.title}</span>
                       </div>
-                      {(step.description || step.duration) && (
-                        <div className="pl-5 pr-6 pt-4">
-                          {step.description && (
-                            <Text variant="body" color="muted" className="leading-relaxed">
-                              {step.description}
-                            </Text>
-                          )}
-                          {step.duration && (
-                            <span className="mt-2 block text-sm" style={{ color: "var(--text-subtle)" }}>
-                              {step.duration}
-                            </span>
-                          )}
-                        </div>
-                      )}
+                      <div className="pb-9 pt-3.5 lg:pb-0 lg:pl-5 lg:pr-6 lg:pt-4">
+                        <span className="block text-lg font-bold leading-snug lg:hidden" style={{ color: "var(--text)" }}>
+                          {step.title}
+                        </span>
+                        {step.description && (
+                          <Text variant="body" color="muted" className="mt-1 leading-relaxed lg:mt-0">
+                            {step.description}
+                          </Text>
+                        )}
+                        {step.duration && (
+                          <span className="mt-2 block text-sm" style={{ color: "var(--text-subtle)" }}>
+                            {step.duration}
+                          </span>
+                        )}
+                      </div>
                     </li>
                   );
                 })}

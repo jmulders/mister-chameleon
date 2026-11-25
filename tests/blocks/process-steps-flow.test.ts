@@ -66,8 +66,11 @@ describe("process steps, flow layout", () => {
 
 // ── The "arrows" layout ───────────────────────────────────────────────────────
 //
-// A row of arrow-shaped blocks that slides sideways on a small screen. The
-// owner asked for it on 25 Nov 2026, for the four steps on /hoe-het-werkt.
+// Arrow-shaped blocks that point from one step to the next. The owner asked for
+// them on 25 Nov 2026, for the four steps on /hoe-het-werkt. The first version
+// slid sideways on a phone. The owner found that unclear the same day: one
+// step filled the screen and the other three sat behind a swipe. Now the steps
+// stack on a narrow screen and the arrows point down.
 
 const arrows = source.slice(source.indexOf('if (variant === "arrows")'), source.indexOf("// ── flow variant"));
 
@@ -77,35 +80,58 @@ describe("process steps, arrows layout", () => {
     assert.ok(arrows.length > 0, "the component has no arrows branch");
   });
 
-  it("stays an ordered list", () => {
+  it("stays an ordered list, with no script", () => {
     assert.match(arrows, /<ol/);
     assert.match(arrows, /<li/);
-  });
-
-  it("slides with snap points and no script", () => {
-    assert.match(arrows, /snap-x snap-mandatory/);
-    assert.match(arrows, /overflow-x-auto/);
-    assert.match(arrows, /className="snap-start"/);
     assert.doesNotMatch(source, /^"use client"/m);
   });
 
-  it("shows the next arrow at the edge of a small screen, and all of them on a wide one", () => {
-    // 78% leaves a strip of the next step in view, which is what says "swipe".
-    assert.match(arrows, /auto-cols-\[78%\]/);
+  it("stacks the steps on a narrow screen and does not slide there", () => {
+    const list = /<ol[\s\S]*?className="([^"]+)"/.exec(arrows)![1].split(" ");
+    assert.ok(list.includes("flex") && list.includes("flex-col"), "the steps must stack below lg");
+    // Scrolling sideways belongs to the wide row only.
+    assert.ok(list.includes("lg:overflow-x-auto"));
+    assert.ok(!list.includes("overflow-x-auto"), "a phone must show every step without a swipe");
+    assert.doesNotMatch(arrows, /snap-x|auto-cols-\[78%\]/);
+  });
+
+  it("puts the steps side by side on a wide screen", () => {
+    assert.match(arrows, /lg:grid-flow-col/);
     assert.match(arrows, /lg:auto-cols-\[minmax\(13rem,1fr\)\]/);
   });
 
-  it("can take focus, so the keyboard can scroll the row", () => {
+  it("can take focus, so the keyboard can scroll the wide row", () => {
     assert.match(arrows, /tabIndex=\{0\}/);
     assert.match(arrows, /aria-label=\{heading \|\| undefined\}/);
   });
 
+  it("points down when stacked and right in the row", () => {
+    assert.match(arrows, /\[clip-path:var\(--arrow-down\)\]/);
+    assert.match(arrows, /lg:\[clip-path:var\(--arrow-right\)\]/);
+    assert.match(arrows, /"--arrow-down":\s+first \? downFirst : downNext/);
+    assert.match(arrows, /"--arrow-right":\s+first \? rightFirst : rightNext/);
+    // Down: the point is in the middle of the bottom edge.
+    assert.match(arrows, /const down\s+= `[^`]*50% 100%/);
+    // Right: the point is in the middle of the right edge.
+    assert.match(arrows, /const right\s+= `[^`]*100% 50%/);
+  });
+
   it("cuts a notch in every arrow but the first and leaves a gap between two", () => {
-    assert.match(arrows, /clipPath:\s+first \? shapeFirst : shapeNext/);
-    assert.match(arrows, /marginLeft:\s+first \? 0 : -\(POINT - GAP\)/);
+    assert.match(arrows, /const downNext\s+= `polygon\(0 0, 50% \$\{POINT\}px, /);
+    assert.match(arrows, /const rightNext\s+= `polygon\(0 0, \$\{right\}, \$\{POINT\}px 50%\)`/);
+    assert.match(arrows, /"--arrow-pull":\s+`\$\{first \? 0 : -\(POINT - GAP\)\}px`/);
+    // The same pull works on the top when stacked and on the left in the row.
+    assert.match(arrows, /mt-\[var\(--arrow-pull\)\]/);
+    assert.match(arrows, /lg:ml-\[var\(--arrow-pull\)\]/);
     const point = Number(/const POINT = (\d+);/.exec(arrows)![1]);
     const gap   = Number(/const GAP   = (\d+);/.exec(arrows)![1]);
     assert.ok(gap > 0 && gap < point, "the arrows must not touch, and must still interlock");
+  });
+
+  it("shows the title once: beside the arrow when stacked, in it in the row", () => {
+    assert.equal(arrows.match(/\{step\.title\}/g)?.length, 2);
+    assert.match(arrows, /<span className="hidden lg:inline">\{step\.title\}<\/span>/);
+    assert.match(arrows, /className="block [^"]*lg:hidden"[^>]*>\s*\{step\.title\}/);
   });
 
   it("takes its colour from the same hook as the numbered circle", () => {
