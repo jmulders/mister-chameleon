@@ -21,7 +21,7 @@ import { checkWalletForEnrichment } from "@/billing/enrichment-guard";
 import { logger }                   from "@/lib/logger";
 
 /** 1 credit = €0.01 — same unit as an enrichment lookup. */
-const RECOGNITION_CREDIT_COST = 1;
+export const RECOGNITION_CREDIT_COST = 1;
 
 export async function billLeadCredit(
   tenantId:    string,
