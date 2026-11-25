@@ -69,9 +69,11 @@ function isWeekend(dateStr: string): boolean {
   return dow === 0 || dow === 6;
 }
 
-function formatDisplayDate(dateStr: string): string {
+/** The date in the language of the page. It was always English until 25 Nov 2026. */
+function formatDisplayDate(dateStr: string, locale: string): string {
   try {
-    return new Date(dateStr + "T12:00:00Z").toLocaleDateString("en-GB", {
+    return new Date(dateStr + "T12:00:00Z").toLocaleDateString(locale, {
+      timeZone: "UTC",
       weekday: "long",
       year:    "numeric",
       month:   "long",
@@ -82,8 +84,10 @@ function formatDisplayDate(dateStr: string): string {
   }
 }
 
-function formatTime12h(time: string): string {
+/** "2:00 PM" where the language uses a twelve-hour clock, "14:00" elsewhere. */
+function formatTime(time: string, twelveHour: boolean): string {
   const [h, m] = time.split(":").map(Number) as [number, number];
+  if (!twelveHour) return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
   const suffix = h >= 12 ? "PM" : "AM";
   const hour12 = h % 12 === 0 ? 12 : h % 12;
   return `${hour12}:${String(m).padStart(2, "0")} ${suffix}`;
@@ -274,7 +278,11 @@ function TimeSlotsGrid({
 }) {
   const [slots,   setSlots]   = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error,   setError]   = useState<string | null>(null);
+  // What went wrong, not the text of it: the server's own message is for the
+  // log. "calendar" = the calendar could not be read, "connect" = no answer.
+  const [error,   setError]   = useState<"calendar" | "connect" | null>(null);
+  // Raised by "try again", so the effect below asks the server once more.
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -283,24 +291,24 @@ function TimeSlotsGrid({
     setSlots([]);
 
     fetch(`/api/demo/availability?date=${date}`)
-      .then((r) => r.json() as Promise<{ ok: boolean; slots?: string[]; error?: string }>)
+      .then((r) => r.json() as Promise<{ ok: boolean; slots?: string[] }>)
       .then((data) => {
         if (cancelled) return;
         if (data.ok && data.slots) {
           setSlots(data.slots);
         } else {
-          setError(data.error ?? t.errorLoadSlots);
+          setError("calendar");
         }
       })
       .catch(() => {
-        if (!cancelled) setError(t.errorConnect);
+        if (!cancelled) setError("connect");
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
       });
 
     return () => { cancelled = true; };
-  }, [date, t.errorLoadSlots, t.errorConnect]);
+  }, [date, attempt]);
 
   if (loading) {
     return (
@@ -313,14 +321,24 @@ function TimeSlotsGrid({
 
   if (error) {
     return (
-      <div className="rounded-xl bg-red-50 border border-red-100 p-4 text-center">
-        <p className="text-sm text-red-700">{error}</p>
-        <button
-          onClick={() => setError(null)}
-          className="mt-2 text-xs text-red-700 underline"
-        >
-          {t.tryAgain}
-        </button>
+      <div role="alert" className="rounded-xl bg-red-50 border border-red-100 p-4 text-center">
+        <p className="text-sm text-red-700">{error === "connect" ? t.errorConnect : t.errorCalendar}</p>
+        <div className="mt-2 flex flex-wrap items-center justify-center gap-x-4 gap-y-1">
+          {/* Until 25 Nov 2026 this only cleared the message, and the page then
+              said the day was full. It asks the server again. */}
+          <button
+            type="button"
+            onClick={() => setAttempt((n) => n + 1)}
+            className="text-xs text-red-700 underline"
+          >
+            {t.tryAgain}
+          </button>
+          {error === "calendar" && (
+            <a href={t.contactHref} className="text-xs text-red-700 underline">
+              {t.errorCalendarLink}
+            </a>
+          )}
+        </div>
       </div>
     );
   }
@@ -338,7 +356,7 @@ function TimeSlotsGrid({
   return (
     <div>
       <p className="text-xs font-medium text-[color:var(--text-muted)] uppercase tracking-wide mb-3">
-        {t.availableTimesPrefix}{formatDisplayDate(date)}
+        {t.availableTimesPrefix}{formatDisplayDate(date, t.dateLocale)}
       </p>
       <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 max-h-72 overflow-y-auto pr-1">
         {slots.map((slot) => (
@@ -353,7 +371,7 @@ function TimeSlotsGrid({
               }
             `}
           >
-            {formatTime12h(slot)}
+            {formatTime(slot, t.hour12)}
           </button>
         ))}
       </div>
@@ -412,7 +430,8 @@ export function BookDemoClient({ t }: BookDemoClientProps) {
     name: "", email: "", company: "", phone: "", message: "",
   });
   const [submitting, setSubmitting] = useState(false);
-  const [submitError, setSubmitError] = useState<string | null>(null);
+  // The kind of failure. The text comes from the translations, never from the server.
+  const [submitError, setSubmitError] = useState<"slot_taken" | "calendar" | "generic" | "network" | null>(null);
   const [formErrors, setFormErrors] = useState<Partial<Record<keyof BookingState, string>>>({});
 
   // ── Handlers ──────────────────────────────────────────────────────────────
@@ -460,15 +479,18 @@ export function BookDemoClient({ t }: BookDemoClientProps) {
         }),
       });
 
-      const data = await res.json() as { ok?: boolean; error?: string };
+      const data = await res.json() as { ok?: boolean; code?: string };
 
       if (!res.ok || !data.ok) {
-        setSubmitError(data.error ?? t.errorGeneric);
+        setSubmitError(
+          data.code === "slot_taken"           ? "slot_taken" :
+          data.code === "calendar_unavailable" ? "calendar"   : "generic",
+        );
       } else {
         setStep("confirmed");
       }
     } catch {
-      setSubmitError(t.errorNetwork);
+      setSubmitError("network");
     } finally {
       setSubmitting(false);
     }
@@ -537,7 +559,7 @@ export function BookDemoClient({ t }: BookDemoClientProps) {
 
               <h3 className="text-base font-semibold text-[color:var(--text)] mb-2">{t.chooseTimeTitle}</h3>
               <p className="text-sm text-[color:var(--text-muted)] mb-5">
-                {formatDisplayDate(booking.date)} · {t.timezone}
+                {formatDisplayDate(booking.date, t.dateLocale)} · {t.timezone}
               </p>
 
               <TimeSlotsGrid
@@ -560,8 +582,8 @@ export function BookDemoClient({ t }: BookDemoClientProps) {
                   </svg>
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-[color:var(--text)] truncate">{formatDisplayDate(booking.date)}</p>
-                  <p className="text-xs text-[color:var(--text-muted)]">{formatTime12h(booking.time)} · {t.duration}</p>
+                  <p className="text-sm font-semibold text-[color:var(--text)] truncate">{formatDisplayDate(booking.date, t.dateLocale)}</p>
+                  <p className="text-xs text-[color:var(--text-muted)]">{formatTime(booking.time, t.hour12)} · {t.duration}</p>
                 </div>
                 <button
                   onClick={() => setStep("time")}
@@ -635,8 +657,17 @@ export function BookDemoClient({ t }: BookDemoClientProps) {
                 </Field>
 
                 {submitError && (
-                  <div className="rounded-lg bg-red-50 border border-red-100 p-3">
-                    <p className="text-sm text-red-700">{submitError}</p>
+                  <div role="alert" className="rounded-lg bg-red-50 border border-red-100 p-3">
+                    <p className="text-sm text-red-700">
+                      {submitError === "slot_taken" ? t.errorSlotTaken :
+                       submitError === "calendar"   ? t.errorCalendar  :
+                       submitError === "network"    ? t.errorNetwork   : t.errorGeneric}
+                    </p>
+                    {submitError === "calendar" && (
+                      <a href={t.contactHref} className="mt-1 inline-block text-xs text-red-700 underline">
+                        {t.errorCalendarLink}
+                      </a>
+                    )}
                   </div>
                 )}
 
@@ -693,13 +724,13 @@ export function BookDemoClient({ t }: BookDemoClientProps) {
                     <svg className="w-4 h-4 text-[color:var(--text-muted)] flex-shrink-0" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
                     </svg>
-                    <span className="text-sm text-[color:var(--text)] font-medium">{formatDisplayDate(booking.date)}</span>
+                    <span className="text-sm text-[color:var(--text)] font-medium">{formatDisplayDate(booking.date, t.dateLocale)}</span>
                   </div>
                   <div className="flex items-center gap-3">
                     <svg className="w-4 h-4 text-[color:var(--text-muted)] flex-shrink-0" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
-                    <span className="text-sm text-[color:var(--text)]">{formatTime12h(booking.time)} · {t.duration} · {t.timezone}</span>
+                    <span className="text-sm text-[color:var(--text)]">{formatTime(booking.time, t.hour12)} · {t.duration} · {t.timezone}</span>
                   </div>
                   <div className="flex items-center gap-3">
                     <svg className="w-4 h-4 text-[color:var(--text-muted)] flex-shrink-0" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">

@@ -8,7 +8,10 @@
  *
  *   200  { ok: true, slots: ["09:00", "09:30", ...], date: "YYYY-MM-DD" }
  *   400  { error: "..." }  — missing or malformed date
- *   500  { error: "..." }  — Google Calendar API error
+ *   503  { ok: false, code: "calendar_unavailable" }  — the calendar could
+ *        not be read. The cause goes to the log, never to the visitor: on
+ *        25 Nov 2026 the booking page showed Google's raw answer to a rejected
+ *        service account key ("Google token exchange failed (400): ...").
  *
  * ─── Caching ──────────────────────────────────────────────────────────────────
  *
@@ -20,6 +23,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAvailableSlots }         from "@/lib/google-calendar/availability";
 import { getActiveTenant }           from "@/tenant/get-active-tenant";
+import { logger }                    from "@/lib/logger";
 
 export const runtime = "nodejs";
 
@@ -66,7 +70,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   const result = await getAvailableSlots(date, await activeTenantId());
 
   if (!result.ok) {
-    return NextResponse.json({ error: result.error }, { status: 500 });
+    logger.error("[demo/availability] Calendar lookup failed", { date, error: result.error });
+    return NextResponse.json({ ok: false, code: "calendar_unavailable" }, { status: 503 });
   }
 
   return NextResponse.json(result, {
