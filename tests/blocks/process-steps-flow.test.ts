@@ -45,8 +45,22 @@ describe("process steps, flow layout", () => {
   });
 
   it("keeps the numbered circle a brand layer can colour", () => {
-    assert.match(flow, /<StepNumber n=\{index \+ 1\} large \/>/);
+    assert.match(flow, /<StepNumber n=\{index \+ 1\} large connect=/);
     assert.match(source, /data-part="step-number"/);
+  });
+
+  it("ties every node to its own card with an arm in the step's colour", () => {
+    // The owner on 25 Nov 2026: with interleaving cards it is not clear which
+    // card belongs to which step. The card's side decides where the arm goes.
+    assert.match(flow, /connect=\{right \? "after" : "before"\}/);
+    const node = source.slice(source.indexOf("function StepNumber("), source.indexOf("// ── Block component"));
+    // Arm and tab sit inside the circle, so they inherit the brand's step colour.
+    assert.match(node, /var\(--mc-step, var\(--primary\)\)/);
+    assert.equal(node.match(/aria-hidden="true"/g)?.length, 2, "an arm and a tab, both decoration");
+    // On a phone the card is always after the circle, on either setting.
+    assert.match(node, /"left-full md:left-auto md:right-full"/);
+    // Other layouts draw the plain circle.
+    assert.match(node, /\{connect && \(/);
   });
 });
 
