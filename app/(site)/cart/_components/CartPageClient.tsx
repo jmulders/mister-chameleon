@@ -7,46 +7,21 @@
  *
  * Shows:
  *   - Selected plan (with features list and price)
- *   - Added credit bundles (with qty controls)
  *   - Order total
  *   - "Proceed to checkout" CTA → /checkout
  *   - "Back to pricing" link
  *   - Empty-cart state with a link back to /pricing
  *
- * Credit bundles that can be added here:
- *   The Hatchling  (5K credits  — €50)
- *   The Climber    (25K credits — €200)
- *   The Dragon     (100K credits — €750)
+ * The cart holds a plan and nothing else. Until 25 Nov 2026 it also offered
+ * three credit bundles. The checkout never charged or credited them, so the
+ * offer is gone; credits are bought in the account. A cart that still carries
+ * such a line loses it when it is read (lib/cart/cart-store.ts).
  */
 
 import Link                   from "next/link";
 import { useCart }            from "@/lib/cart/cart-context";
-import type { CartCreditBundle } from "@/lib/cart/cart-context";
 import { useSiteLocale }      from "@/components/site/SiteLocale";
 import { SHOP_TEXTS }         from "@/lib/site-texts/shop";
-
-// ── Static credit catalogue (mirrors pricing page) ────────────────────────────
-
-const AVAILABLE_BUNDLES: Array<Omit<CartCreditBundle, "quantity">> = [
-  {
-    bundleId:       "hatchling",
-    label:          "The Hatchling",
-    priceCentsEach: 5_000,
-    creditsEach:    5_000,
-  },
-  {
-    bundleId:       "climber",
-    label:          "The Climber",
-    priceCentsEach: 20_000,
-    creditsEach:    25_000,
-  },
-  {
-    bundleId:       "dragon",
-    label:          "The Dragon",
-    priceCentsEach: 75_000,
-    creditsEach:    100_000,
-  },
-];
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 //
@@ -144,7 +119,6 @@ export function CartPageClient() {
   const {
     cart,
     removePlan,
-    addCreditBundle,
     updateCreditBundleQty,
     removeCreditBundle,
     totalCents,
@@ -322,49 +296,6 @@ export function CartPageClient() {
               </div>
             </div>
           ))}
-
-          {/* Add credits section */}
-          <div>
-            <p style={{ fontSize: "0.8125rem", fontWeight: 600, color: "#6b7280", marginBottom: "0.875rem", textTransform: "uppercase", letterSpacing: "0.06em" }}>
-              {t.addCreditsHeading}
-            </p>
-            <div className="bundle-grid">
-              {AVAILABLE_BUNDLES.filter(
-                (ab) => !cart.creditBundles.some((b) => b.bundleId === ab.bundleId),
-              ).map((ab) => (
-                <button
-                  key={ab.bundleId}
-                  type="button"
-                  onClick={() => addCreditBundle({ ...ab, quantity: 1 })}
-                  style={{
-                    border: "1px dashed #d1d5db",
-                    borderRadius: "0.75rem",
-                    padding: "1rem",
-                    background: "#f9fafb",
-                    textAlign: "left",
-                    cursor: "pointer",
-                    transition: "border-color 0.15s, background 0.15s",
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.borderColor = "#6366f1";
-                    e.currentTarget.style.background  = "#eef2ff";
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.borderColor = "#d1d5db";
-                    e.currentTarget.style.background  = "#f9fafb";
-                  }}
-                >
-                  <div style={{ fontWeight: 600, fontSize: "0.875rem", color: "#111827" }}>{ab.label}</div>
-                  <div style={{ fontSize: "0.75rem", color: "#6b7280", marginTop: "0.2rem" }}>
-                    {(ab.creditsEach).toLocaleString("nl-NL")} credits · {fmtEuro(ab.priceCentsEach)}
-                  </div>
-                  <div style={{ marginTop: "0.75rem", fontSize: "0.75rem", fontWeight: 600, color: "#6366f1" }}>
-                    {t.addToOrder}
-                  </div>
-                </button>
-              ))}
-            </div>
-          </div>
         </div>
 
         {/* ── Right column: order summary + CTA ───────────────────────────── */}
@@ -464,11 +395,6 @@ export function CartPageClient() {
           display: grid;
           grid-template-columns: 1fr;
           gap: 2rem;
-        }
-        .bundle-grid {
-          display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-          gap: 0.75rem;
         }
         @media (min-width: 768px) {
           .cart-layout {

@@ -108,6 +108,18 @@ export function computeTotals(cart: Cart): { itemCount: number; totalCents: numb
   return { itemCount, totalCents };
 }
 
+/**
+ * A cart as read from storage, without credit bundles.
+ *
+ * The public site sold three credit bundles through the cart until 25 Nov 2026.
+ * The checkout never charged or credited them, so the offer is gone, and a cart
+ * a visitor filled before that day must not carry such a line to the checkout.
+ */
+export function withoutStoredBundles(cart: Cart | null | undefined): Cart {
+  if (!cart || typeof cart !== "object") return EMPTY_CART;
+  return { plan: cart.plan ?? null, creditBundles: [] };
+}
+
 // ── localStorage adapters ─────────────────────────────────────────────────────
 //
 // Both guard `typeof window` so the module is import-safe on the server and in
@@ -117,7 +129,7 @@ function readStorage(): Cart {
   if (typeof window === "undefined") return EMPTY_CART;
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? (JSON.parse(raw) as Cart) : EMPTY_CART;
+    return raw ? withoutStoredBundles(JSON.parse(raw) as Cart) : EMPTY_CART;
   } catch {
     return EMPTY_CART; // parse error / disabled storage → empty
   }
