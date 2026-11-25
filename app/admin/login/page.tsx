@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { BrandLogo } from "@/components/admin/BrandLogo";
 import { loginAction } from "./actions";
+import { SIGN_IN_TEXTS, signInError } from "@/lib/admin-auth/sign-in-texts";
+import { getSiteLocale } from "@/lib/site-texts/server";
 
 /**
  * Admin Login Page
@@ -12,6 +14,9 @@ import { loginAction } from "./actions";
  * This page is intentionally minimal — no sidebar, no branding beyond the
  * product name. The admin layout passes it through without the shell wrapper
  * because the pathname starts with /admin/login.
+ *
+ * The texts follow the language of the site (lib/admin-auth/sign-in-texts.ts):
+ * a site links here from its own menu.
  */
 
 interface Props {
@@ -21,18 +26,8 @@ interface Props {
 export default async function AdminLoginPage({ searchParams }: Props) {
   const { error, next, reset } = await searchParams;
 
-  const errorMessage =
-    error === "invalid_credentials"
-      ? "Incorrect email or password. Please try again."
-      : error === "too_many_attempts"
-        ? "Too many sign-in attempts. Wait ten minutes and try again."
-      : error === "account_disabled"
-        ? "This account has been deactivated. Contact your platform administrator."
-        : error === "session_expired"
-          ? "Your session has expired. Please sign in again."
-          : error === "server_error"
-            ? "A server error occurred. Please try again in a moment."
-            : null;
+  const t            = SIGN_IN_TEXTS[await getSiteLocale()];
+  const errorMessage = signInError(t, error);
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center px-4">
@@ -40,13 +35,13 @@ export default async function AdminLoginPage({ searchParams }: Props) {
         {/* Logo / heading */}
         <div className="mb-8 text-center">
           <BrandLogo width={200} className="mx-auto mb-4" />
-          <h1 className="text-xl font-semibold text-white">Admin sign in</h1>
+          <h1 className="text-xl font-semibold text-white">{t.signInHeading}</h1>
         </div>
 
         {/* Reset success banner */}
         {reset && !errorMessage && (
           <div className="mb-4 rounded-lg border border-green-500/40 bg-green-950/50 px-4 py-3 text-sm text-green-300">
-            Your password has been reset. Sign in with your new password.
+            {t.passwordWasReset}
           </div>
         )}
 
@@ -67,7 +62,7 @@ export default async function AdminLoginPage({ searchParams }: Props) {
               htmlFor="email"
               className="mb-1.5 block text-sm font-medium text-slate-300"
             >
-              Email address
+              {t.email}
             </label>
             <input
               id="email"
@@ -76,7 +71,7 @@ export default async function AdminLoginPage({ searchParams }: Props) {
               autoComplete="email"
               required
               className="w-full rounded-lg border border-slate-700 bg-slate-800 px-4 py-3 text-base text-white placeholder-slate-500 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
-              placeholder="you@example.com"
+              placeholder={t.emailPlaceholder}
             />
           </div>
 
@@ -85,7 +80,7 @@ export default async function AdminLoginPage({ searchParams }: Props) {
               htmlFor="password"
               className="mb-1.5 block text-sm font-medium text-slate-300"
             >
-              Password
+              {t.password}
             </label>
             <input
               id="password"
@@ -102,12 +97,12 @@ export default async function AdminLoginPage({ searchParams }: Props) {
             type="submit"
             className="w-full rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-400/50 transition-colors"
           >
-            Sign in
+            {t.signIn}
           </button>
 
           <p className="pt-1 text-center text-sm">
             <Link href="/admin/forgot-password" className="text-slate-400 hover:text-slate-200 transition-colors">
-              Forgot password?
+              {t.forgotPassword}
             </Link>
           </p>
         </form>

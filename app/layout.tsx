@@ -15,7 +15,8 @@ import { GtmLoader }             from "@/components/tracking/GtmLoader";
 import { ConsentBanner }         from "@/components/tracking/ConsentBanner";
 import { SiteLocaleProvider }    from "@/components/site/SiteLocale";
 import { toSiteLocale }          from "@/lib/site-texts/locale";
-import { getSiteLanguage }       from "@/lib/site-texts/server";
+import { getSiteLanguage, getSiteLocale } from "@/lib/site-texts/server";
+import { isSignInPath }          from "@/lib/admin-auth/sign-in-texts";
 import { CookiePreferences }     from "@/components/tracking/CookiePreferences";
 import { toConsentLocale }       from "@/tracking/consent-i18n";
 import { getDesignPreset } from "@/tenant/design-presets-gallery";
@@ -445,9 +446,13 @@ export default async function RootLayout({
   // the tenant's site is written in. It goes on <html lang> (it said "en" on
   // every site, also the Dutch ones, which is what a screen reader and a search
   // engine go by) and down to client components for the platform's own texts.
-  // The admin and the dashboard are English, whatever the site speaks.
+  // The admin and the dashboard are English, whatever the site speaks. The
+  // sign-in pages are the exception: they are in Dutch or English, after the
+  // site (lib/admin-auth/sign-in-texts.ts).
   const isAppShell = _consentPathname.startsWith("/admin") || _consentPathname.startsWith("/dashboard");
-  const htmlLang   = isAppShell ? "en" : await getSiteLanguage();
+  const htmlLang   = isSignInPath(_consentPathname) ? await getSiteLocale()
+                   : isAppShell                     ? "en"
+                   : await getSiteLanguage();
 
   const consentLocale = toConsentLocale(
     (await cookies()).get("mc_locale")?.value ?? tenantConfig.defaultLocale,

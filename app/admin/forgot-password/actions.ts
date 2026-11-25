@@ -17,6 +17,7 @@ import { checkRateLimit, extractClientIp } from "@/lib/rate-limiting";
 import {
   generateResetToken, sendAdminPasswordResetEmail, RESET_TOKEN_TTL_MS,
 } from "@/lib/admin-auth/password-reset";
+import { getSiteLocale } from "@/lib/site-texts/server";
 
 const COOLDOWN_MS = 60 * 1000;
 
@@ -39,7 +40,7 @@ export async function requestPasswordResetAction(formData: FormData): Promise<vo
             const { raw, hash } = generateResetToken();
             const expiresAt = new Date(Date.now() + RESET_TOKEN_TTL_MS).toISOString();
             await setPasswordResetToken(user.id, hash, expiresAt);
-            await sendAdminPasswordResetEmail(user.email, user.name, raw);
+            await sendAdminPasswordResetEmail(user.email, user.name, raw, await getSiteLocale());
           }
         }
       }
