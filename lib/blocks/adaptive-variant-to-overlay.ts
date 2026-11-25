@@ -66,6 +66,10 @@ export function adaptiveVariantToNotificationData(
   return {
     id:          key,
     message:     c.title,
+    // `subtitle` is the line under the message. Until 25 Nov 2026 it was
+    // dropped here, so a notification showed its title and its button and
+    // never said what the button was for.
+    ...(c.subtitle ? { text: c.subtitle } : {}),
     severity,
     ctaLabel:    primaryCta?.label ?? undefined,
     ctaHref:     primaryCta?.href  ?? undefined,

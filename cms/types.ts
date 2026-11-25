@@ -588,6 +588,8 @@ export interface NotificationBlockData {
   blockHtml?: string;
   /** Main notification message text */
   message: string;
+  /** A line of explanation under the message. Absent = the message stands alone. */
+  text?: string;
   /** Visual severity / colour scheme */
   severity: "info" | "success" | "warning" | "promo";
   /** Optional CTA button label (e.g. "Bekijk aanbieding") */
