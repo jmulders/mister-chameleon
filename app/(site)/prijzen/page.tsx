@@ -41,6 +41,8 @@ import { BILLING_PLANS, type BillingPlan } from "@/billing/plans";
 import { PlanCartButton } from "./_components/CartButtons";
 import { resolveOwnBlockVariant } from "@/lib/page-owned-variant";
 import { adviceFrom, type PricingAdvice } from "@/lib/pricing-advice";
+import { getPublicLookupPrices, type PublicLookupPrices } from "@/lib/billing/public-lookup-prices";
+import { CreditCalculator } from "./_components/CreditCalculator";
 
 export const metadata: Metadata = {
   title:       "Prijzen website personalisatie | Mister Chameleon",
@@ -74,8 +76,10 @@ function planFeatures(plan: BillingPlan): string[] {
 // payment provider. Credits are bought in the account, so the page explains
 // them and sells nothing.
 //
-// No price per lookup here. That comes from the pricing table the platform
-// charges from, and belongs on this page only once the owner has confirmed it.
+// Under the facts come the price per lookup and a calculator. Both read their
+// prices from the table the platform charges from (lib/billing/
+// public-lookup-prices.ts), so the page cannot name another price than the one
+// taken from the wallet. When that table cannot be read, neither is shown.
 
 const CREDIT_FACTS = [
   {
@@ -95,6 +99,22 @@ const CREDIT_FACTS = [
     text:  "Je site blijft werken en je regels blijven gelden. Er komt geen rekening achteraf.",
   },
 ] as const;
+
+/** The price list under the facts: what one lookup costs, in credits. */
+function lookupRows(prices: PublicLookupPrices): readonly { what: string; credits: number }[] {
+  return [
+    { what: "Het netwerk en de plaats van een bezoek",          credits: prices.network     },
+    { what: "Het bedrijf achter een bezoek",                    credits: prices.company     },
+    { what: "Een bezoeker die je site voor het eerst herkent",  credits: prices.recognition },
+    { what: "De klant in je CRM",                               credits: prices.crm         },
+    { what: "Eerdere bezoeken uit Google Analytics",            credits: prices.analytics   },
+    { what: "Het weer op de plek van het bezoek",               credits: prices.weather     },
+  ];
+}
+
+function credit(n: number): string {
+  return `${n.toLocaleString("nl-NL", { maximumFractionDigits: 3 })} credit`;
+}
 
 // ── Questions ─────────────────────────────────────────────────────────────────
 
@@ -238,6 +258,9 @@ export default async function PrijzenPage() {
   const own    = await resolveOwnBlockVariant("prijzen", "feature", "feature_page_prijzen");
   const advice = own ? adviceFrom(own.content, Object.keys(BILLING_PLANS)) : null;
 
+  // What a lookup costs, from the table the platform charges from.
+  const lookupPrices = await getPublicLookupPrices();
+
   return (
     <div className="min-h-screen" style={{ background: "var(--bg)", color: "var(--text)" }}>
       {/* ── Heading ──────────────────────────────────────────────────────── */}
@@ -303,6 +326,27 @@ export default async function PrijzenPage() {
         <p className="mx-auto mt-8 max-w-2xl text-center text-sm" style={{ color: "var(--text-muted)" }}>
           Je begint zonder credits. Je koopt ze pas als je een bron aanzet waarvoor ze nodig zijn.
         </p>
+
+        {lookupPrices && (
+          <>
+            <div className="mx-auto mt-14 max-w-2xl">
+              <h3 className="text-center text-lg font-semibold" style={{ color: "var(--text)" }}>Wat een opzoeking kost</h3>
+              <ul data-part="lookup-prices" className="mt-5 divide-y" style={{ borderColor: "var(--card-border)" }}>
+                {lookupRows(lookupPrices).map((row) => (
+                  <li
+                    key={row.what}
+                    className="flex items-baseline justify-between gap-4 py-3 text-sm"
+                    style={{ borderColor: "var(--card-border)" }}
+                  >
+                    <span style={{ color: "var(--text)" }}>{row.what}</span>
+                    <span className="shrink-0 font-semibold tabular-nums" style={{ color: "var(--text)" }}>{credit(row.credits)}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <CreditCalculator prices={lookupPrices} />
+          </>
+        )}
       </section>
 
       {/* ── Call to action ───────────────────────────────────────────────── */}
