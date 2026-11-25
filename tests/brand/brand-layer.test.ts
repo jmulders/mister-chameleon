@@ -362,11 +362,11 @@ describe("the brand stylesheet", () => {
     assert.equal(JSON.stringify(preset).includes(`clamp(${min}px,${vw}vw,${max}px)`), true, "the preset and the brand layer disagree");
   });
 
-  it("sets the text sections of an article closer together", () => {
+  it("sets the text sections of an article or a case closer together", () => {
     // The owner on 25 Nov 2026: an article is full of white. Two text sections
     // sat 128 px apart on a wide screen. Inside an article they get half.
     const site = /\[data-brand="mister-chameleon"\] \[data-site\] \{\s*--section-py:\s*clamp\((\d+)px,\s*([\d.]+)vw,\s*(\d+)px\);\s*\}/.exec(css)!;
-    const rule = /\[data-brand="mister-chameleon"\] main\[data-page-kind="article"\] \[data-part="text-section"\] \{\s*--section-py:\s*clamp\((\d+)px,\s*([\d.]+)vw,\s*(\d+)px\);\s*\}/.exec(css);
+    const rule = /\[data-brand="mister-chameleon"\] main:is\(\[data-page-kind="article"\], \[data-page-kind="case"\]\) \[data-part="text-section"\] \{\s*--section-py:\s*clamp\((\d+)px,\s*([\d.]+)vw,\s*(\d+)px\);\s*\}/.exec(css);
     assert.ok(rule, "no rhythm for the text sections of an article");
     const [min, max] = [Number(rule[1]), Number(rule[3])];
     assert.ok(max * 2 <= Number(site[3]), "an article keeps at most half the room of a landing page");
@@ -378,6 +378,8 @@ describe("the brand stylesheet", () => {
     const block = readFileSync("components/blocks/sections/TextSectionBlock.tsx", "utf8");
     assert.equal(block.match(/<Section part="text-section"/g)?.length, block.match(/<Section /g)?.length, "a text section variant lost its hook");
     assert.match(readFileSync("app/(site)/blog/[slug]/page.tsx", "utf8"), /<main data-page-kind="article">/);
+    // A case under /cases is built like an article and shares the rule.
+    assert.match(readFileSync("app/(site)/cases/[slug]/page.tsx", "utf8"), /<main data-page-kind="case">/);
     assert.match(readFileSync("components/primitives/Section.tsx", "utf8"), /data-part=\{part\}/);
   });
 

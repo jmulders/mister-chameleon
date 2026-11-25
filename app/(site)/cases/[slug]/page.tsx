@@ -84,8 +84,10 @@ export default async function CaseStudyDetailPage({ params }: PageProps) {
 
   const pageConfig = mapPageDataToPageConfig(page);
 
+  // data-page-kind names the page for a brand layer. A case reads like an
+  // article: a stack of text sections under one title (see blog/[slug]).
   return (
-    <main>
+    <main data-page-kind="case">
       {pageNeedsTitleHeading(pageConfig.contextSlots, pageConfig.contentBlocks) && page.title && (
         <PageTitleHeader title={page.title} />
       )}

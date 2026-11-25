@@ -397,10 +397,13 @@
  * part. Other blocks in an article, such as the closing call to action, keep
  * the room of the rule above.
  *
+ * A case under /cases is built the same way, three text sections and a call
+ * to action, so it gets the same rhythm (asked for on the same day).
+ *
  * The token sits on the section itself, so it wins from a value an editor set
- * on that one block. No article does that today.
+ * on that one block. No article or case does that today.
  */
-[data-brand="mister-chameleon"] main[data-page-kind="article"] [data-part="text-section"] {
+[data-brand="mister-chameleon"] main:is([data-page-kind="article"], [data-page-kind="case"]) [data-part="text-section"] {
   --section-py: clamp(20px, 2.25vw, 32px);
 }
 
