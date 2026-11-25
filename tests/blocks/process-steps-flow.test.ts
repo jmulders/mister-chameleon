@@ -70,7 +70,7 @@ describe("process steps, flow layout", () => {
 // them on 25 Nov 2026, for the four steps on /hoe-het-werkt. The first version
 // slid sideways on a phone. The owner found that unclear the same day: one
 // step filled the screen and the other three sat behind a swipe. Now the steps
-// stack on a narrow screen and the arrows point down.
+// stack on a narrow screen and the arrows point down, all the same size.
 
 const arrows = source.slice(source.indexOf('if (variant === "arrows")'), source.indexOf("// ── flow variant"));
 
@@ -108,7 +108,7 @@ describe("process steps, arrows layout", () => {
   it("points down when stacked and right in the row", () => {
     assert.match(arrows, /\[clip-path:var\(--arrow-down\)\]/);
     assert.match(arrows, /lg:\[clip-path:var\(--arrow-right\)\]/);
-    assert.match(arrows, /"--arrow-down":\s+first \? downFirst : downNext/);
+    assert.match(arrows, /"--arrow-down":\s+downShape/);
     assert.match(arrows, /"--arrow-right":\s+first \? rightFirst : rightNext/);
     // Down: the point is in the middle of the bottom edge.
     assert.match(arrows, /const down\s+= `[^`]*50% 100%/);
@@ -116,12 +116,25 @@ describe("process steps, arrows layout", () => {
     assert.match(arrows, /const right\s+= `[^`]*100% 50%/);
   });
 
-  it("cuts a notch in every arrow but the first and leaves a gap between two", () => {
-    assert.match(arrows, /const downNext\s+= `polygon\(0 0, 50% \$\{POINT\}px, /);
+  // The first stacked version made an arrow as tall as its step. Four steps
+  // with four lengths of text gave four sizes of arrow, and the owner did not
+  // find that pretty (25 Nov 2026).
+  it("gives every stacked arrow the same size, whatever the length of the text", () => {
+    const arrow = /data-part="step-number"[\s\S]*?className="([^"]+)"/.exec(arrows)![1].split(" ");
+    assert.ok(arrow.includes("h-[4.25rem]") && arrow.includes("shrink-0"), "a stacked arrow must have a fixed height");
+    // One shape for every step: stacked arrows do not interlock.
+    assert.match(arrows, /const downShape\s+= `polygon\(0 0, \$\{down\}\)`/);
+    assert.doesNotMatch(arrows, /downNext|mt-\[var\(--arrow-pull\)\]/);
+  });
+
+  it("joins two stacked arrows with a dashed line that takes up the length", () => {
+    assert.match(arrows, /\{!last && \(\s*<span aria-hidden="true" className="my-1\.5 w-0\.5 flex-1 lg:hidden" style=\{lineStyle\} \/>/);
+    assert.match(arrows, /const last\s+= index === items\.length - 1;/);
+  });
+
+  it("cuts a notch in every arrow of the row but the first and leaves a gap between two", () => {
     assert.match(arrows, /const rightNext\s+= `polygon\(0 0, \$\{right\}, \$\{POINT\}px 50%\)`/);
     assert.match(arrows, /"--arrow-pull":\s+`\$\{first \? 0 : -\(POINT - GAP\)\}px`/);
-    // The same pull works on the top when stacked and on the left in the row.
-    assert.match(arrows, /mt-\[var\(--arrow-pull\)\]/);
     assert.match(arrows, /lg:ml-\[var\(--arrow-pull\)\]/);
     const point = Number(/const POINT = (\d+);/.exec(arrows)![1]);
     const gap   = Number(/const GAP   = (\d+);/.exec(arrows)![1]);

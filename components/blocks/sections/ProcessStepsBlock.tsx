@@ -384,6 +384,11 @@ export function ProcessStepsBlock({ data, variant: rawVariant, surface }: Proces
   // their arrow. So a phone shows every step at once: a row that slides
   // sideways hid three of the four steps behind a swipe.
   //
+  // Stacked, every arrow has the same size. A dashed line runs from an arrow to
+  // the next one and takes up the length of the text. In the first stacked
+  // version an arrow was as tall as its step, so four steps gave four sizes of
+  // arrow, which the owner did not find pretty.
+  //
   // Both shapes are on the element as custom properties and a class picks one
   // per breakpoint, so there is one arrow per step in the markup. The title is
   // there twice, in the arrow and beside it. One of the two is always
@@ -399,8 +404,13 @@ export function ProcessStepsBlock({ data, variant: rawVariant, surface }: Proces
     const down      = `100% 0, 100% calc(100% - ${POINT}px), 50% 100%, 0 calc(100% - ${POINT}px)`;
     const rightFirst = `polygon(0 0, ${right})`;
     const rightNext  = `polygon(0 0, ${right}, ${POINT}px 50%)`;
-    const downFirst  = `polygon(0 0, ${down})`;
-    const downNext   = `polygon(0 0, 50% ${POINT}px, ${down})`;
+    // Stacked arrows do not interlock, so they need no notch: one shape for all.
+    const downShape  = `polygon(0 0, ${down})`;
+    // The same dashes as the line of the flow layout.
+    const lineStyle = {
+      backgroundImage: "linear-gradient(to bottom, var(--text-subtle) 55%, transparent 55%)",
+      backgroundSize:  "2px 12px",
+    };
     return (
       <Section
         spacing="lg"
@@ -429,29 +439,34 @@ export function ProcessStepsBlock({ data, variant: rawVariant, surface }: Proces
               >
                 {items.map((step, index) => {
                   const first = index === 0;
+                  const last  = index === items.length - 1;
                   return (
                     <li key={index} className="grid grid-cols-[3.75rem_minmax(0,1fr)] gap-x-4 lg:block">
-                      <div
-                        // The same hooks as the numbered circle, so a brand layer
-                        // colours an arrow as it colours that step's number.
-                        data-part="step-number"
-                        data-step={(index % 6) + 1}
-                        className="mt-[var(--arrow-pull)] flex justify-center pt-[var(--arrow-inset)] text-base font-bold leading-tight [clip-path:var(--arrow-down)] lg:ml-[var(--arrow-pull)] lg:mt-0 lg:h-16 lg:items-center lg:justify-start lg:gap-3 lg:pl-[var(--arrow-lead)] lg:pr-[var(--arrow-tail)] lg:pt-0 lg:[clip-path:var(--arrow-right)]"
-                        style={{
-                          "--arrow-down":  first ? downFirst : downNext,
-                          "--arrow-right": first ? rightFirst : rightNext,
-                          "--arrow-pull":  `${first ? 0 : -(POINT - GAP)}px`,
-                          "--arrow-inset": `${first ? 14 : 14 + (POINT - GAP)}px`,
-                          "--arrow-lead":  `${first ? 20 : 20 + (POINT - GAP)}px`,
-                          "--arrow-tail":  `${POINT + 10}px`,
-                          background:      "color-mix(in srgb, var(--primary) 12%, transparent)",
-                          color:           "var(--primary)",
-                        } as React.CSSProperties}
-                      >
-                        <span aria-hidden="true" className="text-2xl tabular-nums" style={{ opacity: 0.75 }}>
-                          {index + 1}
-                        </span>
-                        <span className="hidden lg:inline">{step.title}</span>
+                      <div className="flex flex-col items-center lg:block">
+                        <div
+                          // The same hooks as the numbered circle, so a brand layer
+                          // colours an arrow as it colours that step's number.
+                          data-part="step-number"
+                          data-step={(index % 6) + 1}
+                          className="flex h-[4.25rem] w-full shrink-0 justify-center pt-2.5 text-base font-bold leading-tight [clip-path:var(--arrow-down)] lg:ml-[var(--arrow-pull)] lg:h-16 lg:w-auto lg:items-center lg:justify-start lg:gap-3 lg:pl-[var(--arrow-lead)] lg:pr-[var(--arrow-tail)] lg:pt-0 lg:[clip-path:var(--arrow-right)]"
+                          style={{
+                            "--arrow-down":  downShape,
+                            "--arrow-right": first ? rightFirst : rightNext,
+                            "--arrow-pull":  `${first ? 0 : -(POINT - GAP)}px`,
+                            "--arrow-lead":  `${first ? 20 : 20 + (POINT - GAP)}px`,
+                            "--arrow-tail":  `${POINT + 10}px`,
+                            background:      "color-mix(in srgb, var(--primary) 12%, transparent)",
+                            color:           "var(--primary)",
+                          } as React.CSSProperties}
+                        >
+                          <span aria-hidden="true" className="text-2xl tabular-nums" style={{ opacity: 0.75 }}>
+                            {index + 1}
+                          </span>
+                          <span className="hidden lg:inline">{step.title}</span>
+                        </div>
+                        {!last && (
+                          <span aria-hidden="true" className="my-1.5 w-0.5 flex-1 lg:hidden" style={lineStyle} />
+                        )}
                       </div>
                       <div className="pb-9 pt-3.5 lg:pb-0 lg:pl-5 lg:pr-6 lg:pt-4">
                         <span className="block text-lg font-bold leading-snug lg:hidden" style={{ color: "var(--text)" }}>
