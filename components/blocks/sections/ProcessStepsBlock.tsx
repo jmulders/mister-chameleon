@@ -16,6 +16,11 @@
  *   compact    — tight inline numbered list; lower vertical footprint
  *   horizontal — horizontal step track with connecting line and numbered nodes;
  *                ideal for short 3–5 step flows on landing pages
+ *   arrows     — a row of arrow-shaped blocks, each with its number and title,
+ *                and the text of the step under it. All steps stand side by
+ *                side on a wide screen; on a narrow one the row slides sideways
+ *                and the next arrow peeks in, so it reads as a slider. For
+ *                three to five steps with a short text each.
  *   flow       — a line the steps hang on, cards left and right of it in turn;
  *                for a longer story of five to eight steps, where each step has
  *                a few sentences. A step's `duration` shows as a label on its
@@ -323,6 +328,99 @@ export function ProcessStepsBlock({ data, variant: rawVariant, surface }: Proces
                   ))}
                 </ol>
               </div>
+            )}
+          </Stack>
+        </Container>
+      </Section>
+    );
+  }
+
+  // ── arrows variant ───────────────────────────────────────────────────────────
+  //
+  // Each step is an arrow that points at the next one, with its text under it.
+  // The arrow is one element with a clip-path: a point on the right, and a
+  // notch on the left for every arrow but the first. An arrow is pulled left
+  // over the room its neighbour's point leaves, so a thin gap of the section's
+  // background stays between two arrows.
+  //
+  // The row is a scroll container with snap points and no script. On a wide
+  // screen the steps share the width; below that a step takes most of the
+  // screen and the next one shows at the edge, which invites a swipe. The row
+  // can take focus, so the keyboard can scroll it too.
+
+  if (variant === "arrows") {
+    const POINT = 18; // px the point sticks out, and the notch cuts in
+    const GAP   = 6;  // px of background between two arrows
+    const shapeFirst = `polygon(0 0, calc(100% - ${POINT}px) 0, 100% 50%, calc(100% - ${POINT}px) 100%, 0 100%)`;
+    const shapeNext  = `polygon(0 0, calc(100% - ${POINT}px) 0, 100% 50%, calc(100% - ${POINT}px) 100%, 0 100%, ${POINT}px 50%)`;
+    return (
+      <Section
+        spacing="lg"
+        style={{
+          background:        resolveSurface(surface) ?? "var(--section-subtle-bg)",
+          borderTopColor:    "var(--section-subtle-border)",
+          borderBottomColor: "var(--section-subtle-border)",
+        }}
+        className="border-y"
+      >
+        <Container size="lg">
+          <Stack gap={10}>
+            {heading && (
+              <Text variant="h2" align="center">
+                {heading}
+              </Text>
+            )}
+
+            {items.length > 0 && (
+              <ol
+                // A row that scrolls must be reachable without a mouse.
+                tabIndex={0}
+                aria-label={heading || undefined}
+                className="-mx-4 grid snap-x snap-mandatory grid-flow-col auto-cols-[78%] overflow-x-auto px-4 pb-3 sm:auto-cols-[46%] lg:mx-0 lg:auto-cols-[minmax(13rem,1fr)] lg:px-0"
+                style={{ scrollbarWidth: "thin", scrollPaddingInline: "1rem" }}
+              >
+                {items.map((step, index) => {
+                  const first = index === 0;
+                  return (
+                    <li key={index} className="snap-start">
+                      <div
+                        // The same hooks as the numbered circle, so a brand layer
+                        // colours an arrow as it colours that step's number.
+                        data-part="step-number"
+                        data-step={(index % 6) + 1}
+                        className="flex h-16 items-center gap-3 text-base font-bold leading-tight"
+                        style={{
+                          marginLeft:   first ? 0 : -(POINT - GAP),
+                          paddingLeft:  first ? 20 : 20 + (POINT - GAP),
+                          paddingRight: POINT + 10,
+                          clipPath:     first ? shapeFirst : shapeNext,
+                          background:   "color-mix(in srgb, var(--primary) 12%, transparent)",
+                          color:        "var(--primary)",
+                        }}
+                      >
+                        <span aria-hidden="true" className="text-2xl tabular-nums" style={{ opacity: 0.75 }}>
+                          {index + 1}
+                        </span>
+                        <span>{step.title}</span>
+                      </div>
+                      {(step.description || step.duration) && (
+                        <div className="pl-5 pr-6 pt-4">
+                          {step.description && (
+                            <Text variant="body" color="muted" className="leading-relaxed">
+                              {step.description}
+                            </Text>
+                          )}
+                          {step.duration && (
+                            <span className="mt-2 block text-sm" style={{ color: "var(--text-subtle)" }}>
+                              {step.duration}
+                            </span>
+                          )}
+                        </div>
+                      )}
+                    </li>
+                  );
+                })}
+              </ol>
             )}
           </Stack>
         </Container>
