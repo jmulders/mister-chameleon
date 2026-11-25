@@ -35,6 +35,7 @@ import type { FormField } from "@/forms/types";
 import { renderInlineMarkup } from "@/lib/blocks/inline-markup";
 import {
   isRenderableMedia,
+  stillPicture,
   youtubeEmbedSrc,
   vimeoEmbedSrc,
   youtubeThumbUrl,
@@ -341,6 +342,14 @@ function renderProofSpotlight(d: ProofBlockData): string {
   );
 }
 
+/** A point's own picture, above its title. Mirrors the platform's proof block. */
+function proofItemPicture(media: ProofBlockData["items"][number]["media"]): string {
+  const picture = stillPicture(media);
+  if (!picture) return "";
+  return `<img src="${escapeHtml(picture.url)}" alt="${escapeHtml(picture.alt)}" loading="lazy" decoding="async" ` +
+    `style="display:block;width:208px;max-width:100%;aspect-ratio:16/9;object-fit:contain;margin:0 0 12px;">`;
+}
+
 function renderProof(d: ProofBlockData): string {
   // proof_spotlight with media: render the media/quote split (mirrors the
   // platform). Without media (or any other layout) keep the card grid below.
@@ -353,6 +362,7 @@ function renderProof(d: ProofBlockData): string {
       (i) =>
         `<div style="flex:1 1 240px;background:var(--card-bg,#fff);border:1px solid var(--card-border,#e2e8f0);` +
         `border-radius:var(--card-radius,14px);padding:20px 22px;">` +
+          proofItemPicture(i.media) +
           (i.title ? `<div style="font-size:24px;font-weight:800;color:var(--primary,#4f46e5);margin-bottom:6px;">${escapeHtml(i.title)}</div>` : "") +
           (i.text ? `<div style="font-size:14px;line-height:1.55;color:var(--muted-foreground,#64748b);">${renderInlineMarkup(i.text)}</div>` : "") +
         `</div>`,

@@ -81,6 +81,19 @@ export function isRenderableMedia(media: BlockMedia | null | undefined): media i
 }
 
 /**
+ * The still picture in a media value, or null: an image with an address of its
+ * own. A video or an embed is not a picture.
+ *
+ * For the places that only have room for a small picture, such as the three
+ * points of the proof block.
+ */
+export function stillPicture(media: BlockMedia | null | undefined): { url: string; alt: string } | null {
+  if (!isRenderableMedia(media)) return null;
+  if (media.kind !== "image" || (media.source ?? "asset") !== "asset" || !media.url) return null;
+  return { url: media.url.trim(), alt: media.alt ?? "" };
+}
+
+/**
  * Validate an untrusted value into a BlockMedia (or undefined).
  *
  * Whitelists `kind`/`source`/`fit`, trims and length-caps the string fields,
