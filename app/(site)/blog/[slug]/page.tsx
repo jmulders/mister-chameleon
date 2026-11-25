@@ -66,8 +66,11 @@ export default async function BlogPostDetailPage({ params }: PageProps) {
 
   const pageConfig = mapPageDataToPageConfig(page);
 
+  // data-page-kind names the page for a brand layer: an article is a stack of
+  // text sections, and a house style may want those closer together than the
+  // sections of a landing page.
   return (
-    <main>
+    <main data-page-kind="article">
       {pageNeedsTitleHeading(pageConfig.contextSlots, pageConfig.contentBlocks) && page.title && (
         <PageTitleHeader title={page.title} />
       )}

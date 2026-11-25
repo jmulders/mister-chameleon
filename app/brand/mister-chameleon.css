@@ -387,6 +387,23 @@
   --section-py: clamp(36px, 4.5vw, 64px);
 }
 
+/* An article is one piece of text, cut into sections with a title each. With
+ * the room above, two sections sat 128 px apart on a wide screen, and the
+ * owner found an article full of white (25 Nov 2026).
+ *
+ * Inside an article a text section gets half the room: 64 px between two
+ * sections on a wide screen and 40 px on a phone. That is still clearly more
+ * than the 24 px between a title and its text, so a new title reads as a new
+ * part. Other blocks in an article, such as the closing call to action, keep
+ * the room of the rule above.
+ *
+ * The token sits on the section itself, so it wins from a value an editor set
+ * on that one block. No article does that today.
+ */
+[data-brand="mister-chameleon"] main[data-page-kind="article"] [data-part="text-section"] {
+  --section-py: clamp(20px, 2.25vw, 32px);
+}
+
 /* ── 6. A hero headline on one line ─────────────────────────────────────────
  *
  * The shared hero sets its headline at 72 px on a wide screen. Beside an image

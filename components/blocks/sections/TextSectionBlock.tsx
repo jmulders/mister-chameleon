@@ -23,6 +23,11 @@
  * ─── Design tokens consumed ──────────────────────────────────────────────────
  *
  *   (none — uses default section/text tokens inherited from the layout)
+ *
+ * ─── Brand hook ──────────────────────────────────────────────────────────────
+ *
+ *   The section carries data-part="text-section", so a brand layer can set the
+ *   room between stacked text sections (an article is a stack of them).
  */
 
 import { Container } from "@/components/primitives/Container";
@@ -62,7 +67,7 @@ export function TextSectionBlock({ data, variant: rawVariant, surface }: TextSec
 
   if (variant === "text_split") {
     return (
-      <Section spacing="lg" style={{ background: resolveSurface(surface) ?? "var(--bg)" }}>
+      <Section part="text-section" spacing="lg" style={{ background: resolveSurface(surface) ?? "var(--bg)" }}>
         <Container size="lg">
           <div className="flex flex-col gap-8 lg:flex-row lg:items-start lg:gap-16">
 
@@ -106,7 +111,7 @@ export function TextSectionBlock({ data, variant: rawVariant, surface }: TextSec
   const isCentered = variant === "centered";
 
   return (
-    <Section spacing="lg" style={{ background: resolveSurface(surface) ?? "var(--bg)" }}>
+    <Section part="text-section" spacing="lg" style={{ background: resolveSurface(surface) ?? "var(--bg)" }}>
       <Container size="md">
         <Stack gap={6}>
           {heading && (
