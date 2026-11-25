@@ -450,10 +450,10 @@ const proofBlocks: SeedBlock[] = [
     key:     "proof_default",
     content: ci(
       "U hoeft ons niet te geloven. U meet het",
-      "Elke aanpassing draait tegen een controlegroep die de gewone site ziet. Het verschil tussen beide groepen is uw resultaat.",
+      "Zet een controlegroep aan die uw gewone site ziet. Het verschil tussen beide groepen is uw resultaat.",
       "Meten boven beloven",
       [
-        { title: "Controlegroep standaard", text: "Een deel van uw bezoekers krijgt altijd de ongewijzigde site. Zo weet u wat personalisatie toevoegde. En of het iets toevoegde." },
+        { title: "Meten met een controlegroep", text: "U laat een deel van uw bezoekers de ongewijzigde site zien. Zo weet u wat personalisatie toevoegde. En of het iets toevoegde." },
         { title: "Geen cookiebanner nodig", text: "De basis werkt zonder cookies en zonder profielopbouw. Verrijking zit achter instellingen die u zelf bepaalt." },
         { title: "No-code implementatie",   text: "Eén snippet in uw CMS en u bent live. Geen developer nodig, geen IT-traject." },
       ],
@@ -468,7 +468,7 @@ const proofBlocks: SeedBlock[] = [
       [
         { title: "Beginnen bij de hero",     text: "Eén blok, drie doelgroepen. Dat is waar het verschil het grootst is en de inspanning het kleinst. Vandaar dat vrijwel iedereen daar start." },
         { title: "Herkennen op bedrijfsniveau", text: "Voor ABM telt niet de persoon maar het account: welk bedrijf zit achter het IP, en wat weet uw CRM daar al van." },
-        { title: "Afrekenen met de controlegroep", text: "Zonder controlegroep weet u alleen dát er iets veranderde, niet of het hielp. Daarom staat die standaard aan." },
+        { title: "Afrekenen met de controlegroep", text: "Zonder controlegroep weet u alleen dát er iets veranderde, niet of het hielp. Zet die dus aan voordat u begint." },
       ],
     ),
   },
@@ -646,7 +646,7 @@ const proofBlocks: SeedBlock[] = [
       [
         { title: "Uw plafond, niet het onze", text: "U stelt in hoeveel er per maand aan verrijking besteed mag worden. Boven dat bedrag stopt het. Er komt nooit een onverwachte factuur." },
         { title: "Onbeperkt configureren",    text: "Regels, experimenten, segmenten en pagina's zijn op elk plan onbeperkt. U betaalt voor geleverde sessies, niet voor nadenken." },
-        { title: "14 dagen proberen",         text: "Genoeg om de controlegroep te laten meelopen en zelf te zien of er iets gebeurt." },
+        { title: "14 dagen proberen",         text: "Genoeg om een controlegroep te laten meelopen en zelf te zien of er iets gebeurt." },
       ],
     ),
   },
@@ -934,7 +934,7 @@ const featureBlocks: SeedBlock[] = [
       [
         { title: "Herkennen",       body: "Bron, campagne, zoekwoord, gedrag en terugkeer. En zakelijk: welk bedrijf achter het IP zit, aangevuld met KvK-gegevens en wat er al in uw CRM staat." },
         { title: "Aanpassen",       body: "U wijst de blokken aan die mogen meebewegen. Hero, bewijs, CTA. De rest van de pagina blijft staan zoals hij staat." },
-        { title: "Bewijzen",        body: "Elke aanpassing draait tegen een controlegroep die de gewone site ziet. U meet de werkelijke lift in plaats van te geloven dat het hielp." },
+        { title: "Bewijzen",        body: "Zet een controlegroep aan die de gewone site ziet. U meet de werkelijke lift in plaats van te geloven dat het hielp." },
         { title: "Server-side",     body: "De beslissing valt vóórdat de pagina aankomt. Geen flikkering, geen vertraging, en zoekmachines zien een gewone pagina." },
         { title: "AVG-first",       body: "De basis werkt zonder cookies. Een verwijderverzoek loopt door tot in uw CRM en onderdrukt het profiel ook bij de advertentieplatforms." },
         { title: "Op uw eigen CMS", body: "Statamic, Sanity of Storyblok. Of één snippet op een site die u houdt zoals hij is." },

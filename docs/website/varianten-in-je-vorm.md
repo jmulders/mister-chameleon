@@ -107,7 +107,7 @@ De oude teksten bevatten beweringen die niet kloppen met het product of die niem
 - Tekst: Wat personalisatie oplevert hangt af van wie er binnenkomt en wat je ze te vertellen hebt. Dit zijn de patronen die we terugzien.
 - Kaart: **Beginnen bij de kop**. Eén blok, drie doelgroepen. Daar is het verschil het grootst en het werk het kleinst. Bijna iedereen begint daar.
 - Kaart: **Herkennen op bedrijfsniveau**. Bij account based marketing telt het bedrijf, niet de persoon. Welk bedrijf zit achter het bezoek, en wat weet je CRM daar al van?
-- Kaart: **Meten met de controlegroep**. Zonder controlegroep weet je alleen dat er iets veranderde, niet of het hielp. Daarom staat die standaard aan.
+- Kaart: **Meten met de controlegroep**. Zonder controlegroep weet je alleen dat er iets veranderde, niet of het hielp. Zet die dus aan voordat je begint.
 
 **`proof_platform`**
 
