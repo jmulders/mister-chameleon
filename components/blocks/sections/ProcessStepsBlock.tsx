@@ -57,19 +57,52 @@ interface ProcessStepsBlockProps {
 
 // ── Step subcomponent ─────────────────────────────────────────────────────────
 
-function StepNumber({ n, large = false }: { n: number; large?: boolean }) {
+/**
+ * The numbered circle of a step.
+ *
+ * `connect` draws an arm from the circle to the step's card, with a tab where
+ * the arm meets the card. The flow layout uses it: there the cards interleave,
+ * so a circle stands beside two cards at once and the arm says which is its
+ * own. On a phone the card is always after the circle; from md it is on the
+ * side named here. Arm and tab are children of the circle, so they inherit the
+ * colour a brand layer gives that step (`--mc-step`).
+ */
+function StepNumber({ n, large = false, connect }: { n: number; large?: boolean; connect?: "before" | "after" }) {
+  const armColour = "var(--mc-step, var(--primary))";
+  // Phone: arm to the right (gap 16 px). Wide: 32 px, to the card's side.
+  const side = connect === "before"
+    ? "left-full md:left-auto md:right-full"
+    : "left-full";
+  // The tab is centred on the card's edge, whichever side that edge is on.
+  const tabSide = connect === "before"
+    ? "left-[calc(100%+1rem)] -translate-x-1/2 md:left-auto md:right-[calc(100%+2rem)] md:translate-x-1/2"
+    : "left-[calc(100%+1rem)] -translate-x-1/2 md:left-[calc(100%+2rem)]";
   return (
     <span
       // Hooks for a brand layer (app/brand/*.css): six colours, then round again.
       data-part="step-number"
       data-step={((n - 1) % 6) + 1}
-      className={`flex shrink-0 items-center justify-center rounded-full font-bold ${large ? "h-12 w-12 text-lg" : "h-9 w-9 text-sm"}`}
+      className={`relative flex shrink-0 items-center justify-center rounded-full font-bold ${large ? "h-12 w-12 text-lg" : "h-9 w-9 text-sm"}`}
       style={{
         background: "color-mix(in srgb, var(--primary) 12%, transparent)",
         color:      "var(--primary)",
       }}
     >
       {n}
+      {connect && (
+        <>
+          <span
+            aria-hidden="true"
+            className={`pointer-events-none absolute top-1/2 h-0.5 w-4 -translate-y-1/2 md:w-8 ${side}`}
+            style={{ background: armColour }}
+          />
+          <span
+            aria-hidden="true"
+            className={`pointer-events-none absolute top-1/2 h-8 w-1 -translate-y-1/2 rounded-full ${tabSide}`}
+            style={{ background: armColour }}
+          />
+        </>
+      )}
     </span>
   );
 }
@@ -441,6 +474,9 @@ export function ProcessStepsBlock({ data, variant: rawVariant, surface }: Proces
   //
   // The line is drawn per step, from its node down to the next one, so it ends
   // at the last node and not below it.
+  //
+  // Because the cards interleave, a node stands beside two cards at once. An arm
+  // in the step's colour runs from each node to its own card (see StepNumber).
 
   if (variant === "flow") {
     const lineStyle = {
@@ -480,7 +516,7 @@ export function ProcessStepsBlock({ data, variant: rawVariant, surface }: Proces
                     >
                       {/* The node, and under it the line to the next node. */}
                       <div className="col-start-1 flex flex-col items-center md:col-start-2 md:[grid-row:var(--flow-row)]">
-                        <StepNumber n={index + 1} large />
+                        <StepNumber n={index + 1} large connect={right ? "after" : "before"} />
                         {!last && <span aria-hidden="true" className="my-1 w-0.5 flex-1" style={lineStyle} />}
                       </div>
                       <div
