@@ -42,6 +42,7 @@
 
 import type { RuleEvaluationContext } from "@/decision/rules/field-registry";
 import type { EnrichmentOutput }      from "@/enrichment/types";
+import { lookupSbiIndustry }          from "@/lib/enrichment/sbi-2025";
 
 // ── Derived enum types ─────────────────────────────────────────────────────────
 
@@ -166,18 +167,25 @@ export interface DerivedContext {
   // ── Company derived ────────────────────────────────────────────────────────
 
   /**
-   * Company size segment derived from the `companySize` enrichment field.
+   * Company size segment derived from the `companySize` enrichment field: a
+   * bucket ("51-200"), a label ("enterprise") or a plain head count ("52",
+   * "1.200"). Falls back to `leadinfoEmployeesTotal` when `companySize` is
+   * empty or says nothing recognisable.
    *   startup      — 1–50 employees
    *   smb          — 51–200 employees
    *   mid-market   — 201–1 000 employees
    *   enterprise   — 1 001+ employees
-   *   unknown      — companySize is null or does not match a known pattern
-   * null when no company was identified.
+   *   unknown      — a size is present but matches no known pattern
+   * null when no company was identified, or when there is no size at all.
    */
   companyType: CompanyType | null;
 
   /**
-   * Broad industry group derived from `companyIndustry` or `crmIndustry`.
+   * Broad industry group derived from `companyIndustry` or `crmIndustry`. For
+   * an industry that comes from Leadinfo the SBI division of
+   * `leadinfoBranchCode` decides first (62/63 tech, 64-66 finance, 86-88
+   * healthcare, 69-74 and 78 professional-services, 45-47 retail, 10-33
+   * manufacturing); other divisions fall back to the keyword match.
    * null when no industry information is available.
    */
   industryGroup: IndustryGroup | null;
@@ -311,22 +319,65 @@ function deriveTemperatureBucket(
   return "hot";
 }
 
+/**
+ * Bucket a head count on the documented boundaries:
+ * 1-50 startup, 51-200 smb, 201-1000 mid-market, 1001+ enterprise.
+ * Zero, negative and non-finite counts say nothing and return null.
+ */
+function companyTypeFromHeadcount(count: number): CompanyType | null {
+  if (!Number.isFinite(count) || count < 1) return null;
+  if (count <= 50)   return "startup";
+  if (count <= 200)  return "smb";
+  if (count <= 1000) return "mid-market";
+  return "enterprise";
+}
+
+/**
+ * Read a size string that is a plain head count rather than a bucket: "52",
+ * "250", and with a thousands separator "1.200", "1,200" or "1 200". Leadinfo
+ * reports the number of employees this way. Anything else (a range, a word, a
+ * decimal) is not a count and returns null.
+ */
+function parseHeadcount(size: string): number | null {
+  const s = size.trim();
+  if (/^\d+$/.test(s)) return Number(s);
+  if (/^\d{1,3}(?:[.,\s]\d{3})+$/.test(s)) return Number(s.replace(/[.,\s]/g, ""));
+  return null;
+}
+
+/**
+ * @param companySize     Size as the provider reports it: a bucket ("51-200"),
+ *                        a label ("enterprise") or a plain head count ("52").
+ * @param employeesTotal  Leadinfo's total employee count, used when
+ *                        `companySize` is empty or says nothing recognisable.
+ */
 function deriveCompanyType(
   companySize: string | null | undefined,
+  employeesTotal?: number | null,
 ): CompanyType | null {
-  if (!companySize) return null;
-  const s = companySize.toLowerCase();
+  const fromTotal = typeof employeesTotal === "number"
+    ? companyTypeFromHeadcount(employeesTotal)
+    : null;
+
+  // String() because a scenario override or a provider can hand over a number.
+  const s = String(companySize ?? "").toLowerCase().trim();
+  if (!s) return fromTotal;
+
   // Patterns: "1-10", "11-50", "51-200", "201-1000", "1001-5000", "5001+", etc.
   if (/^(1-10|11-50)$/.test(s))                    return "startup";
   if (/^(51-200)$/.test(s))                          return "smb";
   if (/^(201-500|501-1000|201-1000)$/.test(s))       return "mid-market";
+  // A plain head count, checked before the prefix pattern below so that "1001"
+  // and "10001" are read as numbers and "10010" is not cut off at its prefix.
+  const headcount = parseHeadcount(s);
+  if (headcount !== null) return companyTypeFromHeadcount(headcount) ?? fromTotal ?? "unknown";
   if (/^(1001|1001-|5001|10001|1000\+|5000\+|10000\+|enterprise)/i.test(s)) return "enterprise";
   // Common string formats from various providers
   if (s.includes("enterprise") || s.includes("large"))  return "enterprise";
   if (s.includes("mid") || s.includes("medium"))        return "mid-market";
   if (s.includes("small") || s.includes("smb"))         return "smb";
   if (s.includes("startup") || s.includes("micro"))     return "startup";
-  return "unknown";
+  return fromTotal ?? "unknown";
 }
 
 const TECH_KEYWORDS = [
@@ -355,10 +406,49 @@ const PROFESSIONAL_SERVICES_KEYWORDS = [
   "marketing", "advertising", "pr ", "public relations", "recruiting", "staffing", "hr ",
 ];
 
+/**
+ * Industry group for an SBI division (the first two digits of a five-digit SBI
+ * code). Only the divisions that map cleanly onto a group are listed; every
+ * other division returns null and leaves the answer to the keyword match.
+ */
+function industryGroupFromSbiDivision(division: number): IndustryGroup | null {
+  if (division >= 10 && division <= 33) return "manufacturing";
+  if (division >= 45 && division <= 47) return "retail";
+  if (division === 62 || division === 63) return "tech";
+  if (division >= 64 && division <= 66) return "finance";
+  if ((division >= 69 && division <= 74) || division === 78) return "professional-services";
+  if (division >= 86 && division <= 88) return "healthcare";
+  return null;
+}
+
+/**
+ * SBI division of a Leadinfo branch code. Only a five-digit code carries its
+ * division in the first two digits: the SBI table stores divisions 01-09 with
+ * the leading zero dropped ("6200" is 06.20 extraction of natural gas, not
+ * division 62), so a shorter code is left alone.
+ */
+function sbiDivision(branchCode: string | null | undefined): number | null {
+  const code = (branchCode ?? "").trim();
+  return /^\d{5}$/.test(code) ? Number(code.slice(0, 2)) : null;
+}
+
 function deriveIndustryGroup(
   companyIndustry: string | null | undefined,
   crmIndustry: string | null | undefined,
+  leadinfoBranchCode?: string | null,
 ): IndustryGroup | null {
+  // The SBI code speaks only for Leadinfo's own industry: when the industry
+  // text is absent, or is the name of that very SBI code (which is how the
+  // generic field is filled from Leadinfo). An industry another provider set is
+  // matched on its own words. The English keyword match alone misreads SBI
+  // names such as "Wholesale of fruit and vegetables" ("it " reads as tech).
+  const industryText = (companyIndustry ?? "").trim();
+  if (!industryText || industryText === lookupSbiIndustry(leadinfoBranchCode)?.en) {
+    const division = sbiDivision(leadinfoBranchCode);
+    const fromSbi  = division === null ? null : industryGroupFromSbiDivision(division);
+    if (fromSbi) return fromSbi;
+  }
+
   const raw = (companyIndustry ?? crmIndustry ?? "").toLowerCase().trim();
   if (!raw) return null;
 
@@ -529,12 +619,14 @@ export function computeDerivedContext(
   const hasCompany = Boolean(enrichment.companyName ?? enrichment.crmCompanyName);
 
   const companyType = hasCompany
-    ? deriveCompanyType(enrichment.companySize)
+    ? deriveCompanyType(enrichment.companySize, enrichment.leadinfoEmployeesTotal)
     : null;
 
-  const industryGroup = (enrichment.companyIndustry ?? enrichment.crmIndustry)
-    ? deriveIndustryGroup(enrichment.companyIndustry, enrichment.crmIndustry)
-    : null;
+  const industryGroup = deriveIndustryGroup(
+    enrichment.companyIndustry,
+    enrichment.crmIndustry,
+    enrichment.leadinfoBranchCode,
+  );
 
   // ── Campaign context ───────────────────────────────────────────────────────
 
