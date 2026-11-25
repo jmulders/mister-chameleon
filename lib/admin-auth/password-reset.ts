@@ -14,6 +14,8 @@ import { getPlatformEmailSettings } from "@/platform/platform-store";
 import { findAdminUserByResetTokenHash } from "@/data/admin-auth";
 import { resolvePublicBaseUrl } from "@/lib/base-url";
 import { logger } from "@/lib/logger";
+import type { SiteLocale } from "@/lib/site-texts/locale";
+import { SIGN_IN_TEXTS, resetMail } from "./sign-in-texts";
 
 /** Reset token lifetime: 45 minutes. */
 export const RESET_TOKEN_TTL_MS = 45 * 60 * 1000;
@@ -59,11 +61,15 @@ export function resetLink(rawToken: string): string {
  * Send the admin password-reset email via the platform transport. Returns false
  * (without throwing) when email is not configured, so the caller can keep the
  * neutral response. Never logs the token or link.
+ *
+ * The mail is in the language of the page the request came from: someone who
+ * asked for the link on a Dutch page gets a Dutch mail.
  */
 export async function sendAdminPasswordResetEmail(
   toEmail: string,
   toName:  string,
   rawToken: string,
+  locale: SiteLocale = "en",
 ): Promise<boolean> {
   const settings = await getPlatformEmailSettings();
   const platform = settings.ok ? settings.data : null;
@@ -74,20 +80,7 @@ export async function sendAdminPasswordResetEmail(
   }
 
   const from = `${platform.fromName ?? "Mister Chameleon"} <${platform.fromEmail}>`;
-  const link = resetLink(rawToken);
-  const subject = "Reset your Mister Chameleon admin password";
-  const text =
-    `Hi ${toName},\n\n` +
-    `We received a request to reset your Mister Chameleon admin password.\n\n` +
-    `Reset it here (this link expires in 45 minutes and can be used once):\n${link}\n\n` +
-    `After resetting, sign in again with your new password and, if enabled, your two-factor code.\n\n` +
-    `If you did not request this, you can safely ignore this email; your password stays unchanged.\n`;
-  const html =
-    `<p>Hi ${escapeHtml(toName)},</p>` +
-    `<p>We received a request to reset your Mister Chameleon admin password.</p>` +
-    `<p><a href="${escapeHtml(link)}">Reset your password</a> (this link expires in 45 minutes and can be used once).</p>` +
-    `<p>After resetting, sign in again with your new password and, if enabled, your two-factor code.</p>` +
-    `<p>If you did not request this, you can safely ignore this email; your password stays unchanged.</p>`;
+  const { subject, text, html } = resetMail(SIGN_IN_TEXTS[locale], toName, resetLink(rawToken));
 
   try {
     const res = await sendMail({ from, to: [toEmail], subject, text, html }, transport);
@@ -97,10 +90,4 @@ export async function sendAdminPasswordResetEmail(
     logger.warn("[admin-password-reset] email send threw");
     return false;
   }
-}
-
-function escapeHtml(s: string): string {
-  return s.replace(/[&<>"']/g, (c) => (
-    c === "&" ? "&amp;" : c === "<" ? "&lt;" : c === ">" ? "&gt;" : c === '"' ? "&quot;" : "&#39;"
-  ));
 }

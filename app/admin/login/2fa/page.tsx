@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { verifyTotpAction, verifyBackupCodeAction } from "./actions";
+import { SIGN_IN_TEXTS, twoFaError } from "@/lib/admin-auth/sign-in-texts";
+import { getSiteLocale } from "@/lib/site-texts/server";
 
 /**
  * TOTP Challenge Page — Step 2 of the admin login flow.
@@ -20,13 +22,8 @@ interface Props {
 export default async function TwoFaChallengePage({ searchParams }: Props) {
   const { error } = await searchParams;
 
-  const errorMessages: Record<string, string> = {
-    invalid_code:        "That code is incorrect or has expired. Please try again.",
-    invalid_backup_code: "That backup code is not valid or has already been used.",
-    session_expired:     "Your session has expired. Please sign in again.",
-    too_many_attempts:   "Too many attempts. Wait ten minutes and try again.",
-  };
-  const errorMessage = error ? (errorMessages[error] ?? "An error occurred.") : null;
+  const t            = SIGN_IN_TEXTS[await getSiteLocale()];
+  const errorMessage = twoFaError(t, error);
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center px-4">
@@ -34,10 +31,10 @@ export default async function TwoFaChallengePage({ searchParams }: Props) {
         {/* Heading */}
         <div className="mb-8 text-center">
           <h1 className="text-2xl font-bold text-white">
-            Two-factor authentication
+            {t.twoFaHeading}
           </h1>
           <p className="mt-1 text-sm text-slate-400">
-            Enter the 6-digit code from your authenticator app.
+            {t.twoFaIntro}
           </p>
         </div>
 
@@ -55,7 +52,7 @@ export default async function TwoFaChallengePage({ searchParams }: Props) {
               htmlFor="code"
               className="mb-1.5 block text-sm font-medium text-slate-300"
             >
-              Authenticator code
+              {t.twoFaCode}
             </label>
             <input
               id="code"
@@ -75,21 +72,21 @@ export default async function TwoFaChallengePage({ searchParams }: Props) {
             type="submit"
             className="w-full rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-400/50 transition-colors"
           >
-            Verify
+            {t.twoFaVerify}
           </button>
         </form>
 
         {/* Divider */}
         <div className="my-6 flex items-center gap-3">
           <div className="h-px flex-1 bg-slate-700" />
-          <span className="text-xs text-slate-500">or</span>
+          <span className="text-xs text-slate-500">{t.or}</span>
           <div className="h-px flex-1 bg-slate-700" />
         </div>
 
         {/* ── Backup code form ── */}
         <details className="group">
           <summary className="cursor-pointer text-center text-sm text-slate-400 hover:text-slate-200 list-none">
-            Use a backup code
+            {t.useABackupCode}
           </summary>
           <form action={verifyBackupCodeAction} className="mt-4 space-y-4">
             <div>
@@ -97,7 +94,7 @@ export default async function TwoFaChallengePage({ searchParams }: Props) {
                 htmlFor="backup-code"
                 className="mb-1.5 block text-sm font-medium text-slate-300"
               >
-                Backup code
+                {t.backupCode}
               </label>
               <input
                 id="backup-code"
@@ -108,7 +105,7 @@ export default async function TwoFaChallengePage({ searchParams }: Props) {
                 placeholder="xxxxxxxxxx-xxxxxxxxxx"
               />
               <p className="mt-1.5 text-xs text-slate-500">
-                Each backup code can only be used once.
+                {t.backupCodeOnce}
               </p>
             </div>
 
@@ -116,7 +113,7 @@ export default async function TwoFaChallengePage({ searchParams }: Props) {
               type="submit"
               className="w-full rounded-lg border border-slate-700 bg-slate-800 px-4 py-2.5 text-sm font-semibold text-slate-200 shadow-sm hover:bg-slate-700 transition-colors"
             >
-              Use backup code
+              {t.useBackupCode}
             </button>
           </form>
         </details>
@@ -124,7 +121,7 @@ export default async function TwoFaChallengePage({ searchParams }: Props) {
         {/* Back link */}
         <p className="mt-6 text-center text-xs text-slate-400">
           <Link href="/admin/login" className="hover:text-slate-200 underline">
-            ← Back to sign in
+            ← {t.backToSignIn}
           </Link>
         </p>
       </div>
