@@ -525,7 +525,7 @@ export type ContactSectionVariant = "contact_default" | "contact_split" | "conta
  *   horizontal — horizontal step track with connecting line and numbered nodes;
  *                ideal for short 3–5 step flows on landing pages.
  */
-export type ProcessStepsVariant = "default" | "accordion" | "compact" | "horizontal";
+export type ProcessStepsVariant = "default" | "accordion" | "compact" | "horizontal" | "flow";
 
 /**
  * Variant for recruiterPanel blocks.
@@ -611,7 +611,7 @@ const BLOCK_VARIANT_SETS: Partial<Record<ContentBlockType, readonly string[]>> =
   searchResults:  ["grid", "list"]                            satisfies readonly SearchResultsVariant[],
 
   // ── Careers / W6 ─────────────────────────────────────────────────────────────
-  processSteps:  ["default", "accordion", "compact", "horizontal"] satisfies readonly ProcessStepsVariant[],
+  processSteps:  ["default", "accordion", "compact", "horizontal", "flow"] satisfies readonly ProcessStepsVariant[],
   recruiterPanel:["default", "compact", "card"]      satisfies readonly RecruiterPanelVariant[],
 
   // ── Conversion / pricing ──────────────────────────────────────────────────────

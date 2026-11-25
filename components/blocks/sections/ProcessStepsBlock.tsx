@@ -16,6 +16,10 @@
  *   compact    — tight inline numbered list; lower vertical footprint
  *   horizontal — horizontal step track with connecting line and numbered nodes;
  *                ideal for short 3–5 step flows on landing pages
+ *   flow       — a line the steps hang on, cards left and right of it in turn;
+ *                for a longer story of five to eight steps, where each step has
+ *                a few sentences. A step's `duration` shows as a label on its
+ *                card, so it can say who acts in that step.
  *
  * ─── Design tokens consumed ──────────────────────────────────────────────────
  *
@@ -48,13 +52,13 @@ interface ProcessStepsBlockProps {
 
 // ── Step subcomponent ─────────────────────────────────────────────────────────
 
-function StepNumber({ n }: { n: number }) {
+function StepNumber({ n, large = false }: { n: number; large?: boolean }) {
   return (
     <span
       // Hooks for a brand layer (app/brand/*.css): six colours, then round again.
       data-part="step-number"
       data-step={((n - 1) % 6) + 1}
-      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-bold"
+      className={`flex shrink-0 items-center justify-center rounded-full font-bold ${large ? "h-12 w-12 text-lg" : "h-9 w-9 text-sm"}`}
       style={{
         background: "color-mix(in srgb, var(--primary) 12%, transparent)",
         color:      "var(--primary)",
@@ -319,6 +323,103 @@ export function ProcessStepsBlock({ data, variant: rawVariant, surface }: Proces
                   ))}
                 </ol>
               </div>
+            )}
+          </Stack>
+        </Container>
+      </Section>
+    );
+  }
+
+  // ── flow variant ─────────────────────────────────────────────────────────────
+  //
+  // A story told along a line. On a wide screen the line runs down the middle
+  // and the cards stand left and right of it in turn. On a phone the line runs
+  // down the left and every card stands to its right.
+  //
+  // Wide screen: the list is one grid and every step takes two rows, starting
+  // one row below the step before it. So a card on the right begins beside the
+  // card on the left, which keeps the flow compact, and two cards on the same
+  // side can never overlap, whatever their length.
+  //
+  // The line is drawn per step, from its node down to the next one, so it ends
+  // at the last node and not below it.
+
+  if (variant === "flow") {
+    const lineStyle = {
+      backgroundImage: "linear-gradient(to bottom, var(--text-subtle) 55%, transparent 55%)",
+      backgroundSize:  "2px 12px",
+      opacity:         0.55,
+    };
+    return (
+      <Section
+        spacing="lg"
+        style={{
+          background:        resolveSurface(surface) ?? "var(--section-subtle-bg)",
+          borderTopColor:    "var(--section-subtle-border)",
+          borderBottomColor: "var(--section-subtle-border)",
+        }}
+        className="border-y"
+      >
+        <Container size="lg">
+          <Stack gap={10}>
+            {heading && (
+              <Text variant="h2" align="center">
+                {heading}
+              </Text>
+            )}
+
+            {items.length > 0 && (
+              <ol className="mx-auto w-full max-w-4xl md:grid md:grid-cols-[minmax(0,1fr)_48px_minmax(0,1fr)] md:gap-x-8">
+                {items.map((step, index) => {
+                  const right = index % 2 === 1;
+                  const last  = index === items.length - 1;
+                  return (
+                    <li
+                      key={index}
+                      className="grid grid-cols-[48px_minmax(0,1fr)] gap-x-4 md:contents"
+                      // The last step has no step below it to share a row with.
+                      style={{ "--flow-row": index + 1, "--flow-span": last ? 1 : 2 } as React.CSSProperties}
+                    >
+                      {/* The node, and under it the line to the next node. */}
+                      <div className="col-start-1 flex flex-col items-center md:col-start-2 md:[grid-row:var(--flow-row)]">
+                        <StepNumber n={index + 1} large />
+                        {!last && <span aria-hidden="true" className="my-1 w-0.5 flex-1" style={lineStyle} />}
+                      </div>
+                      <div
+                        className={`col-start-2 mb-5 rounded-2xl border p-5 md:mb-4 md:self-start md:[grid-row:var(--flow-row)_/_span_var(--flow-span)] ${last ? "mb-0 md:mb-0" : ""} ${right ? "md:col-start-3" : "md:col-start-1"}`}
+                        style={{
+                          background:   "var(--card-bg)",
+                          borderColor:  "var(--card-border)",
+                          borderRadius: "var(--card-radius)",
+                        }}
+                      >
+                        {step.duration && (
+                          <span
+                            className="mb-2 block text-xs font-semibold uppercase tracking-wide"
+                            style={{ color: "var(--text-subtle)" }}
+                          >
+                            {step.duration}
+                          </span>
+                        )}
+                        <span
+                          className="block text-lg"
+                          style={{
+                            fontWeight: "var(--font-subheading-weight)",
+                            color:      "var(--text)",
+                          }}
+                        >
+                          {step.title}
+                        </span>
+                        {step.description && (
+                          <Text variant="body" color="muted" className="mt-1 leading-relaxed">
+                            {step.description}
+                          </Text>
+                        )}
+                      </div>
+                    </li>
+                  );
+                })}
+              </ol>
             )}
           </Stack>
         </Container>
