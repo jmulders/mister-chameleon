@@ -70,6 +70,7 @@ import {
   leadinfoToEnrichment,
   LEADINFO_COOKIE,
 } from "@/context/leadinfo-context";
+import { fillCompanyFromLeadinfo } from "@/context/leadinfo-company-fill";
 import { FORM_LOCATION_COOKIE, parseFormLocationCookie, formLocationFingerprint } from "@/context/form-location-context";
 import { logger } from "@/lib/logger";
 import { extractIpFromRequest } from "@/lib/request-ip";
@@ -1355,11 +1356,19 @@ export async function buildDecisionContext(
   // company signals — identified from the true client IP rather than a CDN or
   // proxy address — take precedence over server-side IP-based lookups.
   //
-  // Only leadinfo* fields are written here.  Generic company fields
-  // (companyName, companyDomain, etc.) produced by the pipeline are preserved
-  // unchanged so that OpenKvK and HubSpot CRM data are not accidentally
-  // overwritten.  Downstream rules can compare leadinfoCompanyName with
-  // companyName to detect source discrepancies.
+  // The merge itself writes only the leadinfo* fields.  A generic company field
+  // (companyName, companyDomain, companyIndustry, companySize) the pipeline
+  // resolved is never overwritten, so OpenKvK, first-party and HubSpot CRM data
+  // stay as they are and a rule can still compare leadinfoCompanyName with
+  // companyName to detect a source discrepancy.
+  //
+  // A generic field that is still EMPTY is then filled from a matched Leadinfo
+  // company (fillCompanyFromLeadinfo), as the server-side Leadinfo stage does.
+  // Without that a tenant that recognises companies through the cookie alone
+  // has no companyIndustry / companySize, no companyType / industryGroup and no
+  // {{company_name}} for a visitor Leadinfo did recognise.  The fill runs after
+  // the session-cache write above, so the cache never holds a promoted value
+  // and a withdrawn mc_li cookie takes the fields with it on the next request.
   const liCookieVal = cookieHeader
     ? parseCookieField(cookieHeader, LEADINFO_COOKIE)
     : null;
@@ -1369,11 +1378,29 @@ export async function buildDecisionContext(
 
   if (Object.keys(leadinfoEnrichment).length > 0) {
     enrichment = { ...enrichment, ...leadinfoEnrichment };
+
+    const leadinfoFill = fillCompanyFromLeadinfo(enrichment);
+    enrichment = leadinfoFill.enrichment;
+    // Provenance for the debug panel: these values came from the cookie, not
+    // from a pipeline stage.
+    for (const field of leadinfoFill.filled) {
+      enrichmentTrace = {
+        ...enrichmentTrace,
+        [field]: {
+          provider:    "Leadinfo (client)",
+          source:      "mc_li cookie",
+          cacheStatus: "n/a",
+          inputsUsed:  [],
+        },
+      };
+    }
+
     logger.debug("[decision-context] Leadinfo cookie merged", {
       matched:         leadinfoData?.matched,
       companyName:     leadinfoData?.companyName,
       companyDomain:   leadinfoData?.companyDomain,
       companyCountry:  leadinfoData?.companyCountry,
+      genericFilled:   leadinfoFill.filled,
     });
   }
 

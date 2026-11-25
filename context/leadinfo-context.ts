@@ -19,7 +19,8 @@
  *   2. On success it POSTs the normalised LeadinfoData to /api/enrichment/leadinfo.
  *   3. The API route validates, serialises, and persists the data in mc_li.
  *   4. On subsequent server renders, buildDecisionContext reads mc_li and
- *      merges the leadinfo* fields into the enrichment output.
+ *      merges the leadinfo* fields into the enrichment output, then fills the
+ *      generic company fields no other provider set (leadinfo-company-fill.ts).
  *
  * ─── Zero project imports ─────────────────────────────────────────────────────
  *
@@ -231,8 +232,8 @@ import type { EnrichmentOutput } from "@/enrichment/types";
  *
  * Only leadinfo* fields are set here — generic company fields (companyName,
  * companyDomain, etc.) are intentionally NOT overwritten.  The caller
- * (`buildDecisionContext`) decides whether to promote leadinfo data into the
- * generic company slot based on tenant config and pipeline priority.
+ * (`buildDecisionContext`) fills the generic fields that are still empty from
+ * a matched company afterwards, see `fillCompanyFromLeadinfo`.
  *
  * Returns an empty object when `data` is null (safe no-op).
  */

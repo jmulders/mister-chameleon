@@ -1024,7 +1024,7 @@ export const FIELD_REGISTRY: Readonly<Record<RuleFieldKey, FieldDefinition>> = {
 
   companySize: {
     label:       "Company size",
-    description: "Employee size bucket, e.g. \"51-200\", \"201-1000\".",
+    description: "Employee size as the provider reports it: a bucket such as \"51-200\", or a plain number such as \"52\" from Leadinfo. Use Company type for a size class.",
     group:       "enrichment",
     kind:        "nullable_string",
     operators:   OPS_NULLABLE_STRING,
