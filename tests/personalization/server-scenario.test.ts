@@ -224,3 +224,77 @@ describe("applyScenarioToDecisionContext — CBS location overrides", () => {
     assert.strictEqual(applyScenarioToDecisionContext(ctx, {}), ctx);
   });
 });
+
+// ── applyScenarioToDecisionContext — company overrides reach the derived signals ─
+
+describe("applyScenarioToDecisionContext — company overrides and derived signals", () => {
+  // A full decision context: it carries derived signals, as buildDecisionContext
+  // returns it. The real visitor is a small tech company.
+  const fullCtx = () => ({
+    source: "direct", visitType: "new", device: "desktop",
+    currentHour: 10, isWeekend: false, month: 11,
+    enrichment: { companyName: "Acme BV", companyIndustry: "Software", companySize: "11-50" },
+    derived:    { companyType: "startup", industryGroup: "tech" },
+  } as unknown as RuleEvaluationContext);
+
+  it("recomputes industryGroup and companyType after a company override", () => {
+    const result = applyScenarioToDecisionContext(fullCtx(), {
+      companyIndustry: "Hospital & Health Care",
+      companySize:     "250",
+    });
+    assert.strictEqual(result.enrichment!.companyIndustry, "Hospital & Health Care");
+    assert.strictEqual(result.derived!.industryGroup, "healthcare");
+    assert.strictEqual(result.derived!.companyType, "mid-market");
+  });
+
+  it("a simulated Leadinfo match fills the empty generic fields, as the real cookie does", () => {
+    const ctx = {
+      ...fullCtx(),
+      enrichment: { countryCode: "NL" },
+      derived:    { companyType: null, industryGroup: null },
+    } as unknown as RuleEvaluationContext;
+    const result = applyScenarioToDecisionContext(ctx, {
+      enrichmentPatch: {
+        leadinfoMatched:        true,
+        leadinfoCompanyName:    "Steets B.V.",
+        leadinfoCompanyDomain:  "steets.nl",
+        leadinfoBranchCode:     "73110",
+        leadinfoEmployees:      "52",
+        leadinfoEmployeesTotal: 21,
+      },
+    });
+    assert.strictEqual(result.enrichment!.companyName, "Steets B.V.");
+    assert.strictEqual(result.enrichment!.companyIndustry, "Activities of advertising agencies");
+    assert.strictEqual(result.enrichment!.companySize, "52");
+    assert.strictEqual(result.derived!.industryGroup, "professional-services");
+    assert.strictEqual(result.derived!.companyType, "smb");
+  });
+
+  it("an individual override still wins over the simulated Leadinfo match", () => {
+    const ctx = { ...fullCtx(), enrichment: {} } as unknown as RuleEvaluationContext;
+    const result = applyScenarioToDecisionContext(ctx, {
+      enrichmentPatch: { leadinfoMatched: true, leadinfoCompanyName: "Steets B.V.", leadinfoEmployees: "52" },
+      companyName: "Override BV",
+      companySize: "5001+",
+    });
+    assert.strictEqual(result.enrichment!.companyName, "Override BV");
+    assert.strictEqual(result.derived!.companyType, "enterprise");
+  });
+
+  it("the simulated match never overwrites the real visitor's company", () => {
+    const result = applyScenarioToDecisionContext(fullCtx(), {
+      enrichmentPatch: { leadinfoMatched: true, leadinfoCompanyName: "Steets B.V.", leadinfoEmployees: "52", leadinfoBranchCode: "73110" },
+    });
+    assert.strictEqual(result.enrichment!.companyName, "Acme BV");
+    assert.strictEqual(result.enrichment!.companyIndustry, "Software");
+    assert.strictEqual(result.derived!.industryGroup, "tech");
+    assert.strictEqual(result.derived!.companyType, "startup");
+  });
+
+  it("leaves a context without derived signals without them (the theme pass)", () => {
+    const themeCtx = { enrichment: { countryCode: "NL" } } as unknown as RuleEvaluationContext;
+    const result = applyScenarioToDecisionContext(themeCtx, { companyIndustry: "Software" });
+    assert.strictEqual(result.enrichment!.companyIndustry, "Software");
+    assert.strictEqual(result.derived, undefined);
+  });
+});
