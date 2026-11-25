@@ -21,7 +21,8 @@
  *   200  { ok: true, eventId: "...", htmlLink: "..." }
  *   400  { error: "..." }  — validation failure
  *   409  { error: "Slot no longer available." }  — race condition
- *   500  { error: "..." }  — calendar or email error
+ *   500  { ok: false, code: "calendar_unavailable" }  — the calendar event
+ *        could not be made. The cause goes to the log, never to the visitor.
  *
  * ─── What happens on success ──────────────────────────────────────────────────
  *
@@ -93,12 +94,12 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     // Detect a slot-conflict signal (not guaranteed from GCal API, but handle gracefully)
     if (bookingResult.error.toLowerCase().includes("conflict")) {
       return NextResponse.json(
-        { error: "This slot is no longer available. Please choose another time." },
+        { ok: false, code: "slot_taken", error: "This slot is no longer available. Please choose another time." },
         { status: 409 },
       );
     }
 
-    return NextResponse.json({ error: bookingResult.error }, { status: 500 });
+    return NextResponse.json({ ok: false, code: "calendar_unavailable" }, { status: 500 });
   }
 
   logger.info("[demo/book] Calendar event created", {

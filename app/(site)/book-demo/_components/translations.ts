@@ -82,6 +82,20 @@ export interface BookDemoTranslations {
   errorConnect:         string;
   errorGeneric:         string;
   errorNetwork:         string;
+  /** The calendar could not be reached. Says what the visitor can do instead. */
+  errorCalendar:        string;
+  /** Label of the link to the contact page under that message. */
+  errorCalendarLink:    string;
+  /** The chosen time was taken while the visitor filled in the form. */
+  errorSlotTaken:       string;
+  /** Where the link under the calendar message goes. */
+  contactHref:          string;
+
+  // ── Date and time ────────────────────────────────────────────────────────────
+  /** BCP 47 tag the date is written in, e.g. "nl-NL" gives "woensdag 25 november 2026". */
+  dateLocale:           string;
+  /** true shows "2:00 PM", false shows "14:00". */
+  hour12:               boolean;
 
   // ── Confirmation screen ───────────────────────────────────────────────────────
   confirmedTitle:    string;
@@ -162,6 +176,12 @@ const en: BookDemoTranslations = {
   errorConnect:       "Failed to connect. Please try again.",
   errorGeneric:       "Something went wrong. Please try again.",
   errorNetwork:       "Network error. Please check your connection and try again.",
+  errorCalendar:      "The calendar is not available right now. Try again later, or send us a message and we will plan the demo with you.",
+  errorCalendarLink:  "Send a message",
+  errorSlotTaken:     "This time was just taken. Choose another time.",
+  contactHref:        "/contact",
+  dateLocale:         "en-GB",
+  hour12:             true,
 
   confirmedTitle: "You're all set!",
   confirmedBody:  "Your demo is booked. Check your inbox — a calendar invite and confirmation are on their way to",
@@ -245,6 +265,12 @@ const nl: BookDemoTranslations = {
   errorConnect:       "Er is geen verbinding. Probeer het opnieuw.",
   errorGeneric:       "Er ging iets mis. Probeer het opnieuw.",
   errorNetwork:       "Er is geen verbinding. Controleer je internet en probeer het opnieuw.",
+  errorCalendar:      "De agenda is nu niet bereikbaar. Probeer het later opnieuw, of stuur ons een bericht. Dan plannen we de demo met je in.",
+  errorCalendarLink:  "Stuur een bericht",
+  errorSlotTaken:     "Deze tijd is net bezet. Kies een andere tijd.",
+  contactHref:        "/contact",
+  dateLocale:         "nl-NL",
+  hour12:             false,
 
   confirmedTitle: "Je demo staat gepland",
   confirmedBody:  "Kijk in je inbox. De uitnodiging en de bevestiging zijn onderweg naar",
@@ -328,6 +354,12 @@ const de: BookDemoTranslations = {
   errorConnect:       "Verbindung fehlgeschlagen. Bitte erneut versuchen.",
   errorGeneric:       "Etwas ist schiefgelaufen. Bitte erneut versuchen.",
   errorNetwork:       "Netzwerkfehler. Bitte überprüfen Sie Ihre Verbindung und versuchen Sie es erneut.",
+  errorCalendar:      "Der Kalender ist gerade nicht erreichbar. Versuchen Sie es später erneut oder schreiben Sie uns. Dann planen wir die Demo mit Ihnen.",
+  errorCalendarLink:  "Nachricht senden",
+  errorSlotTaken:     "Diese Zeit wurde gerade vergeben. Wählen Sie eine andere Zeit.",
+  contactHref:        "/contact",
+  dateLocale:         "de-DE",
+  hour12:             false,
 
   confirmedTitle: "Alles erledigt!",
   confirmedBody:  "Ihre Demo ist gebucht. Prüfen Sie Ihren Posteingang – eine Kalendereinladung und Bestätigung sind unterwegs an",
