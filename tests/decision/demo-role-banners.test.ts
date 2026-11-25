@@ -12,7 +12,7 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 
 import type { StoredRulesConfig } from "@/decision/rules/stored-rule";
-import { ALLOWED_HERO_KEYS, validateStoredConfig } from "@/decision/rules/stored-rule";
+import { ALLOWED_HERO_KEYS, ALLOWED_PROOF_KEYS, ALLOWED_CTA_KEYS, validateStoredConfig } from "@/decision/rules/stored-rule";
 import { HERO_VARIANT_KEYS } from "@/decision/types";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -41,7 +41,16 @@ describe("demo role banners", () => {
     }
   });
 
-  it("accepts the rule of each role with its own banner", () => {
+  it("has a proof block and a closing call to action of its own for every role", () => {
+    for (const hero of Object.values(BANNER_OF)) {
+      const proof = hero.replace("hero_", "proof_");
+      const cta   = hero.replace("hero_", "cta_");
+      assert.ok((ALLOWED_PROOF_KEYS as readonly string[]).includes(proof), `${proof} is not allowed in a rule`);
+      assert.ok((ALLOWED_CTA_KEYS as readonly string[]).includes(cta), `${cta} is not allowed in a rule`);
+    }
+  });
+
+  it("accepts the rule of each role with its own banner, proof and call to action", () => {
     const rules = ROLES.map((role, i) => ({
       id:        `demo.role_${i}`,
       priority:  i,
@@ -50,7 +59,13 @@ describe("demo role banners", () => {
       enabled:   true,
       // The segment the role's preset simulates is the one its rule matches on.
       condition: { type: "field", field: "audienceSegmentIds", operator: "contains", value: role.segment },
-      plan:      { ...RULES_CONFIG.defaultPlan, heroKey: BANNER_OF[role.key], reason: "Demo role" },
+      plan:      {
+        ...RULES_CONFIG.defaultPlan,
+        heroKey:  BANNER_OF[role.key],
+        proofKey: BANNER_OF[role.key].replace("hero_", "proof_"),
+        ctaKey:   BANNER_OF[role.key].replace("hero_", "cta_"),
+        reason:   "Demo role",
+      },
     }));
     const config = {
       schemaVersion: 1,

@@ -35,6 +35,38 @@ export function isPageOwnedHeroKey(key: string | null | undefined): boolean {
   return key.startsWith(PAGE_OWNED_PREFIX) && !key.startsWith(BANNER_PREFIX);
 }
 
+/**
+ * True for a key that belongs to one page in any slot: `hero_page_prijzen`,
+ * `feature_page_functies`, `proof_page_integraties`.
+ *
+ * A hero is the page's own heading. In the other slots a page-owned block is a
+ * section of that page which may read differently per audience, or exist for
+ * some audiences only: its default may be left empty, and then the section is
+ * there for the visitors it has a variant for and absent for everyone else.
+ */
+export function isPageOwnedSlotKey(slotId: string, key: string | null | undefined): boolean {
+  if (slotId === "hero") return isPageOwnedHeroKey(key);
+  return typeof key === "string" && slotId !== "" && key.startsWith(`${slotId}_page_`);
+}
+
+/**
+ * The slot of a page-owned section, with the variant to prefer.
+ *
+ * The rule engine must not swap such a section for the block it picked for
+ * this slot (a page about integrations keeps its own section), so the key
+ * stays. What the engine does decide is who is reading: the hero it picked
+ * names the audience, and a page-owned block files its variants under that
+ * same key. One key per audience, on every page and in every slot.
+ */
+export function resolvePageOwnedSlotKeys(
+  pageKey:     string,
+  planHeroKey: string | null | undefined,
+): { variantKey: string; preferredVariantKey?: string } {
+  return planHeroKey && planHeroKey !== pageKey
+    ? { variantKey: pageKey, preferredVariantKey: planHeroKey }
+    : { variantKey: pageKey };
+}
+
 export type HeroSlotKeys = {
   variantKey:           string;
   fallbackVariantKey?:  string;

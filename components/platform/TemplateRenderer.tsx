@@ -80,6 +80,10 @@ import {
   adaptiveVariantToHeroBlockData,
 } from "@/lib/tokens/resolve-adaptive-variant";
 import { parseTokens, type TokenContext } from "@/lib/tokens/parse-tokens";
+import { adaptiveVariantToContextEntry } from "@/lib/tokens/adaptive-variant-to-context";
+import { isPageOwnedSlotKey } from "@/lib/page-hero-key";
+import { isEmptySection } from "@/lib/blocks/empty-section";
+import { featureLinkHref } from "@/cms/mappers/statamic/statamic-mappers";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // BLOCK-TOKEN HELPERS
@@ -239,6 +243,11 @@ function renderContextSlotInner({ slotId, contextData, layoutVariant, tokenConte
       if (!contextData.feature) return null;
       // Adapt FeatureBlockData (CMS shape: title/body/icon) →
       //       FeatureGridBlockData (component shape: heading/features[]/description)
+      const featureVariant = contextData.feature.layoutVariant ?? "feature_grid_3up";
+      // A card's link: the spotlight draws it as a button from ctaLabel/ctaHref.
+      // Every other layout draws the "Lees meer" link under the card, so the
+      // same two fields are handed over as that link there.
+      const linksUnderCard = featureVariant !== "feature_spotlight";
       const featureData = {
         heading:  contextData.feature.title,
         features: contextData.feature.items.map((item) => ({
@@ -251,12 +260,13 @@ function renderContextSlotInner({ slotId, contextData, layoutVariant, tokenConte
           ctaLabel:    item.ctaLabel,
           ctaHref:     item.ctaHref,
           mediaSide:   item.mediaSide,
+          ...(linksUnderCard && featureLinkHref(item.ctaHref) ? { linkHref: featureLinkHref(item.ctaHref), linkLabel: item.ctaLabel } : {}),
         })),
       };
       return (
         <FeatureGridBlock
           data={featureData}
-          variant={contextData.feature.layoutVariant ?? "feature_grid_3up"}
+          variant={featureVariant}
           {...layoutOverride}
         />
       );
@@ -616,6 +626,26 @@ async function fetchContextDataFromSlots(
     return heroFromVariant(content, adaptive.key, key);
   };
 
+  // A section the page owns (`feature_page_<slug>`, `proof_page_<slug>`,
+  // `cta_page_<slug>`), from its own block.
+  //
+  // Returns undefined for any other slot, so the caller goes on as before.
+  // For a page-owned slot the answer is final: the variant for this visitor's
+  // audience when the block has one, else the default, and nothing at all when
+  // that default is empty. An empty default is how a section is made for some
+  // audiences only: everyone else gets the page without it.
+  const loadOwnSection = async (slot: ResolvedContextSlot): Promise<Partial<ContextSlotData> | undefined> => {
+    const key = slot.variantKey;
+    if (!key || !isPageOwnedSlotKey(slot.slotId, key)) return undefined;
+    const own = await cms.getAdaptiveBlock(key);
+    if (!own?.isActive) return {};
+    const { content } = resolveAdaptiveVariant(own, { variantKey: slot.preferredVariantKey });
+    if (isEmptySection(content)) return {};
+    const entry = adaptiveVariantToContextEntry(slot.slotId, content, own.key);
+    if (!entry) return {};
+    return entry.cta ? { cta: { ...entry.cta, ctaKey: key } } : entry;
+  };
+
   // Fetch all active slots in parallel — no waterfall.
   const partials = await Promise.all(
     activeSlots.map(async (slot): Promise<Partial<ContextSlotData>> => {
@@ -629,14 +659,20 @@ async function fetchContextDataFromSlots(
           return fallback ? { hero: fallback } : {};
         }
         case "proof": {
+          const own = await loadOwnSection(slot);
+          if (own !== undefined) return own;
           const data = await cms.getProofVariant(key);
           return data ? { proof: data } : {};
         }
         case "cta": {
+          const own = await loadOwnSection(slot);
+          if (own !== undefined) return own;
           const data = await cms.getCTAVariant(key);
           return data ? { cta: { ...data, ctaKey: key } } : {};
         }
         case "feature": {
+          const own = await loadOwnSection(slot);
+          if (own !== undefined) return own;
           const data = await cms.getFeatureVariant(key);
           return data ? { feature: data } : {};
         }

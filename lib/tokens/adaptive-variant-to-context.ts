@@ -109,6 +109,7 @@ export function adaptiveVariantToContextEntry(
         feature: {
           id:    blockKey,
           title: content.title ?? "",
+          ...(content.subtitle ? { subtitle: content.subtitle } : {}),
           items: (content.items ?? []).map(adaptiveItemToFeatureItem),
           ...(content.layoutVariant ? { layoutVariant: content.layoutVariant } : {}),
           ...withRef,
