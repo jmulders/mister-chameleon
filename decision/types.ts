@@ -114,7 +114,9 @@ export type HeroVariantKey =
   // One banner per demo role ("Who are you?" in the Scenario Control panel)
   | "hero_role_marketeer"
   | "hero_role_bureau"
-  | "hero_role_technisch";
+  | "hero_role_technisch"
+  // The demo preset "company recognised": a banner that names the company
+  | "hero_company_known";
 
 /**
  * Runtime tuple of all valid hero variant key strings.
@@ -153,6 +155,8 @@ export const HERO_VARIANT_KEYS: readonly HeroVariantKey[] = [
   "hero_role_marketeer",
   "hero_role_bureau",
   "hero_role_technisch",
+  // The demo preset "company recognised"
+  "hero_company_known",
 ] as const;
 
 // ── Proof variant keys ────────────────────────────────────────────────────────

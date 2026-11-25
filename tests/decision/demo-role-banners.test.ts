@@ -83,3 +83,36 @@ describe("demo role banners", () => {
     }
   });
 });
+
+// ── The demo preset "company recognised" ──────────────────────────────────────
+//
+// A tenant's own Scenario Control preset that simulates a recognised company
+// and shows a banner with its name. It is tied to a demo segment, as the roles
+// are, so a real visitor never gets it (25 Nov 2026).
+
+describe("the banner for a recognised company", () => {
+  const KEY = "hero_company_known";
+
+  it("is a hero variant key a rule may use", () => {
+    assert.ok((HERO_VARIANT_KEYS as readonly string[]).includes(KEY));
+    assert.ok((ALLOWED_HERO_KEYS as readonly string[]).includes(KEY));
+  });
+
+  it("has a name in the catalogue and in the rules editor", () => {
+    for (const file of ["../../decision/rules/variant-catalogue.ts", "../../app/dashboard/rules/_components/RulesEditor.tsx"]) {
+      assert.match(readFileSync(join(import.meta.dirname, file), "utf8"), /hero_company_known:\s+"Demo · company recognised"/);
+    }
+  });
+
+  it("makes a valid rule on a demo segment", () => {
+    const config = {
+      ...RULES_CONFIG,
+      rules: [{
+        id: "demo.bedrijf_herkend", priority: 3, label: "Demo, bedrijf herkend", reason: "Demo preset", enabled: true,
+        condition: { type: "field", field: "audienceSegmentIds", operator: "contains", value: "demo-bedrijf-herkend" },
+        plan: { heroKey: KEY, proofKey: "proof_cases", ctaKey: "cta_meeting", reason: "Demo preset" },
+      }],
+    } as unknown as StoredRulesConfig;
+    assert.deepEqual(validateStoredConfig(config), []);
+  });
+});
