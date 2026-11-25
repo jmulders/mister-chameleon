@@ -15,10 +15,20 @@
  * The page starts with the plans, because that is what a visitor came for.
  * Credits come last: they only matter once you look up companies.
  *
+ * ─── Advice for this visitor ─────────────────────────────────────────────────
+ *
+ *   Above the plans the page can show one piece of advice, chosen by the
+ *   tenant's rules: for an agency it points at Pro, for a visitor who is ready
+ *   to start it says how the trial works. The texts live in the adaptive block
+ *   `feature_page_prijzen`, one variant per audience, so the owner edits them
+ *   in the admin. When the advice links to `#pakket-<plan>`, that plan is the
+ *   one the page lifts out. Without advice the page is what it always was.
+ *
  * ─── Data ─────────────────────────────────────────────────────────────────────
  *
- *   Server component, no database calls. Prices, limits and features come from
- *   billing/plans.ts, so the page cannot drift from what is charged.
+ *   Server component. Prices, limits and features come from billing/plans.ts,
+ *   so the page cannot drift from what is charged. The advice is the only part
+ *   that depends on the visitor.
  *
  * The English page used to live on /pricing. On misterchameleon.nl that address
  * redirects here (see next.config.mjs).
@@ -28,6 +38,8 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { BILLING_PLANS, type BillingPlan } from "@/billing/plans";
 import { PlanCartButton, CreditCartButton } from "./_components/CartButtons";
+import { resolveOwnBlockVariant } from "@/lib/page-owned-variant";
+import { adviceFrom, type PricingAdvice } from "@/lib/pricing-advice";
 
 export const metadata: Metadata = {
   title:       "Prijzen website personalisatie | Mister Chameleon",
@@ -104,15 +116,18 @@ function count(n: number): string {
 const ON_INVERSE_MUTED = "color-mix(in srgb, var(--text-inverse) 72%, transparent)";
 const ON_INVERSE_TINT  = "color-mix(in srgb, var(--text-inverse) 12%, transparent)";
 
-function PlanCard({ plan }: { plan: BillingPlan }) {
-  const popular = plan.id === "growth";
+function PlanCard({ plan, advised }: { plan: BillingPlan; advised?: BillingPlan["id"] }) {
+  // The plan the page lifts out: the one the advice names, and Growth without advice.
+  const popular = plan.id === (advised ?? "growth");
   const strong  = popular ? "var(--text-inverse)" : "var(--text)";
   const muted   = popular ? ON_INVERSE_MUTED      : "var(--text-muted)";
   const accent  = popular ? "var(--text-inverse)" : "var(--text-brand)";
 
   return (
     <div
-      className="relative flex flex-col rounded-2xl border p-6"
+      // The advice above the plans links here.
+      id={`pakket-${plan.id}`}
+      className="relative flex scroll-mt-28 flex-col rounded-2xl border p-6"
       style={popular
         ? { background: "var(--bg-inverse)", borderColor: "var(--bg-inverse)", color: "var(--text-inverse)" }
         : { background: "var(--card-bg)",    borderColor: "var(--card-border)", color: "var(--text)" }}
@@ -123,7 +138,7 @@ function PlanCard({ plan }: { plan: BillingPlan }) {
             className="rounded-full border px-3 py-0.5 text-xs font-semibold"
             style={{ background: "var(--card-bg)", borderColor: "var(--card-border)", color: "var(--text)" }}
           >
-            Meest gekozen
+            {advised ? "Ons advies voor jou" : "Meest gekozen"}
           </span>
         </div>
       )}
@@ -203,8 +218,36 @@ function CreditCard({ pkg }: { pkg: typeof CREDIT_PACKAGES[number] }) {
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 
-export default function PrijzenPage() {
+function AdviceNote({ advice }: { advice: PricingAdvice }) {
+  const linkClass = "shrink-0 text-sm font-semibold underline underline-offset-4";
+  return (
+    <section aria-label="Advies" className="mx-auto max-w-5xl px-6 pb-8">
+      <div
+        data-part="pricing-advice"
+        className="mx-auto flex max-w-3xl flex-col gap-3 rounded-2xl border p-5 text-left sm:flex-row sm:items-center sm:gap-6"
+        style={{ background: "var(--bg-subtle)", borderColor: "var(--card-border)" }}
+      >
+        <div className="flex-1">
+          <p className="text-sm font-semibold" style={{ color: "var(--text-brand)" }}>{advice.title}</p>
+          <p className="mt-1 text-base leading-relaxed" style={{ color: "var(--text)" }}>{advice.text}</p>
+        </div>
+        {advice.linkHref && advice.linkLabel && (
+          advice.linkHref.startsWith("#")
+            ? <a href={advice.linkHref} className={linkClass} style={{ color: "var(--text)" }}>{advice.linkLabel}</a>
+            : <Link href={advice.linkHref} className={linkClass} style={{ color: "var(--text)" }}>{advice.linkLabel}</Link>
+        )}
+      </div>
+    </section>
+  );
+}
+
+export default async function PrijzenPage() {
   const plans = Object.values(BILLING_PLANS);
+
+  // One piece of advice for this visitor, when the rules picked an audience the
+  // block has a variant for. A bot and the control group get none.
+  const own    = await resolveOwnBlockVariant("prijzen", "feature", "feature_page_prijzen");
+  const advice = own ? adviceFrom(own.content, Object.keys(BILLING_PLANS)) : null;
 
   return (
     <div className="min-h-screen" style={{ background: "var(--bg)", color: "var(--text)" }}>
@@ -219,10 +262,12 @@ export default function PrijzenPage() {
         </p>
       </section>
 
+      {advice && <AdviceNote advice={advice} />}
+
       {/* ── Plans ────────────────────────────────────────────────────────── */}
       <section id="pakketten" aria-label="Pakketten" className="mx-auto max-w-5xl px-6 pb-20">
         <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-          {plans.map((plan) => <PlanCard key={plan.id} plan={plan} />)}
+          {plans.map((plan) => <PlanCard key={plan.id} plan={plan} advised={advice?.planId as BillingPlan["id"] | undefined} />)}
         </div>
       </section>
 

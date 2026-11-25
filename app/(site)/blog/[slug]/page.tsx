@@ -18,6 +18,8 @@ import { notFound }                     from "next/navigation";
 import type { Metadata }                from "next";
 import { createCMSProvider }            from "@/cms";
 import { mapPageDataToPageConfig }      from "@/cms/mappers/page-config-mapper";
+import { resolveOwnBlockVariant } from "@/lib/page-owned-variant";
+import { withOwnClosingSlot }   from "@/lib/page-owned-closing-slot";
 import { TemplateRenderer }             from "@/components/platform/TemplateRenderer";
 import { pageNeedsTitleHeading }   from "@/lib/page-title";
 import { PageTitleHeader }         from "@/components/site/PageTitleHeader";
@@ -66,6 +68,13 @@ export default async function BlogPostDetailPage({ params }: PageProps) {
 
   const pageConfig = mapPageDataToPageConfig(page);
 
+  // The closing block for this visitor. An article ends with a call to action of
+  // its own. When the tenant's block `cta_page_blog` has a variant for the audience
+  // the rules picked (a customer, say, who needs no demo), that variant takes its
+  // place. Otherwise the page keeps the block it has.
+  const own        = await resolveOwnBlockVariant(`blog/${slug}`, "cta", "cta_page_blog");
+  const shown      = own ? withOwnClosingSlot(pageConfig, own.slot) : pageConfig;
+
   // data-page-kind names the page for a brand layer: an article is a stack of
   // text sections, and a house style may want those closer together than the
   // sections of a landing page.
@@ -74,7 +83,7 @@ export default async function BlogPostDetailPage({ params }: PageProps) {
       {pageNeedsTitleHeading(pageConfig.contextSlots, pageConfig.contentBlocks) && page.title && (
         <PageTitleHeader title={page.title} />
       )}
-      <TemplateRenderer pageConfig={pageConfig} />
+      <TemplateRenderer pageConfig={shown} tokenContext={own?.tokenContext ?? undefined} />
     </main>
   );
 }
