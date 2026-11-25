@@ -8,7 +8,7 @@ import { Text } from "@/components/primitives/Text";
 import { resolveContextBlockVariant } from "@/page-config/block-variants";
 import type { ProofLayoutVariant } from "@/page-config/block-variants";
 import type { ProofItem } from "@/cms/types";
-import { isRenderableMedia } from "@/lib/media/block-media";
+import { isRenderableMedia, stillPicture } from "@/lib/media/block-media";
 import { ProofSpotlightCard } from "@/components/blocks/proof/ProofSpotlightCard";
 import { ProofSpotlightSlider } from "@/components/blocks/proof/ProofSpotlightSlider";
 
@@ -239,6 +239,8 @@ export function ProofBlock({ title, items, layoutVariant: rawLayout }: ProofBloc
   //
   // Headline metric row: bold title (number/stat) + supporting copy.
   // Items use .title as the metric value and .text as the description.
+  // An item with an image shows it above its title. The spotlight layout is no
+  // home for three short points: it shows one at a time and leaves the titles out.
 
   return (
     /*
@@ -276,8 +278,24 @@ export function ProofBlock({ title, items, layoutVariant: rawLayout }: ProofBloc
           {/* Proof point grid */}
           {items.length > 0 && (
             <Grid cols={3} gap="lg">
-              {items.map((item) => (
+              {items.map((item) => {
+                // A point may carry a picture of its own. It stands above the
+                // title, the same size for every point, and is never cropped. The
+                // box is 16 by 9, the shape of the card pictures.
+                const picture = stillPicture(item.media);
+                return (
                 <Stack key={item.title} gap={3} align="center" className="text-center">
+                  {picture && (
+                    // eslint-disable-next-line @next/next/no-img-element -- tenant asset on any host; next/image not guaranteed to allow it
+                    <img
+                      data-part="proof-item-picture"
+                      src={picture.url}
+                      alt={picture.alt}
+                      loading="lazy"
+                      decoding="async"
+                      className="aspect-[16/9] w-60 max-w-full object-contain"
+                    />
+                  )}
                   {/* Stat metric value (e.g. "10M+ users", "99.9% uptime").
                       Uses color="default" (--text) — these are neutral display
                       numbers, not brand-accented callouts.  Matching the fix
@@ -295,7 +313,8 @@ export function ProofBlock({ title, items, layoutVariant: rawLayout }: ProofBloc
                     <InlineRichText source={item.text} />
                   </Text>
                 </Stack>
-              ))}
+                );
+              })}
             </Grid>
           )}
         </Stack>
