@@ -149,6 +149,7 @@ const PLATFORM_HERO_LABELS: Record<string, string> = {
   hero_role_marketeer:       "Demo role · marketer",
   hero_role_bureau:          "Demo role · agency owner",
   hero_role_technisch:       "Demo role · technical lead",
+  hero_company_known:        "Demo · company recognised",
 };
 
 const PLATFORM_PROOF_LABELS: Record<string, string> = {

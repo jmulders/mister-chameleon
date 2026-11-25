@@ -736,6 +736,8 @@ export const ALLOWED_HERO_KEYS: readonly HeroVariantKey[] = [
   "hero_role_marketeer",
   "hero_role_bureau",
   "hero_role_technisch",
+  // The demo preset "company recognised": a banner that names the company
+  "hero_company_known",
 ] as const;
 
 export const ALLOWED_PROOF_KEYS: readonly ProofVariantKey[] = [
