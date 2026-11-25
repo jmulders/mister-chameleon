@@ -532,19 +532,25 @@ export async function resolveSlugPageConfig(
 
     // ── Get experience plan from decision engine ───────────────────────────────
     //
-    // When a _scenarioKey is present (set by ScenarioControlPanel after a demo
-    // flow completes, or when a preset is manually activated), bypass the rule
-    // engine entirely and return the hardcoded demo plan for that stage.
+    // A preset from the ScenarioControlPanel changes the CONTEXT (the two passes
+    // above). The tenant's own rules then produce the plan, the same path a real
+    // visitor takes. So a preset shows on an inner page what it shows on the
+    // homepage, and a demo cannot drift away from what the rules really do.
     //
-    // This mirrors the same bypass used in homepage-pipeline.ts and ensures
-    // scenario switching produces visible variant changes on inner CMS pages
-    // (e.g. /features, /pricing, /about) — not just on the homepage.
+    // Only when the scenario says `bypass: true` is the hardcoded demo plan for
+    // its `_scenarioKey` served instead. That is the fallback for a tenant with
+    // no rules yet, and what a tenant demo context asks for explicitly.
     //
-    // Without this, inner pages always call the rule engine which returns the
-    // default plan when no matching rules are configured, so the page never
-    // adapts regardless of the active scenario.
-    const demoPlan = getDemoScenarioPlan(scenarioOverrides?._scenarioKey)
-      ?? getSegmentDemoPlan(scenarioOverrides?.audienceSegmentIds);
+    // This is the same switch as in homepage-pipeline.ts. Until 25 Nov 2026 this
+    // file bypassed the rules for every preset key that had a demo plan. Several
+    // presets share one demo plan there (a LinkedIn visit, a pricing visit and a
+    // returning visit all got the plan for "considering"), so on an inner page
+    // five of the nine presets of a tenant showed another audience's variant
+    // than on its homepage.
+    const demoPlan = scenarioOverrides?.bypass === true
+      ? (getDemoScenarioPlan(scenarioOverrides?._scenarioKey)
+          ?? getSegmentDemoPlan(scenarioOverrides?.audienceSegmentIds))
+      : null;
     const effectiveDecisionProvider: DecisionProvider = demoPlan
       ? { getHomepagePlan: async () => demoPlan }
       : decisionProvider;
