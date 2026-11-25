@@ -18,6 +18,24 @@
  *
  * autoDismissMs is honored for banners/toasts only, never for the modal.
  *
+ * ─── Content ─────────────────────────────────────────────────────────────────
+ *
+ *   message  the title, always shown
+ *   text     one line under it that says what the notification is about. The
+ *            toast and the modal show it. A banner is one line and shows it
+ *            after the message from sm up.
+ *
+ * In a toast the media stands beside the text and the button stands under the
+ * text, in the same column. So the three read as one message.
+ *
+ * ─── Hooks for a brand layer (app/brand/*.css) ───────────────────────────────
+ *
+ *   data-part="notification"  with data-severity and data-position
+ *   data-part="notification-cta" and data-part="notification-dismiss"
+ *
+ * The severity colours below are fixed. A brand layer can use the hooks to
+ * give a notification the colours of the site's own theme.
+ *
  * ─── Frequency ───────────────────────────────────────────────────────────────
  *
  *   always | once_per_session | once_per_period (+ ttl / ttlUnit). See
@@ -50,6 +68,8 @@ export interface NotificationBlockProps {
   /** Stable id used as the frequency-cap key (the notification's variant key). */
   id?: string;
   message: string;
+  /** A line of explanation under the message. */
+  text?: string;
   severity?: "info" | "success" | "warning" | "promo";
   ctaLabel?: string;
   ctaHref?: string;
@@ -101,6 +121,7 @@ function CloseIcon() {
 export function NotificationBlock({
   id = "",
   message,
+  text,
   severity      = "info",
   ctaLabel,
   ctaHref,
@@ -179,12 +200,12 @@ export function NotificationBlock({
 
   const styles = SEVERITY_STYLES[severity];
   const cta = ctaLabel && ctaHref ? (
-    <a href={ctaHref} className={`flex-shrink-0 rounded px-3 py-1 text-xs font-semibold transition-colors duration-150 ${styles.cta}`}>
+    <a href={ctaHref} data-part="notification-cta" className={`flex-shrink-0 rounded px-3 py-1 text-xs font-semibold transition-colors duration-150 ${styles.cta}`}>
       {ctaLabel}
     </a>
   ) : null;
   const closeBtn = (dismissible || isModal) ? (
-    <button type="button" aria-label={texts.closeNotification} onClick={dismiss}
+    <button type="button" data-part="notification-dismiss" aria-label={texts.closeNotification} onClick={dismiss}
       className={`flex-shrink-0 rounded p-1 transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-white/50 ${styles.dismiss}`}>
       <CloseIcon />
     </button>
@@ -197,10 +218,18 @@ export function NotificationBlock({
   const sideRight = mediaSide === "right";
   const mediaCol = (widthClass: string) =>
     hasMedia && media ? (
-      <div className={`shrink-0 ${widthClass}`}>
+      <div className={`shrink-0 self-center ${widthClass}`}>
         <BlockMediaView media={media} className="rounded-lg" />
       </div>
     ) : null;
+
+  const body = (
+    <>
+      <p className="font-semibold leading-snug">{message}</p>
+      {text && <p className="font-normal leading-snug opacity-90">{text}</p>}
+    </>
+  );
+  const hooks = { "data-part": "notification", "data-severity": severity, "data-position": pos };
 
   // ── Center modal ─────────────────────────────────────────────────────────────
   if (isModal) {
@@ -214,6 +243,7 @@ export function NotificationBlock({
           aria-modal="true"
           aria-label={message}
           tabIndex={-1}
+          {...hooks}
           className={`relative z-10 flex max-w-md flex-col gap-3 rounded-2xl px-6 py-5 shadow-2xl outline-none ${styles.wrapper}`}
         >
           {hasMedia ? (
@@ -221,7 +251,7 @@ export function NotificationBlock({
               {!sideRight && mediaCol("w-full sm:w-44")}
               <div className="flex min-w-0 flex-1 flex-col gap-3">
                 <div className="flex items-start gap-3">
-                  <p className="flex-1 text-sm font-medium leading-snug">{message}</p>
+                  <div className="flex flex-1 flex-col gap-1 text-sm">{body}</div>
                   {closeBtn}
                 </div>
                 {cta && <div className="self-start">{cta}</div>}
@@ -231,7 +261,7 @@ export function NotificationBlock({
           ) : (
             <>
               <div className="flex items-start gap-3">
-                <p className="flex-1 text-sm font-medium leading-snug">{message}</p>
+                <div className="flex flex-1 flex-col gap-1 text-sm">{body}</div>
                 {closeBtn}
               </div>
               {cta && <div className="self-start">{cta}</div>}
@@ -247,10 +277,10 @@ export function NotificationBlock({
     const edge = pos === "top" ? "top-0" : "bottom-0";
     if (hasMedia) {
       return (
-        <div role="alert" aria-live="polite"
+        <div role="alert" aria-live="polite" {...hooks}
           className={`${anchor} left-0 right-0 ${edge} z-[9999] flex items-center gap-4 px-4 py-2 text-sm font-medium shadow-md ${styles.wrapper}`}>
           {!sideRight && mediaCol("w-24")}
-          <span className="flex-1 text-center leading-snug">{message}</span>
+          <span className="flex-1 text-center leading-snug">{message}{text && <span className="hidden font-normal opacity-90 sm:inline"> {text}</span>}</span>
           {cta}
           {sideRight && mediaCol("w-24")}
           {closeBtn}
@@ -258,9 +288,9 @@ export function NotificationBlock({
       );
     }
     return (
-      <div role="alert" aria-live="polite"
+      <div role="alert" aria-live="polite" {...hooks}
         className={`${anchor} left-0 right-0 ${edge} z-[9999] flex items-center justify-center gap-4 px-4 py-2.5 text-sm font-medium shadow-md ${styles.wrapper}`}>
-        <span className="text-center leading-snug">{message}</span>
+        <span className="text-center leading-snug">{message}{text && <span className="hidden font-normal opacity-90 sm:inline"> {text}</span>}</span>
         {cta}
         {closeBtn && <span className="ml-auto">{closeBtn}</span>}
       </div>
@@ -268,21 +298,25 @@ export function NotificationBlock({
   }
 
   // ── Corner toast (left / right) ──────────────────────────────────────────────
+  //
+  // One row: the media, then a column with the message, the text and the
+  // button, then the close button. Until 25 Nov 2026 the button stood under the
+  // whole row, at the left edge under the media, and read as a loose part.
   const corner = pos === "left" ? "left-5" : "right-5";
   return (
-    <div role="alert" aria-live="polite"
+    <div role="alert" aria-live="polite" {...hooks}
       // The toast sits above the row of small launchers in the bottom corners
       // (cookie settings, scenario console) instead of on top of them. The
       // offset is 0 unless something claims that row; see lib/layout/floating-stack.ts.
       style={{ bottom: toastBottom(pos === "left" ? "left" : "right") }}
-      className={`${anchor} ${corner} z-[9999] flex max-w-[min(24rem,calc(100vw-2.5rem))] flex-col gap-2 rounded-xl px-4 py-3 shadow-xl text-sm font-medium ${styles.wrapper}`}>
-      <div className="flex items-start gap-3">
-        {!sideRight && mediaCol("w-20")}
-        <p className="flex-1 leading-snug">{message}</p>
-        {sideRight && mediaCol("w-20")}
-        {closeBtn}
+      className={`${anchor} ${corner} z-[9999] flex max-w-[min(24rem,calc(100vw-2.5rem))] items-start gap-3 rounded-xl p-4 shadow-xl text-sm ${styles.wrapper}`}>
+      {!sideRight && mediaCol("w-20")}
+      <div className="flex min-w-0 flex-1 flex-col gap-1">
+        {body}
+        {cta && <div className="mt-2 self-start">{cta}</div>}
       </div>
-      {cta && <div className="self-start">{cta}</div>}
+      {sideRight && mediaCol("w-20")}
+      {closeBtn}
     </div>
   );
 }

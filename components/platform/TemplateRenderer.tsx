@@ -467,6 +467,7 @@ export async function TemplateRenderer({ pageConfig, contextData, tokenContext, 
         <NotificationBlock
           id={effectiveContextData.notification.id}
           message={effectiveContextData.notification.message}
+          text={effectiveContextData.notification.text}
           severity={effectiveContextData.notification.severity}
           ctaLabel={effectiveContextData.notification.ctaLabel}
           ctaHref={effectiveContextData.notification.ctaHref}

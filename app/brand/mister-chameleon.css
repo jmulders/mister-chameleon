@@ -343,8 +343,8 @@
  *   mc-open-*  The photo has no ground of its own: black ink with see-through
  *              whites, so the page and the flat circle behind it show through
  *              the screen. The owner chose this on 16 Nov 2026.
- *   mc-rond-*  The photo lies on its own circle of paper. For a hero and for
- *              the notification, whose ground is dark or blue in every preset.
+ *   mc-rond-*  The photo lies on its own circle of paper. For a hero, whose
+ *              ground can be dark, and for the notification (section 7).
  *
  * On a dark page black ink vanishes. There an mc-open image gets a sheet in
  * the preset's own light colour (<html data-scheme="dark">, lib/theme/
@@ -454,6 +454,43 @@
 }
 @media (min-width: 1280px) {
   [data-brand="mister-chameleon"][data-headings="caps"] [data-part="display-title"]:not([data-align="center"]) { font-size: 1.8125rem !important; }
+}
+
+/* ── 7. A notification in the colours of the theme ──────────────────────────
+ *
+ * The platform gives an info notification a fixed blue ground. On this site
+ * the theme changes with the preset, and that blue belongs to none of them.
+ * The owner found the toast out of place on 25 Nov 2026.
+ *
+ * So a toast and a pop-up take the card of the active theme: its ground, its
+ * text colour and its border. The button is the theme's own button. A light
+ * preset gives a light card, a dark preset a dark one.
+ *
+ * A banner over the full width keeps the platform's colours: a strip in the
+ * colour of the page would not stand out. Success, warning and promo keep
+ * theirs too, because there the colour is the message.
+ */
+[data-brand="mister-chameleon"] [data-part="notification"][data-severity="info"]:is([data-position="left"], [data-position="right"], [data-position="center"]) {
+  background: var(--card-bg, #fff) !important;
+  color: var(--text, #1c1917) !important;
+  border: 1px solid var(--card-border, rgb(0 0 0 / 0.1));
+  box-shadow: 0 12px 32px rgb(0 0 0 / 0.18) !important;
+}
+[data-brand="mister-chameleon"] [data-part="notification"][data-severity="info"]:is([data-position="left"], [data-position="right"], [data-position="center"]) [data-part="notification-cta"] {
+  background: var(--btn-bg, var(--primary)) !important;
+  color: var(--btn-text, var(--primary-text, #fff)) !important;
+  border-color: transparent !important;
+  border-radius: var(--btn-radius, 0.5rem);
+  padding: 0.4rem 0.85rem;
+}
+[data-brand="mister-chameleon"] [data-part="notification"][data-severity="info"]:is([data-position="left"], [data-position="right"], [data-position="center"]) [data-part="notification-cta"]:hover {
+  background: var(--btn-hover-bg, var(--primary-hover, var(--primary))) !important;
+}
+[data-brand="mister-chameleon"] [data-part="notification"][data-severity="info"]:is([data-position="left"], [data-position="right"], [data-position="center"]) [data-part="notification-dismiss"] {
+  color: var(--text-muted, currentColor) !important;
+}
+[data-brand="mister-chameleon"] [data-part="notification"][data-severity="info"]:is([data-position="left"], [data-position="right"], [data-position="center"]) [data-part="notification-dismiss"]:hover {
+  color: var(--text, currentColor) !important;
 }
 
 @media (prefers-reduced-motion: reduce) {
