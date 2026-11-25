@@ -757,6 +757,10 @@ export const ALLOWED_PROOF_KEYS: readonly ProofVariantKey[] = [
   "proof_careers_default",
   "proof_careers_team",
   "proof_careers_reassurance",
+  // One proof block per demo role
+  "proof_role_marketeer",
+  "proof_role_bureau",
+  "proof_role_technisch",
 ] as const;
 
 export const ALLOWED_CTA_KEYS: readonly CTAVariantKey[] = [
@@ -781,6 +785,10 @@ export const ALLOWED_CTA_KEYS: readonly CTAVariantKey[] = [
   "cta_careers_apply",
   "cta_careers_open",
   "cta_careers_contact",
+  // One closing call to action per demo role
+  "cta_role_marketeer",
+  "cta_role_bureau",
+  "cta_role_technisch",
 ] as const;
 
 /** All valid feature variant keys — mirrors FEATURE_VARIANT_KEYS from decision/types.ts. */

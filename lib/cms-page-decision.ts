@@ -108,7 +108,7 @@ import type { ExperiencePlan }     from "@/decision/types";
 import type { PageConfig, ResolvedContextSlot } from "@/page-config";
 import type { TenantSettings }     from "@/tenant/types";
 import { logger }                  from "@/lib/logger";
-import { resolveHeroSlotKeys }     from "@/lib/page-hero-key";
+import { resolveHeroSlotKeys, isPageOwnedSlotKey, resolvePageOwnedSlotKeys } from "@/lib/page-hero-key";
 import { buildTokenContextFromInput, type TokenContext } from "@/lib/tokens/parse-tokens";
 import { getDemoScenarioPlan, getSegmentDemoPlan } from "@/lib/demo/demo-scenario-plans";
 
@@ -605,6 +605,16 @@ export async function resolveSlugPageConfig(
       // in when that hero has no content. See lib/page-hero-key.ts.
       if (slot.slotId === "hero") {
         return { ...slot, ...resolveHeroSlotKeys(slot.variantKey, resolvedBannerKey, plan.heroKey) };
+      }
+
+      // ── A section the page owns ────────────────────────────────────────────
+      //
+      // `feature_page_<slug>`, `proof_page_<slug>`, `cta_page_<slug>`: the page
+      // keeps its own block here. The engine's pick for this slot would put a
+      // homepage block in its place, so it is not applied. The audience is: the
+      // block shows its variant for the hero the engine picked, when it has one.
+      if (isPageOwnedSlotKey(slot.slotId, slot.variantKey)) {
+        return { ...slot, ...resolvePageOwnedSlotKeys(slot.variantKey, plan.heroKey) };
       }
 
       const engineKey = planKeyForSlot(plan, slot.slotId);

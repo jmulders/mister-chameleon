@@ -690,6 +690,11 @@ export interface AdaptiveVariantItem {
   cta?:      string;
   /** CTA-link voor de kaart */
   ctaHref?:  string;
+  /**
+   * Icon of a feature card, by name (the same names a feature grid in the CMS
+   * uses). Optional: a card without one shows none.
+   */
+  icon?:     string;
 
   // ── Spotlight fields (proof_spotlight / feature_spotlight) ──
   // Optioneel + backward-compatible. Media wordt in de editor via SlideMediaEditor

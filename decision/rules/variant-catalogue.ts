@@ -169,6 +169,9 @@ const PLATFORM_PROOF_LABELS: Record<string, string> = {
   proof_careers_default:     "Careers Default · culture & employer credibility",
   proof_careers_team:        "Careers Team · team spotlights & department proof",
   proof_careers_reassurance: "Careers Reassurance · process transparency",
+  proof_role_marketeer:      "Demo role · marketer",
+  proof_role_bureau:         "Demo role · agency owner",
+  proof_role_technisch:      "Demo role · technical lead",
 };
 
 const PLATFORM_CTA_LABELS: Record<string, string> = {
@@ -192,6 +195,9 @@ const PLATFORM_CTA_LABELS: Record<string, string> = {
   cta_careers_apply:   "Careers Apply · Solliciteer nu",
   cta_careers_open:    "Careers Open · Stuur open sollicitatie",
   cta_careers_contact: "Careers Contact · Stel een vraag",
+  cta_role_marketeer:  "Demo role · marketer",
+  cta_role_bureau:     "Demo role · agency owner",
+  cta_role_technisch:  "Demo role · technical lead",
 };
 
 const PLATFORM_FEATURE_LABELS: Record<string, string> = {

@@ -66,7 +66,7 @@ export function adaptiveItemToFeatureItem(item: AdaptiveVariantItem): FeatureIte
   return {
     title: item.title ?? "",
     body:  item.body ?? item.text ?? "",
-    icon:  undefined,
+    icon:  item.icon || undefined,
     // Spotlight fields — carried through so feature_spotlight can render them.
     ...(media          ? { media }                : {}),
     ...(item.price     ? { price: item.price }    : {}),

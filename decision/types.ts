@@ -191,7 +191,11 @@ export type ProofVariantKey =
   // Careers / Werken-bij blueprint
   | "proof_careers_default"       // culture & values: general employer credibility
   | "proof_careers_team"          // team spotlights: department-specific social proof
-  | "proof_careers_reassurance";  // transparency: fair process, removes application friction
+  | "proof_careers_reassurance"   // transparency: fair process, removes application friction
+  // One proof block per demo role ("Who are you?" in the Scenario Control panel)
+  | "proof_role_marketeer"
+  | "proof_role_bureau"
+  | "proof_role_technisch";
 
 /**
  * Runtime tuple of all valid proof variant key strings.
@@ -211,6 +215,10 @@ export const PROOF_VARIANT_KEYS: readonly ProofVariantKey[] = [
   "proof_careers_default",
   "proof_careers_team",
   "proof_careers_reassurance",
+  // One proof block per demo role
+  "proof_role_marketeer",
+  "proof_role_bureau",
+  "proof_role_technisch",
 ] as const;
 
 // ── CTA variant keys ──────────────────────────────────────────────────────────
@@ -254,7 +262,11 @@ export type CTAVariantKey =
   | "cta_careers_browse"   // awareness/explorer: "Bekijk vacatures" — low friction
   | "cta_careers_apply"    // job-interest/high-intent: "Solliciteer nu" — direct apply
   | "cta_careers_open"     // drop-off recovery: "Stuur open sollicitatie" — soft re-engage
-  | "cta_careers_contact"; // post-submission: "Stel een vraag" — relationship continuation
+  | "cta_careers_contact"  // post-submission: "Stel een vraag" — relationship continuation
+  // One closing call to action per demo role
+  | "cta_role_marketeer"
+  | "cta_role_bureau"
+  | "cta_role_technisch";
 
 /**
  * Runtime tuple of all valid CTA variant key strings.
@@ -277,6 +289,10 @@ export const CTA_VARIANT_KEYS: readonly CTAVariantKey[] = [
   "cta_careers_apply",
   "cta_careers_open",
   "cta_careers_contact",
+  // One closing call to action per demo role
+  "cta_role_marketeer",
+  "cta_role_bureau",
+  "cta_role_technisch",
 ] as const;
 
 // ── Feature variant keys ──────────────────────────────────────────────────────
