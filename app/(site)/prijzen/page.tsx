@@ -9,7 +9,8 @@
  *   2. The three plans: Starter, Growth, Pro.
  *   3. Four questions every buyer has: what counts as a visit, what happens
  *      over the limit, how company lookups are paid, and the yearly discount.
- *   4. Credit bundles, for company lookups.
+ *   4. Credits: what they are for. Nothing is sold here; credits are bought
+ *      in the account.
  *   5. Closing call to action.
  *
  * The page starts with the plans, because that is what a visitor came for.
@@ -37,7 +38,7 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import { BILLING_PLANS, type BillingPlan } from "@/billing/plans";
-import { PlanCartButton, CreditCartButton } from "./_components/CartButtons";
+import { PlanCartButton } from "./_components/CartButtons";
 import { resolveOwnBlockVariant } from "@/lib/page-owned-variant";
 import { adviceFrom, type PricingAdvice } from "@/lib/pricing-advice";
 
@@ -65,14 +66,34 @@ function planFeatures(plan: BillingPlan): string[] {
   return list;
 }
 
-// ── Credit bundles ────────────────────────────────────────────────────────────
+// ── Credits ───────────────────────────────────────────────────────────────────
 //
-// The names are what the cart shows, so they stay as the cart knows them.
+// What credits are, in four facts. Until 25 Nov 2026 this section sold three
+// bundles ("The Hatchling", "The Climber", "The Dragon") through the cart. The
+// checkout never charged or credited them: it only sends the plan to the
+// payment provider. Credits are bought in the account, so the page explains
+// them and sells nothing.
+//
+// No price per lookup here. That comes from the pricing table the platform
+// charges from, and belongs on this page only once the owner has confirmed it.
 
-const CREDIT_PACKAGES = [
-  { id: "hatchling", name: "The Hatchling", credits: 5_000,   priceCents: 5_000,  perCredit: "€ 0,01 per credit",   forWho: "Voor een kleine site of een eerste proef.",   highlight: false },
-  { id: "climber",   name: "The Climber",   credits: 25_000,  priceCents: 20_000, perCredit: "€ 0,008 per credit",  forWho: "Voor een site met vast zakelijk bezoek.",     highlight: true  },
-  { id: "dragon",    name: "The Dragon",    credits: 100_000, priceCents: 75_000, perCredit: "€ 0,0075 per credit", forWho: "Voor een drukke site of meerdere sites.",     highlight: false },
+const CREDIT_FACTS = [
+  {
+    title: "Eén credit is één cent",
+    text:  "Je koopt credits vooraf, in je account. Ze verlopen niet. Wat je deze maand niet gebruikt, blijft staan.",
+  },
+  {
+    title: "Alleen met toestemming",
+    text:  "Je site zoekt alleen iets op bij een bezoeker die daar toestemming voor gaf. Bekijkt hij meer pagina's in hetzelfde bezoek, dan zoekt je site één keer.",
+  },
+  {
+    title: "Je bepaalt het maximum",
+    text:  "Je stelt in je account een maximum per maand in. Daarboven zoekt je site niets meer op.",
+  },
+  {
+    title: "Is je tegoed op, dan stopt het",
+    text:  "Je site blijft werken en je regels blijven gelden. Er komt geen rekening achteraf.",
+  },
 ] as const;
 
 // ── Questions ─────────────────────────────────────────────────────────────────
@@ -87,8 +108,8 @@ const QUESTIONS = [
     a: "Dan zien nieuwe bezoekers je gewone site. Er komt geen onverwachte rekening. Je kunt een bundel bijkopen of een pakket hoger gaan.",
   },
   {
-    q: "Bedrijven herkennen gaat per opzoeking",
-    a: "Voor het opzoeken van een bedrijf betaal je met credits. Eén credit is één cent. Je stelt zelf een maximum per maand in.",
+    q: "Opzoeken gaat met credits",
+    a: "Voor wat je site opzoekt, zoals het bedrijf achter een bezoek of de klant in je CRM, betaal je met credits. Eén credit is één cent. Je stelt zelf een maximum per maand in.",
   },
   {
     q: "Per jaar betalen is voordeliger",
@@ -184,38 +205,6 @@ function PlanCard({ plan, advised }: { plan: BillingPlan; advised?: BillingPlan[
   );
 }
 
-function CreditCard({ pkg }: { pkg: typeof CREDIT_PACKAGES[number] }) {
-  return (
-    <div
-      className="flex flex-col rounded-2xl border p-6"
-      style={{
-        background:  "var(--card-bg)",
-        borderColor: pkg.highlight ? "var(--text)" : "var(--card-border)",
-        boxShadow:   pkg.highlight ? "0 0 0 1px var(--text)" : undefined,
-      }}
-    >
-      <h3 className="text-lg font-semibold" style={{ color: "var(--text)" }}>{count(pkg.credits)} credits</h3>
-      <p className="mt-1 text-sm" style={{ color: "var(--text-muted)" }}>{pkg.forWho}</p>
-
-      <div className="mt-5 flex items-end gap-2">
-        <span className="text-3xl font-bold" style={{ color: "var(--text)" }}>{euro(pkg.priceCents)}</span>
-        <span className="mb-1 text-sm" style={{ color: "var(--text-muted)" }}>eenmalig</span>
-      </div>
-      <p className="mt-1 text-xs" style={{ color: "var(--text-muted)" }}>{pkg.perCredit}</p>
-
-      <div className="mt-6">
-        <CreditCartButton
-          bundleId={pkg.id}
-          label={pkg.name}
-          priceCentsEach={pkg.priceCents}
-          creditsEach={pkg.credits}
-          buttonLabel="In winkelwagen"
-        />
-      </div>
-    </div>
-  );
-}
-
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 function AdviceNote({ advice }: { advice: PricingAdvice }) {
@@ -291,17 +280,29 @@ export default async function PrijzenPage() {
       </section>
 
       {/* ── Credits ──────────────────────────────────────────────────────── */}
-      <section className="mx-auto max-w-5xl px-6 py-20">
+      <section id="credits" className="mx-auto max-w-5xl px-6 py-20">
         <div className="mx-auto max-w-2xl text-center">
-          <h2 className="text-2xl font-bold sm:text-3xl" style={{ color: "var(--text)" }}>Credits voor bedrijven herkennen</h2>
+          <h2 className="text-2xl font-bold sm:text-3xl" style={{ color: "var(--text)" }}>Credits, voor wat je site opzoekt</h2>
           <p className="mt-3 text-base" style={{ color: "var(--text-muted)" }}>
-            Je hebt ze alleen nodig als je bedrijven opzoekt. Credits verlopen niet.
-            Wat je deze maand niet gebruikt, blijft staan.
+            Je pakket dekt je bezoeken. Credits betalen wat je site daarbij opzoekt, zoals het bedrijf
+            achter een bezoek of de klant in je CRM. Je hebt ze alleen nodig als je zo&apos;n bron aanzet.
           </p>
         </div>
-        <div className="mt-10 grid grid-cols-1 gap-4 md:grid-cols-3">
-          {CREDIT_PACKAGES.map((pkg) => <CreditCard key={pkg.id} pkg={pkg} />)}
+        <div className="mt-10 grid grid-cols-1 gap-4 sm:grid-cols-2">
+          {CREDIT_FACTS.map((fact) => (
+            <div
+              key={fact.title}
+              className="rounded-2xl border p-6"
+              style={{ background: "var(--card-bg)", borderColor: "var(--card-border)" }}
+            >
+              <h3 className="font-semibold" style={{ color: "var(--text)" }}>{fact.title}</h3>
+              <p className="mt-2 text-sm leading-relaxed" style={{ color: "var(--text-muted)" }}>{fact.text}</p>
+            </div>
+          ))}
         </div>
+        <p className="mx-auto mt-8 max-w-2xl text-center text-sm" style={{ color: "var(--text-muted)" }}>
+          Je begint zonder credits. Je koopt ze pas als je een bron aanzet waarvoor ze nodig zijn.
+        </p>
       </section>
 
       {/* ── Call to action ───────────────────────────────────────────────── */}

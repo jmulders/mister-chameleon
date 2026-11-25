@@ -122,3 +122,36 @@ describe("cart-store — totals", () => {
     assert.equal(totalCents, 74900 + 3 * 9900);
   });
 });
+
+// ── The public cart sells no credit bundles ───────────────────────────────────
+//
+// The checkout sends only the plan to the payment provider, so a bundle in the
+// cart was never charged and never credited. The offer left the site on
+// 25 Nov 2026; a cart filled before that day loses the line when it is read.
+
+describe("a stored cart is read without credit bundles", () => {
+  it("keeps the plan and drops every bundle", async () => {
+    const { withoutStoredBundles } = await import("@/lib/cart/cart-store");
+    const stored = { plan: { planId: "growth" }, creditBundles: [{ bundleId: "hatchling", label: "The Hatchling", quantity: 2, priceCentsEach: 5000, creditsEach: 5000 }] } as never;
+    const cart = withoutStoredBundles(stored);
+    assert.deepEqual(cart.creditBundles, []);
+    assert.equal((cart.plan as { planId: string } | null)?.planId, "growth");
+  });
+
+  it("gives an empty cart for a broken value", async () => {
+    const { withoutStoredBundles, EMPTY_CART } = await import("@/lib/cart/cart-store");
+    assert.deepEqual(withoutStoredBundles(null), EMPTY_CART);
+    assert.deepEqual(withoutStoredBundles("x" as never), EMPTY_CART);
+    assert.deepEqual(withoutStoredBundles({} as never), EMPTY_CART);
+  });
+
+  it("is what the storage reader uses, and the pages offer no bundle", async () => {
+    const { readFileSync } = await import("node:fs");
+    assert.match(readFileSync("lib/cart/cart-store.ts", "utf8"), /withoutStoredBundles\(JSON\.parse\(raw\) as Cart\)/);
+    const cartPage = readFileSync("app/(site)/cart/_components/CartPageClient.tsx", "utf8");
+    assert.doesNotMatch(cartPage, /addCreditBundle\(|bundleId:\s+"(hatchling|climber|dragon)"/);
+    const pricing = readFileSync("app/(site)/prijzen/page.tsx", "utf8");
+    assert.doesNotMatch(pricing, /CreditCartButton|bundleId|priceCents:\s*\d/);
+    assert.doesNotMatch(pricing.replace(/\/\/[^\n]*/g, ""), /Hatchling|Climber|Dragon/);
+  });
+});
