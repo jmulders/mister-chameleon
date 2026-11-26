@@ -106,7 +106,7 @@ export async function saveScenarioPanelAction(
   const clean: {
     presetKeys?:  string[];
     roleKeys?:    string[];
-    timeOptions?: ("morning" | "day" | "evening" | "weekend")[];
+    timeOptions?: ("morning" | "day" | "evening" | "night" | "weekend")[];
     moments?:     TenantScenarioPanelSettings["moments"];
   } = {};
   if (panel.presetKeys && panel.presetKeys.length > 0)   clean.presetKeys  = [...panel.presetKeys];

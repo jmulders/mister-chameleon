@@ -2141,7 +2141,7 @@ export interface TenantScenarioPanelSettings {
   /** Demo-tab "Who are you?" — subset of ROLES / demo-context-set keys. */
   readonly roleKeys?:    readonly string[];
   /** Demo-tab "Simulate time" — subset of the time options. "day" is the afternoon. */
-  readonly timeOptions?: readonly ("morning" | "day" | "evening" | "weekend")[];
+  readonly timeOptions?: readonly ("morning" | "day" | "evening" | "night" | "weekend")[];
   /**
    * Demo-tab "Simulate a moment" — the tenant's own buttons, in place of the
    * built-in ones. Each sets a calendar window (`seasonalEvent`) or one day

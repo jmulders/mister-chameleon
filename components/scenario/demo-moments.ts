@@ -28,12 +28,14 @@ import type { ScenarioOverrides } from "./scenario-store";
  * The ids a tenant can list in `scenarioPanel.timeOptions`. "day" is the
  * afternoon: it kept its id, because tenants have it stored.
  */
-export type DemoTimeId = "morning" | "day" | "evening" | "weekend";
+export type DemoTimeId = "morning" | "day" | "evening" | "night" | "weekend";
 
 export const TIME_OPTIONS: { id: DemoTimeId; label: string }[] = [
   { id: "morning", label: "Morning" },
   { id: "day",     label: "Afternoon" },
   { id: "evening", label: "Evening" },
+  // Added on 26 Nov 2026, when the owner gave the night colours of its own.
+  { id: "night",   label: "Night" },
   { id: "weekend", label: "Weekend" },
 ];
 
@@ -47,6 +49,7 @@ export function timeOverrides(kind: DemoTimeId): Pick<ScenarioOverrides, "timeOf
     case "morning": return { timeOfDay: "morning",   currentHour: 9,  isWeekend: false };
     case "day":     return { timeOfDay: "afternoon", currentHour: 14, isWeekend: false };
     case "evening": return { timeOfDay: "evening",   currentHour: 20, isWeekend: false };
+    case "night":   return { timeOfDay: "night",     currentHour: 23, isWeekend: false };
     case "weekend": return { timeOfDay: "afternoon", currentHour: 14, isWeekend: true  };
   }
 }
@@ -54,7 +57,8 @@ export function timeOverrides(kind: DemoTimeId): Pick<ScenarioOverrides, "timeOf
 /** Which time button is active. Null when the time is the real one. */
 export function activeTime(o: ScenarioOverrides): DemoTimeId | null {
   if (o.isWeekend) return "weekend";
-  if (o.timeOfDay === "evening" || o.timeOfDay === "night") return "evening";
+  if (o.timeOfDay === "night") return "night";
+  if (o.timeOfDay === "evening") return "evening";
   if (o.timeOfDay === "morning") return "morning";
   if (o.timeOfDay) return "day";
   return null;
@@ -155,7 +159,7 @@ export function activeMoment(o: ScenarioOverrides, moments: readonly DemoMoment[
   return null;
 }
 
-// ── The row of moment buttons ────────────────────────────────────────────────
+// ── A row of buttons ─────────────────────────────────────────────────────────
 
 /** What a row of buttons in the panel has to spend, in px. The panel is 360 wide. */
 export const BUTTON_ROW_WIDTH = 330;
@@ -173,8 +177,11 @@ const buttonWidth = (label: string) => label.length * LABEL_CHAR + BUTTON_CHROME
  * they do not fit they are spread evenly over as few lines as it takes (six as
  * three and three, not five and one). The buttons stand in a grid, so a column
  * is as wide as its widest label.
+ *
+ * Both rows use it, the times and the moments. Five times in columns of equal
+ * width would cut "Afternoon" short.
  */
-export function momentColumns(labels: readonly string[], width: number = BUTTON_ROW_WIDTH): number {
+export function buttonColumns(labels: readonly string[], width: number = BUTTON_ROW_WIDTH): number {
   const n = labels.length;
   if (n <= 1) return 1;
   const fits = (columns: number) => {

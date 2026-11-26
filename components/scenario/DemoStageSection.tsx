@@ -22,7 +22,7 @@ import { activateScenario, clearScenario } from "./scenario-store";
 import { SCENARIO_PRESETS } from "./scenario-presets";
 import { getDemoContextSet, getDemoAttributeSet } from "./demo-context-sets";
 import { curateByKey } from "./curate-panel";
-import { TIME_OPTIONS, activeMoment, activeTime, isEmptyScenario, momentColumns, panelMoments, timeLabel, timeOverrides, withMoment } from "./demo-moments";
+import { TIME_OPTIONS, activeMoment, activeTime, buttonColumns, isEmptyScenario, panelMoments, timeLabel, timeOverrides, withMoment } from "./demo-moments";
 import type { DemoMoment, DemoTimeId } from "./demo-moments";
 import { applyRoleOverrides, effectivePresetOverrides, type OverrideMap } from "./scenario-overrides";
 import type { DemoContext, DemoAttribute } from "./demo-context-sets";
@@ -242,7 +242,7 @@ export function DemoStageSection({
       {/* ── Time simulator ─────────────────────────────────────────────────── */}
       <div>
         <div style={S.sectionLabel}>Simulate time</div>
-        <div data-part="scenario-times" style={{ display: "grid", gridTemplateColumns: `repeat(${shownTimes.length}, minmax(0, 1fr))`, gap: 6 }}>
+        <div data-part="scenario-times" style={{ display: "grid", gridTemplateColumns: `repeat(${buttonColumns(shownTimes.map((t) => t.label))}, minmax(0, auto))`, gap: 6 }}>
           {shownTimes.map((opt) => (
             <TimeBtn
               key={opt.id}
@@ -261,7 +261,7 @@ export function DemoStageSection({
         {/* A grid, not a wrapping row: the last line of a wrapping row stretched
             its one button over the whole width. Each column is as wide as its
             label needs, and what is left over is shared out evenly. */}
-        <div data-part="scenario-moments" style={{ display: "grid", gridTemplateColumns: `repeat(${momentColumns(momentList.map((m) => m.label))}, minmax(0, auto))`, gap: 6 }}>
+        <div data-part="scenario-moments" style={{ display: "grid", gridTemplateColumns: `repeat(${buttonColumns(momentList.map((m) => m.label))}, minmax(0, auto))`, gap: 6 }}>
           {momentList.map((item) => (
             <TimeBtn
               key={item.key}

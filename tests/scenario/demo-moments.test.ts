@@ -16,7 +16,7 @@ import { readFileSync } from "node:fs";
 
 import {
   BUILTIN_MOMENTS, MOMENT_EVENTS, TIME_OPTIONS,
-  activeMoment, activeTime, isDemoTimeId, isEmptyScenario, momentColumns, panelMoments, timeLabel, timeOverrides, withMoment,
+  activeMoment, activeTime, isDemoTimeId, isEmptyScenario, buttonColumns, panelMoments, timeLabel, timeOverrides, withMoment,
 } from "@/components/scenario/demo-moments";
 import type { DemoMoment } from "@/components/scenario/demo-moments";
 import { FIELD_REGISTRY }    from "@/decision/rules/field-registry";
@@ -31,12 +31,12 @@ import { getDesignPreset } from "@/tenant/design-presets-gallery";
 const ctxWith = (fields: object) => fields as unknown as RuleEvaluationContext;
 
 describe("simulate time", () => {
-  it("offers morning, afternoon, evening and weekend", () => {
-    assert.deepEqual(TIME_OPTIONS.map((o) => o.label), ["Morning", "Afternoon", "Evening", "Weekend"]);
+  it("offers morning, afternoon, evening, night and weekend", () => {
+    assert.deepEqual(TIME_OPTIONS.map((o) => o.label), ["Morning", "Afternoon", "Evening", "Night", "Weekend"]);
   });
 
   it("keeps the id tenants have stored for the afternoon", () => {
-    assert.deepEqual(TIME_OPTIONS.map((o) => o.id), ["morning", "day", "evening", "weekend"]);
+    assert.deepEqual(TIME_OPTIONS.map((o) => o.id), ["morning", "day", "evening", "night", "weekend"]);
     assert.equal(isDemoTimeId("day"), true);
     assert.equal(isDemoTimeId("afternoon"), false);
     assert.equal(isDemoTimeId(undefined), false);
@@ -46,6 +46,7 @@ describe("simulate time", () => {
     assert.deepEqual(timeOverrides("morning"), { timeOfDay: "morning",   currentHour: 9,  isWeekend: false });
     assert.deepEqual(timeOverrides("day"),     { timeOfDay: "afternoon", currentHour: 14, isWeekend: false });
     assert.deepEqual(timeOverrides("evening"), { timeOfDay: "evening",   currentHour: 20, isWeekend: false });
+    assert.deepEqual(timeOverrides("night"),   { timeOfDay: "night",     currentHour: 23, isWeekend: false });
     assert.deepEqual(timeOverrides("weekend"), { timeOfDay: "afternoon", currentHour: 14, isWeekend: true  });
   });
 
@@ -65,12 +66,14 @@ describe("simulate time", () => {
     }
     assert.equal(activeTime({}), null);
     assert.equal(timeLabel({}), "Now (real time)");
-    assert.equal(activeTime({ timeOfDay: "night" }), "evening");
+    // Night was shown as Evening until it got a button of its own.
+    assert.equal(activeTime({ timeOfDay: "night" }), "night");
+    assert.equal(timeLabel({ timeOfDay: "night" }), "Night");
   });
 
   it("is the list the admin page curates and the settings type allows", () => {
     const types = readFileSync("tenant/types.ts", "utf8");
-    assert.match(types, /readonly timeOptions\?: readonly \("morning" \| "day" \| "evening" \| "weekend"\)\[\];/);
+    assert.match(types, /readonly timeOptions\?: readonly \("morning" \| "day" \| "evening" \| "night" \| "weekend"\)\[\];/);
     const admin = readFileSync("app/admin/tenants/[tenantId]/debug/_components/ScenarioPanelCurationClient.tsx", "utf8");
     assert.match(admin, /timeOptions: \[\.\.\.times\]\.filter\(isDemoTimeId\),/);
   });
@@ -124,24 +127,28 @@ describe("the moments of the panel", () => {
 
 describe("the row of moment buttons", () => {
   it("puts the five moments of Mister Chameleon on one line", () => {
-    assert.equal(momentColumns(["Valentijn", "Pasen", "Halloween", "Kerst", "Oranje speelt"]), 5);
+    assert.equal(buttonColumns(["Valentijn", "Pasen", "Halloween", "Kerst", "Oranje speelt"]), 5);
+  });
+
+  it("puts the five times on one line", () => {
+    assert.equal(buttonColumns(TIME_OPTIONS.map((o) => o.label)), 5);
   });
 
   it("puts the four built-in moments on one line", () => {
-    assert.equal(momentColumns(BUILTIN_MOMENTS.map((m) => m.label)), 4);
+    assert.equal(buttonColumns(BUILTIN_MOMENTS.map((m) => m.label)), 4);
   });
 
   it("spreads them evenly when they do not fit on one line", () => {
     const eight = ["Nieuwjaar", "Valentijn", "Pasen", "Koningsdag", "Halloween", "Black Friday", "Kerst", "Oranje speelt"];
-    assert.equal(momentColumns(eight), 4);                       // four and four
-    assert.equal(momentColumns(eight.slice(0, 6), 250), 3);      // three and three, not four and two
-    assert.equal(momentColumns(eight.slice(0, 5), 250), 3);      // three and two, not four and one
+    assert.equal(buttonColumns(eight), 4);                       // four and four
+    assert.equal(buttonColumns(eight.slice(0, 6), 250), 3);      // three and three, not four and two
+    assert.equal(buttonColumns(eight.slice(0, 5), 250), 3);      // three and two, not four and one
   });
 
   it("never leaves one button alone on a line when two lines can share", () => {
     for (let width = 120; width <= 400; width += 10) {
       const labels  = ["Valentijn", "Pasen", "Halloween", "Kerst", "Oranje speelt"];
-      const columns = momentColumns(labels, width);
+      const columns = buttonColumns(labels, width);
       const rows    = Math.ceil(labels.length / columns);
       // The fewest columns that still give this many lines: nothing more even exists.
       assert.equal(columns, Math.ceil(labels.length / rows), `width ${width}`);
@@ -149,12 +156,12 @@ describe("the row of moment buttons", () => {
   });
 
   it("gives a long label a line of its own when nothing else fits", () => {
-    assert.equal(momentColumns(["De langste dag van het hele jaar is vandaag", "Kerst"], 200), 1);
+    assert.equal(buttonColumns(["De langste dag van het hele jaar is vandaag", "Kerst"], 200), 1);
   });
 
   it("copes with one button and with none", () => {
-    assert.equal(momentColumns(["Kerst"]), 1);
-    assert.equal(momentColumns([]), 1);
+    assert.equal(buttonColumns(["Kerst"]), 1);
+    assert.equal(buttonColumns([]), 1);
   });
 });
 
@@ -277,13 +284,14 @@ describe("the panel", () => {
   });
 
   it("sets the moments in a grid with the columns the labels allow", () => {
-    assert.match(demo, /data-part="scenario-moments" style=\{\{ display: "grid", gridTemplateColumns: `repeat\(\$\{momentColumns\(momentList\.map\(\(m\) => m\.label\)\)\}, minmax\(0, auto\)\)`, gap: 6 \}\}/);
+    assert.match(demo, /data-part="scenario-moments" style=\{\{ display: "grid", gridTemplateColumns: `repeat\(\$\{buttonColumns\(momentList\.map\(\(m\) => m\.label\)\)\}, minmax\(0, auto\)\)`, gap: 6 \}\}/);
     // A wrapping row stretched the one button on its last line over the whole width.
     assert.doesNotMatch(demo, /flexWrap/);
   });
 
-  it("gives the time buttons the same width", () => {
-    assert.match(demo, /data-part="scenario-times" style=\{\{ display: "grid", gridTemplateColumns: `repeat\(\$\{shownTimes\.length\}, minmax\(0, 1fr\)\)`, gap: 6 \}\}/);
+  it("sets the time buttons in the same kind of grid", () => {
+    // Five times in columns of equal width would cut "Afternoon" short.
+    assert.match(demo, /data-part="scenario-times" style=\{\{ display: "grid", gridTemplateColumns: `repeat\(\$\{buttonColumns\(shownTimes\.map\(\(t\) => t\.label\)\)\}, minmax\(0, auto\)\)`, gap: 6 \}\}/);
   });
 
   it("never lets a long label push a row wider than the panel", () => {
