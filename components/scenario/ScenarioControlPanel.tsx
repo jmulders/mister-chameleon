@@ -1665,6 +1665,9 @@ function WhyThisTab({ journey }: { journey: JourneyState | null }) {
   );
 }
 
+/** The debug page that lists every context variable of the current visit. */
+const ENGINE_DEBUG_PATH = "/engine-debug";
+
 // ── Tab 3: Live State ─────────────────────────────────────────────────────────
 
 // ── LiveStateTab sub-componenten ──────────────────────────────────────────────
@@ -2525,7 +2528,26 @@ export function ScenarioControlPanel({ scenarioPanel, scenarioPresets, scenarioO
                 )}
               </div>
             </div>
-            <div style={{ display: "flex", gap: 5 }}>
+            <div style={{ display: "flex", gap: 5, alignItems: "center" }}>
+              {/*
+                * The full list: every context variable of this visit with its
+                * value, its source and what a preset overrides. The tabs below
+                * show a part of it. In the header so it is there on every tab
+                * and never behind a notification at the foot of the page, and
+                * in a new tab so the page being looked at stays open.
+                */}
+              <a
+                data-part="scenario-debug-link"
+                href={ENGINE_DEBUG_PATH}
+                target="_blank"
+                rel="noopener"
+                title="Every context variable of this visit, with its value"
+                style={{ padding: "2px 7px", background: "#eef2ff", color: "#4338ca",
+                  borderRadius: 5, fontSize: 10, fontWeight: 700, textDecoration: "none",
+                  whiteSpace: "nowrap" }}
+              >
+                All variables ↗
+              </a>
               {scenario.active && (
                 <button onClick={() => { clearScenario(); triggerRefresh(); }}
                   style={{ padding: "2px 7px", background: "#fee2e2", color: "#dc2626",
