@@ -102,6 +102,7 @@ import type { TenantSettings } from "@/tenant/types";
 import { mapStatamicSeoFields } from "@/cms/mappers/statamic/seo-fields";
 import { dateOnly, isPublishedBy, newestEntriesFirst, newestFirst } from "./listing-dates";
 import { articleHeaderFor } from "./article-header";
+import { beforeClosingCall, relatedSectionFor } from "./article-related";
 import { tagsWithThemes } from "./listing-themes";
 import { inTeamOrder } from "./team-order";
 
@@ -1883,7 +1884,40 @@ export class StatamicProvider implements CMSProvider {
             ),
           }, rawBlocks)
         : null;
-      const sections = header ? [header, ...blockSections] : blockSections;
+      const opened = header ? [header, ...blockSections] : blockSections;
+
+      // An article closes with a row of other articles to read, before its
+      // call to action. An entry whose editor put a row of their own in the
+      // blocks keeps that one. The row is an extra: when the list of articles
+      // cannot be read, the article is shown without it.
+      let related: ReturnType<typeof relatedSectionFor> = null;
+      if (collectionHandle === "blog" && !blockSections.some((s) => s?._type === "relatedContent")) {
+        try {
+          type RelatedEntry = Pick<CollEntry, "title" | "date" | "theme" | "excerpt" | "overview_image"> & { overview_image_hover?: unknown };
+          type AssetField   = Array<{ url?: string; permalink?: string } | string> | string | undefined;
+          const others = await this.client.fetchAll<RelatedEntry>("blog", 100);
+          related = relatedSectionFor(
+            { slug: entrySlug, theme: entry.theme },
+            others.map((other) => ({
+              id:            other.id,
+              slug:          other.slug,
+              title:         other.title,
+              date:          other.date,
+              theme:         other.theme,
+              excerpt:       other.excerpt,
+              imageUrl:      this.resolveAssetUrl(other.overview_image as AssetField),
+              hoverImageUrl: this.resolveAssetUrl(other.overview_image_hover as AssetField),
+            })),
+            new Date(),
+          );
+        } catch (relatedErr) {
+          logger.warn("[StatamicProvider] article: failed to read the other articles for its closing row", {
+            slug:  entrySlug,
+            error: relatedErr instanceof Error ? relatedErr.message : String(relatedErr),
+          });
+        }
+      }
+      const sections = related ? beforeClosingCall(opened, related) : opened;
 
       return {
         id:             entry.id ?? entrySlug,

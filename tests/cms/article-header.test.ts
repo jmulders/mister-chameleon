@@ -127,7 +127,7 @@ describe("the Statamic provider", () => {
 
   it("opens an article with the header", () => {
     assert.ok(start > 0, "the header is no longer made");
-    assert.match(wiring, /const sections = header \? \[header, \.\.\.blockSections\] : blockSections;/);
+    assert.match(wiring, /const opened = header \? \[header, \.\.\.blockSections\] : blockSections;/);
   });
 
   it("does so for articles only", () => {

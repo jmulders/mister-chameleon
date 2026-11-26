@@ -726,6 +726,7 @@ function mapSectionToContentBlock(section: PageSectionData): ContentBlock | null
         surface:   section.surface,
         data: {
           heading:       section.heading,
+          itemKind:      section.itemKind,
           // Inline items — populated for manual-source blocks; empty for collection-driven
           items:         section.items.map((item) => ({
             id:             item.id ?? item._key,

@@ -84,7 +84,10 @@ export function RelatedContentBlock({ data, variant: rawVariant, locale = "en" }
 
   if (items.length === 0) return null;
 
-  const heading = data.heading ?? BLOCK_TEXTS[locale].relatedContent;
+  // An editor's heading wins. Without one, a row of articles reads "Lees ook"
+  // and any other row keeps the general words.
+  const heading = data.heading
+    ?? (data.itemKind === "articles" ? BLOCK_TEXTS[locale].relatedArticles : BLOCK_TEXTS[locale].relatedContent);
 
   // ── related_slider variant ─────────────────────────────────────────────────
   //

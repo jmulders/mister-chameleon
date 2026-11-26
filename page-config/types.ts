@@ -1061,6 +1061,8 @@ export interface RelatedItem {
  */
 export interface RelatedContentBlockData {
   readonly heading?:       string;
+  /** What the items are: a row of articles has fixed words of its own. */
+  readonly itemKind?:      "articles";
   readonly items:          readonly RelatedItem[];
   readonly maxItems?:      number;
   /**
