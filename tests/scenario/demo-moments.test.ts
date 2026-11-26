@@ -16,7 +16,7 @@ import { readFileSync } from "node:fs";
 
 import {
   BUILTIN_MOMENTS, MOMENT_EVENTS, TIME_OPTIONS,
-  activeMoment, activeTime, isDemoTimeId, isEmptyScenario, panelMoments, timeLabel, timeOverrides, withMoment,
+  activeMoment, activeTime, isDemoTimeId, isEmptyScenario, momentColumns, panelMoments, timeLabel, timeOverrides, withMoment,
 } from "@/components/scenario/demo-moments";
 import type { DemoMoment } from "@/components/scenario/demo-moments";
 import { FIELD_REGISTRY }    from "@/decision/rules/field-registry";
@@ -119,6 +119,42 @@ describe("the moments of the panel", () => {
     const allowed = FIELD_REGISTRY.seasonalEvent.allowedValues ?? [];
     for (const event of MOMENT_EVENTS) assert.ok(allowed.includes(event), event);
     for (const moment of BUILTIN_MOMENTS) assert.ok(allowed.includes(moment.seasonalEvent!), moment.key);
+  });
+});
+
+describe("the row of moment buttons", () => {
+  it("puts the five moments of Mister Chameleon on one line", () => {
+    assert.equal(momentColumns(["Valentijn", "Pasen", "Halloween", "Kerst", "Oranje speelt"]), 5);
+  });
+
+  it("puts the four built-in moments on one line", () => {
+    assert.equal(momentColumns(BUILTIN_MOMENTS.map((m) => m.label)), 4);
+  });
+
+  it("spreads them evenly when they do not fit on one line", () => {
+    const eight = ["Nieuwjaar", "Valentijn", "Pasen", "Koningsdag", "Halloween", "Black Friday", "Kerst", "Oranje speelt"];
+    assert.equal(momentColumns(eight), 4);                       // four and four
+    assert.equal(momentColumns(eight.slice(0, 6), 250), 3);      // three and three, not four and two
+    assert.equal(momentColumns(eight.slice(0, 5), 250), 3);      // three and two, not four and one
+  });
+
+  it("never leaves one button alone on a line when two lines can share", () => {
+    for (let width = 120; width <= 400; width += 10) {
+      const labels  = ["Valentijn", "Pasen", "Halloween", "Kerst", "Oranje speelt"];
+      const columns = momentColumns(labels, width);
+      const rows    = Math.ceil(labels.length / columns);
+      // The fewest columns that still give this many lines: nothing more even exists.
+      assert.equal(columns, Math.ceil(labels.length / rows), `width ${width}`);
+    }
+  });
+
+  it("gives a long label a line of its own when nothing else fits", () => {
+    assert.equal(momentColumns(["De langste dag van het hele jaar is vandaag", "Kerst"], 200), 1);
+  });
+
+  it("copes with one button and with none", () => {
+    assert.equal(momentColumns(["Kerst"]), 1);
+    assert.equal(momentColumns([]), 1);
   });
 });
 
@@ -240,8 +276,20 @@ describe("the panel", () => {
     assert.match(demo, /\{momentList\.map\(\(item\) => \(/);
   });
 
-  it("lets the buttons wrap: five moments do not fit on one line", () => {
-    assert.match(demo, /data-part="scenario-moments" style=\{\{ display: "flex", flexWrap: "wrap", gap: 6 \}\}/);
+  it("sets the moments in a grid with the columns the labels allow", () => {
+    assert.match(demo, /data-part="scenario-moments" style=\{\{ display: "grid", gridTemplateColumns: `repeat\(\$\{momentColumns\(momentList\.map\(\(m\) => m\.label\)\)\}, minmax\(0, auto\)\)`, gap: 6 \}\}/);
+    // A wrapping row stretched the one button on its last line over the whole width.
+    assert.doesNotMatch(demo, /flexWrap/);
+  });
+
+  it("gives the time buttons the same width", () => {
+    assert.match(demo, /data-part="scenario-times" style=\{\{ display: "grid", gridTemplateColumns: `repeat\(\$\{shownTimes\.length\}, minmax\(0, 1fr\)\)`, gap: 6 \}\}/);
+  });
+
+  it("never lets a long label push a row wider than the panel", () => {
+    const button = demo.slice(demo.indexOf("function TimeBtn("));
+    assert.match(button, /minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",/);
+    assert.doesNotMatch(button, /minWidth: 64/);
   });
 
   it("takes the moment away on a second click, and leaves no empty scenario behind", () => {
