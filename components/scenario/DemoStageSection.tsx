@@ -22,7 +22,7 @@ import { activateScenario, clearScenario } from "./scenario-store";
 import { SCENARIO_PRESETS } from "./scenario-presets";
 import { getDemoContextSet, getDemoAttributeSet } from "./demo-context-sets";
 import { curateByKey } from "./curate-panel";
-import { TIME_OPTIONS, activeMoment, activeTime, isEmptyScenario, panelMoments, timeLabel, timeOverrides, withMoment } from "./demo-moments";
+import { TIME_OPTIONS, activeMoment, activeTime, isEmptyScenario, momentColumns, panelMoments, timeLabel, timeOverrides, withMoment } from "./demo-moments";
 import type { DemoMoment, DemoTimeId } from "./demo-moments";
 import { applyRoleOverrides, effectivePresetOverrides, type OverrideMap } from "./scenario-overrides";
 import type { DemoContext, DemoAttribute } from "./demo-context-sets";
@@ -157,6 +157,7 @@ export function DemoStageSection({
   // A moment sets what a real visit on that day would have: a calendar window
   // or a date. The rules decide what the page does with it. A second click on
   // the active moment takes it away again.
+  const shownTimes = curateByKey(TIME_OPTIONS, (t) => t.id, timeOptions);
   const momentList = panelMoments(moments);
   const moment     = activeMoment(o, momentList);
   function setMoment(next: DemoMoment) {
@@ -241,8 +242,8 @@ export function DemoStageSection({
       {/* ── Time simulator ─────────────────────────────────────────────────── */}
       <div>
         <div style={S.sectionLabel}>Simulate time</div>
-        <div style={{ display: "flex", gap: 6 }}>
-          {curateByKey(TIME_OPTIONS, (t) => t.id, timeOptions).map((opt) => (
+        <div data-part="scenario-times" style={{ display: "grid", gridTemplateColumns: `repeat(${shownTimes.length}, minmax(0, 1fr))`, gap: 6 }}>
+          {shownTimes.map((opt) => (
             <TimeBtn
               key={opt.id}
               label={opt.label}
@@ -257,7 +258,10 @@ export function DemoStageSection({
       {/* ── Moment simulator ───────────────────────────────────────────────── */}
       <div>
         <div style={S.sectionLabel}>Simulate a moment</div>
-        <div data-part="scenario-moments" style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+        {/* A grid, not a wrapping row: the last line of a wrapping row stretched
+            its one button over the whole width. Each column is as wide as its
+            label needs, and what is left over is shared out evenly. */}
+        <div data-part="scenario-moments" style={{ display: "grid", gridTemplateColumns: `repeat(${momentColumns(momentList.map((m) => m.label))}, minmax(0, auto))`, gap: 6 }}>
           {momentList.map((item) => (
             <TimeBtn
               key={item.key}
@@ -395,7 +399,10 @@ function TimeBtn({ label, active, disabled, onClick }: { label: string; active: 
       disabled={disabled}
       aria-pressed={active}
       style={{
-        flex: "1 1 auto", minWidth: 64, borderRadius: 8, padding: "6px 8px",
+        // The row is a grid that sizes the button. A label that is too long
+        // for its column ends in dots; it never pushes the row wider.
+        minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+        borderRadius: 8, padding: "6px 4px",
         fontSize: 11, fontWeight: active ? 700 : 600, cursor: disabled ? "wait" : "pointer",
         // Same active treatment as the persona rows (S.row): indigo border + tint.
         border: active ? "1.5px solid #6366f1" : "1px solid #e5e7eb",

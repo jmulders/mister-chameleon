@@ -155,6 +155,44 @@ export function activeMoment(o: ScenarioOverrides, moments: readonly DemoMoment[
   return null;
 }
 
+// ── The row of moment buttons ────────────────────────────────────────────────
+
+/** What a row of buttons in the panel has to spend, in px. The panel is 360 wide. */
+export const BUTTON_ROW_WIDTH = 330;
+/** One character of a button label: 11 px, semi-bold. Measured at 5.7, rounded up. */
+const LABEL_CHAR = 6;
+/** Around the label: 4 px padding and a 1 px border on each side. */
+const BUTTON_CHROME = 10;
+const BUTTON_GAP = 6;
+
+const buttonWidth = (label: string) => label.length * LABEL_CHAR + BUTTON_CHROME;
+
+/**
+ * How many buttons go on one line. All of them when they fit: five moments
+ * stood as four and one, the one stretched over the whole second line. When
+ * they do not fit they are spread evenly over as few lines as it takes (six as
+ * three and three, not five and one). The buttons stand in a grid, so a column
+ * is as wide as its widest label.
+ */
+export function momentColumns(labels: readonly string[], width: number = BUTTON_ROW_WIDTH): number {
+  const n = labels.length;
+  if (n <= 1) return 1;
+  const fits = (columns: number) => {
+    let total = BUTTON_GAP * (columns - 1);
+    for (let c = 0; c < columns; c++) {
+      let widest = 0;
+      for (let i = c; i < n; i += columns) widest = Math.max(widest, buttonWidth(labels[i]!));
+      total += widest;
+    }
+    return total <= width;
+  };
+  for (let rows = 1; rows <= n; rows++) {
+    const columns = Math.ceil(n / rows);
+    if (fits(columns)) return columns;
+  }
+  return 1;
+}
+
 /**
  * True when the overrides say nothing a visit would notice. The demo then
  * goes back to the real visit, in place of a scenario that changes nothing.
