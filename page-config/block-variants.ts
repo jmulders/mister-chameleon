@@ -402,7 +402,7 @@ export type ArticleBodyVariant = "default" | "wide";
  *   compact — inline pill-row of metadata
  *   hero    — full-bleed cover image with overlaid metadata
  */
-export type ArticleMetaVariant = "default" | "compact" | "hero";
+export type ArticleMetaVariant = "default" | "compact" | "hero" | "split";
 
 /**
  * Variant for relatedContent blocks.
@@ -603,7 +603,7 @@ const BLOCK_VARIANT_SETS: Partial<Record<ContentBlockType, readonly string[]>> =
   ] satisfies readonly ListingVariant[],
 
   articleBody:    ["default", "wide"]                         satisfies readonly ArticleBodyVariant[],
-  articleMeta:    ["default", "compact", "hero"]              satisfies readonly ArticleMetaVariant[],
+  articleMeta:    ["default", "compact", "hero", "split"]     satisfies readonly ArticleMetaVariant[],
   relatedContent: ["default", "grid", "list", "carousel", "related_slider"] satisfies readonly RelatedContentVariant[],
   vacancyMeta:    ["default", "compact", "sidebar"]           satisfies readonly VacancyMetaVariant[],
   applyPanel:     ["default", "inline", "sticky"]             satisfies readonly ApplyPanelVariant[],

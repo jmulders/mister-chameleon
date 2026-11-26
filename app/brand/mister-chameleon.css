@@ -407,6 +407,70 @@
   --section-py: clamp(20px, 2.25vw, 32px);
 }
 
+/* An article reads as a column (26 Nov 2026).
+ *
+ * A text section took the width of any page: 832 px of 16 px type, about 125
+ * characters to a line. That is twice what reads comfortably, and with no
+ * image on the page an article was a wall of text. The owner asked to make
+ * the articles more attractive to look at.
+ *
+ * The column is 46 rem with the padding, so a line is about 75 characters of
+ * 18 px type. The title of a section is smaller than on a landing page: there
+ * it opens a block, here it is a heading inside one text.
+ */
+[data-brand="mister-chameleon"] main[data-page-kind="article"] [data-part="text-section"] > div {
+  max-width: 46rem;
+}
+[data-brand="mister-chameleon"] main[data-page-kind="article"] [data-part="text-section"] h2 {
+  font-size: clamp(1.5rem, 2.4vw, 1.875rem);
+  line-height: 1.25;
+}
+[data-brand="mister-chameleon"] main[data-page-kind="article"] [data-part="text-section"] :is(p, li) {
+  font-size: 1.125rem;
+  line-height: 1.7;
+}
+
+/* A list in an article. Each point gets a flat circle in a logo colour for a
+ * bullet, the shape of the house style. The colours go round, so a list of
+ * three or four points carries three or four of them. It is the only colour
+ * in a page that is otherwise text.
+ */
+[data-brand="mister-chameleon"] main[data-page-kind="article"] [data-part="text-section"] ul {
+  list-style: none;
+  padding-left: 0;
+}
+[data-brand="mister-chameleon"] main[data-page-kind="article"] [data-part="text-section"] ul > li {
+  position: relative;
+  padding-left: 1.75rem;
+}
+[data-brand="mister-chameleon"] main[data-page-kind="article"] [data-part="text-section"] ul > li::before {
+  content: "";
+  position: absolute;
+  left: 0.2rem;
+  top: 0.62em;
+  width: 0.6rem;
+  height: 0.6rem;
+  border-radius: 50%;
+  background: var(--mc-magenta);
+}
+[data-brand="mister-chameleon"] main[data-page-kind="article"] [data-part="text-section"] ul > li:nth-child(5n + 2)::before { background: var(--mc-sky); }
+[data-brand="mister-chameleon"] main[data-page-kind="article"] [data-part="text-section"] ul > li:nth-child(5n + 3)::before { background: var(--mc-lime); }
+[data-brand="mister-chameleon"] main[data-page-kind="article"] [data-part="text-section"] ul > li:nth-child(5n + 4)::before { background: var(--mc-orange); }
+[data-brand="mister-chameleon"] main[data-page-kind="article"] [data-part="text-section"] ul > li:nth-child(5n + 5)::before { background: var(--mc-teal); }
+
+/* The header of an article. Its picture is a house image on a see-through
+ * sheet, so the box has no ground of its own and no rounded corners to cut the
+ * circles. The rule below the header closes it off from the text.
+ */
+[data-brand="mister-chameleon"] [data-part="article-header"] {
+  --article-cover-bg: transparent;
+  border-bottom: 1px solid var(--card-border, var(--border, var(--bg-subtle)));
+  margin-bottom: clamp(12px, 2vw, 28px);
+}
+[data-brand="mister-chameleon"] [data-part="article-cover"] {
+  border-radius: 0;
+}
+
 /* ── 6. A hero headline on one line ─────────────────────────────────────────
  *
  * The shared hero sets its headline at 72 px on a wide screen. Beside an image
