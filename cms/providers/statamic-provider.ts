@@ -101,6 +101,7 @@ import type { IndexablePath, ProvisionResult, TestConnectionResult } from "./cms
 import type { TenantSettings } from "@/tenant/types";
 import { mapStatamicSeoFields } from "@/cms/mappers/statamic/seo-fields";
 import { dateOnly, isPublishedBy, newestEntriesFirst, newestFirst } from "./listing-dates";
+import { articleHeaderFor } from "./article-header";
 import { tagsWithThemes } from "./listing-themes";
 import { inTeamOrder } from "./team-order";
 
@@ -1807,6 +1808,8 @@ export class StatamicProvider implements CMSProvider {
         page_blocks?:      unknown;
         // dates, as Statamic gives them (see listing-dates.ts for the two shapes)
         date?:             unknown;
+        // the themes of an article (see listing-themes.ts for the two shapes)
+        theme?:            unknown;
         last_modified?:    unknown;
         updated_at?:       unknown;
         // team_members fields
@@ -1864,7 +1867,23 @@ export class StatamicProvider implements CMSProvider {
       }
 
       const resolvedBlocks = await this.resolveFaqBlocks(rawBlocks);
-      const sections = mapStatamicPageBlocksToSections(resolvedBlocks);
+      const blockSections  = mapStatamicPageBlocksToSections(resolvedBlocks);
+
+      // An article opens with a header made from what the entry already has:
+      // its theme, title, excerpt, date, reading time and overview image. An
+      // entry whose editor put a header block of their own keeps that one.
+      const header = collectionHandle === "blog" && !blockSections.some((s) => s?._type === "articleMeta")
+        ? articleHeaderFor({
+            title:         entry.title,
+            date:          entry.date,
+            theme:         entry.theme,
+            excerpt:       entry.excerpt,
+            coverImageUrl: this.resolveAssetUrl(
+              entry.overview_image as Array<{ url?: string; permalink?: string } | string> | string | undefined,
+            ),
+          }, rawBlocks)
+        : null;
+      const sections = header ? [header, ...blockSections] : blockSections;
 
       return {
         id:             entry.id ?? entrySlug,

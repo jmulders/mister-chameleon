@@ -445,6 +445,7 @@ describe("the hooks the stylesheet relies on", () => {
     "components/blocks/sections/FeatureGridBlock.tsx",
     "components/blocks/sections/CtaSectionBlock.tsx",
     "components/blocks/sections/TextSectionBlock.tsx",
+    "components/blocks/sections/ArticleMetaBlock.tsx",
     "components/blocks/NotificationBlock.tsx",
     "components/layout/footer/FooterCorporate.tsx",
     "components/layout/footer/FooterMinimal.tsx",

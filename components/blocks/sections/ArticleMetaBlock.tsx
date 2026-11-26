@@ -20,6 +20,11 @@
  *   default   — Cover image (if present) at container width, then title, then
  *               summary, then the meta row.  Standard blog post header.
  *
+ *   split     — Text left (category, title, summary, meta row), cover image
+ *               right at 16:9. Below the text on a phone. The header a
+ *               Statamic article gets when its entry brings none of its own
+ *               (cms/providers/article-header.ts).
+ *
  *   compact   — No title, no cover image.  Just the meta row (category, date,
  *               reading time, author).  Use when the page-level <h1> carries
  *               the title so the meta block supplements rather than repeats it.
@@ -236,6 +241,85 @@ export function ArticleMetaBlock({ data, variant: rawVariant, locale = "en" }: A
           </Stack>
         </Container>
       </div>
+    );
+  }
+
+  // ── split — text left, cover image right ──────────────────────────────────
+  //
+  // The cover's ground is a token. A photo fills the box either way. A tenant
+  // whose covers are drawings on a see-through sheet sets
+  // --article-cover-bg: transparent, so the page shows through.
+  if (variant === "split") {
+    return (
+      <header
+        data-part="article-header"
+        style={{ paddingTop: "clamp(2rem, 5vw, 4rem)", paddingBottom: "clamp(1.5rem, 3vw, 2.5rem)" }}
+      >
+        <Container size="lg">
+          <div className="flex flex-col gap-8 md:flex-row md:items-center md:gap-12">
+            <div className="min-w-0 flex-1">
+              <Stack gap={4}>
+                {data.breadcrumbs && data.breadcrumbs.length > 0 && (
+                  <Breadcrumbs items={data.breadcrumbs} />
+                )}
+                {data.category && <div><CategoryBadge category={data.category} /></div>}
+                {data.title && (
+                  <h1
+                    style={{
+                      margin:     0,
+                      color:      "var(--text)",
+                      fontSize:   "clamp(1.875rem, 4vw, 2.75rem)",
+                      fontFamily: "var(--font-heading)",
+                      fontWeight: "var(--font-heading-weight)",
+                      lineHeight: 1.15,
+                      textWrap:   "balance",
+                    }}
+                  >
+                    {data.title}
+                  </h1>
+                )}
+                {data.summary && (
+                  <p
+                    data-part="article-summary"
+                    style={{ margin: 0, fontSize: "1.1875rem", color: "var(--text-muted)", lineHeight: 1.6 }}
+                  >
+                    {data.summary}
+                  </p>
+                )}
+                <MetaRow
+                  author={data.author}
+                  publishedAt={data.publishedAt}
+                  updatedAt={data.updatedAt}
+                  readingTime={data.readingTime}
+                  tags={data.tags}
+                  t={t}
+                />
+              </Stack>
+            </div>
+
+            {data.coverImageUrl && (
+              <div className="w-full shrink-0 md:w-[42%]">
+                <div
+                  data-part="article-cover"
+                  style={{
+                    aspectRatio:  "16 / 9",
+                    overflow:     "hidden",
+                    borderRadius: "var(--card-radius)",
+                    background:   "var(--article-cover-bg, var(--bg-subtle))",
+                  }}
+                >
+                  <img
+                    src={data.coverImageUrl}
+                    alt={data.coverImageAlt ?? data.title ?? t.articleCover}
+                    loading="eager"
+                    style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+        </Container>
+      </header>
     );
   }
 
