@@ -84,6 +84,18 @@ export type ChannelGroup =
   | "referral"
   | "other";
 
+/**
+ * The AI assistant a visitor came from: ChatGPT, Perplexity, Copilot, Gemini or
+ * Claude by name, "other" for a lesser-known one.
+ */
+export type AiAssistant =
+  | "chatgpt"
+  | "perplexity"
+  | "copilot"
+  | "gemini"
+  | "claude"
+  | "other";
+
 /** Campaign intent category derived from UTM medium and campaign name. */
 export type CampaignType =
   | "brand"
@@ -196,6 +208,16 @@ export interface DerivedContext {
    *   other          — everything else
    */
   channelGroup: ChannelGroup | null;
+
+  /**
+   * The AI assistant this visitor clicked through from, or null.
+   *
+   * Read from `utm_source` (ChatGPT adds `utm_source=chatgpt.com` to the links
+   * it cites) and else from the referrer domain. A field of its own, beside
+   * `source` and `channelGroup`: both keep the value they had for such a visit
+   * ("unknown" and "referral" or "other"), so no existing rule changes.
+   */
+  aiAssistant: AiAssistant | null;
 
   /**
    * Campaign intent category derived from UTM medium and campaign name.
@@ -415,6 +437,48 @@ function deriveChannelGroup(
   return "other";
 }
 
+// ── AI assistants ────────────────────────────────────────────────────────────
+//
+// The owner asked on 26 Nov 2026 to recognise a visitor who comes from an AI
+// assistant, so a site can adapt to him and count him. Each assistant by the
+// hosts its links come from and the names it uses in `utm_source`.
+const AI_ASSISTANTS: readonly { id: AiAssistant; hosts: readonly string[]; utm: readonly string[] }[] = [
+  { id: "chatgpt",    hosts: ["chatgpt.com", "chat.openai.com"], utm: ["chatgpt.com", "chatgpt", "openai", "chat.openai.com"] },
+  { id: "perplexity", hosts: ["perplexity.ai"],                  utm: ["perplexity.ai", "perplexity"] },
+  { id: "copilot",    hosts: ["copilot.microsoft.com"],          utm: ["copilot.microsoft.com", "copilot"] },
+  { id: "gemini",     hosts: ["gemini.google.com"],              utm: ["gemini.google.com", "gemini"] },
+  { id: "claude",     hosts: ["claude.ai"],                      utm: ["claude.ai", "claude"] },
+  {
+    id:    "other",
+    hosts: ["chat.mistral.ai", "grok.com", "meta.ai", "chat.deepseek.com", "you.com", "phind.com", "poe.com"],
+    utm:   ["chat.mistral.ai", "grok.com", "meta.ai", "chat.deepseek.com", "you.com", "phind.com", "poe.com"],
+  },
+];
+
+/**
+ * Which AI assistant a visit came from, or null.
+ *
+ * `utm_source` goes first: it is explicit and survives where a referrer is
+ * stripped. A value there that is not an assistant does not rule one out, so
+ * the referrer is still looked at. A host matches itself and its subdomains
+ * (`www.perplexity.ai`), never a host that only ends in the same letters
+ * (`notchatgpt.com`).
+ */
+export function deriveAiAssistant(
+  utmSource:      string | null | undefined,
+  referrerDomain: string | null | undefined,
+): AiAssistant | null {
+  const utm = (utmSource ?? "").toLowerCase().trim();
+  if (utm) {
+    const byUtm = AI_ASSISTANTS.find((a) => a.utm.includes(utm));
+    if (byUtm) return byUtm.id;
+  }
+  const host = (referrerDomain ?? "").toLowerCase().trim().replace(/^www\./, "");
+  if (!host) return null;
+  const byHost = AI_ASSISTANTS.find((a) => a.hosts.some((h) => host === h || host.endsWith(`.${h}`)));
+  return byHost ? byHost.id : null;
+}
+
 function deriveCampaignType(
   utmMedium:   string | null | undefined,
   utmCampaign: string | null | undefined,
@@ -545,6 +609,8 @@ export function computeDerivedContext(
     ctx.referrerDomain,
   );
 
+  const aiAssistant = deriveAiAssistant(ctx.utmSource, ctx.referrerDomain);
+
   const campaignType = deriveCampaignType(ctx.utmMedium, ctx.utmCampaign);
 
   const isRetargetedUser =
@@ -637,6 +703,7 @@ export function computeDerivedContext(
     industryGroup,
     // Campaign
     channelGroup,
+    aiAssistant,
     campaignType,
     isRetargetedUser,
     // Behavior
