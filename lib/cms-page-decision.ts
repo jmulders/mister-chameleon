@@ -35,7 +35,9 @@
  *   What IS available without enrichment:
  *     • First-party behavioural history (page views, events, scores)
  *     • Session signals (UTM, referrer, device type, path)
- *     • IP-level classification cached from a prior homepage visit
+ *     • The enrichment the homepage's pipeline cached for this session (geo,
+ *       company, CRM), read-only and under the same consent. A visitor who has
+ *       not been on a page that runs the pipeline has CDN header geo only.
  *     • Audience segment membership derived from stored history
  *     • Scenario overrides (dev tool)
  *
@@ -409,6 +411,21 @@ export async function resolveSlugPageConfig(
     // Omitting `stagedEnrichers` skips the entire enrichment stage.
     // The decision context will still contain session signals, device type,
     // UTM params, referrer, and all stored behavioral history.
+    //
+    // What the homepage's pipeline stored for this session is reused, read-only
+    // (`reuseSessionEnrichment`). Until 26 Nov 2026 this call only had the CDN
+    // header geo. A visitor whose company was recognised had the company's city
+    // on the homepage and the city of their IP address on every page here, so
+    // `{{location}}` named two different towns in one visit, and no rule on a
+    // company field could match on an inner page.
+    //
+    // Under the same consent as on the homepage: enrichment consent is what
+    // lets the pipeline run and store the entry, and without personalization
+    // consent `sessionId` is a throwaway id that no entry can carry.
+    //
+    // Nothing in this call depends on the scenario cookie except `history`
+    // (pass 1), so a preset starts from the enrichment the same request has
+    // without it. See tests/scenario/scenario-keeps-real-enrichment.test.ts.
     const rawInput = await buildDecisionContext({
       request,
       // The Cookie header is stripped from a synthetic Request, so pass the real
@@ -419,6 +436,7 @@ export async function resolveSlugPageConfig(
       templateKey: slug,
       pageType:    "cms_page",
       sessionId,
+      reuseSessionEnrichment: consent.enrichment && consent.personalization,
       timezone:    tenant?.timezone ?? null,
     });
 
