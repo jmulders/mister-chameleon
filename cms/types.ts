@@ -1750,6 +1750,11 @@ export interface CmsRelatedItem {
 export interface RelatedContentData extends PageSectionBase {
   _type:          "relatedContent";
   heading?:       string;
+  /**
+   * What the items are. A row of articles gets the fixed words for reading on
+   * ("Lees ook") when it has no heading, in place of the general ones.
+   */
+  itemKind?:      "articles";
   items:          CmsRelatedItem[];
   maxItems?:      number;
   /**
