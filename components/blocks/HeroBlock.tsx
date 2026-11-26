@@ -1356,10 +1356,33 @@ export function HeroBlock({
                 </Stack>
               </div>
 
-              {/* Media column — rounded, clipped, ~45% width on desktop */}
+              {/*
+                * Media column, ~42% of the row on desktop, below the text on a
+                * phone.
+                *
+                * The box is 16:9 and the media fills it. An image is drawn with
+                * `fill`, so it takes its size from this box: until 26 Nov 2026
+                * the box had no height of its own and a picture here was zero
+                * pixels high. Only an embedded video showed, because its
+                * wrapper brings its own aspect ratio.
+                *
+                * Frame (radius, shadow, border) from the same theme tokens as
+                * the split hero, so a hero picture looks the same in both.
+                */}
               <div className="w-full md:w-[42%] shrink-0">
-                <div className="overflow-hidden rounded-xl shadow-lg">
-                  <HeroMediaPanel media={media} />
+                <div
+                  data-part="page-banner-media"
+                  className="relative aspect-video w-full overflow-hidden"
+                  style={{
+                    borderRadius: "var(--block-media-radius, 0.75rem)",
+                    boxShadow:    "var(--block-media-shadow, none)",
+                    border:       "var(--block-media-border, none)",
+                    background:   "var(--block-media-bg, transparent)",
+                  }}
+                >
+                  <div className="absolute inset-0">
+                    <HeroMediaPanel media={media} className="h-full w-full" />
+                  </div>
                 </div>
               </div>
             </div>
