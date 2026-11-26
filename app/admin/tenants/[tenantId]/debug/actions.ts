@@ -106,11 +106,16 @@ export async function saveScenarioPanelAction(
   const clean: {
     presetKeys?:  string[];
     roleKeys?:    string[];
-    timeOptions?: ("day" | "evening" | "weekend")[];
+    timeOptions?: ("morning" | "day" | "evening" | "weekend")[];
+    moments?:     TenantScenarioPanelSettings["moments"];
   } = {};
   if (panel.presetKeys && panel.presetKeys.length > 0)   clean.presetKeys  = [...panel.presetKeys];
   if (panel.roleKeys && panel.roleKeys.length > 0)       clean.roleKeys    = [...panel.roleKeys];
   if (panel.timeOptions && panel.timeOptions.length > 0) clean.timeOptions = [...panel.timeOptions];
+  // This page has no editor for the moments. Saving the lists it does edit
+  // must not throw the tenant's moments away.
+  const keptMoments = panel.moments ?? stored.scenarioPanel?.moments;
+  if (keptMoments && keptMoments.length > 0) clean.moments = keptMoments;
 
   const scenarioPanel = Object.keys(clean).length > 0 ? clean : undefined;
 
