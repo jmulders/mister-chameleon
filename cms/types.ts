@@ -2717,6 +2717,15 @@ export interface PageData {
   ogDescription?: string;
   /** Open Graph / social image absolute URL */
   ogImage?: string;
+  /** The day a dated entry (an article) appeared, as "YYYY-MM-DD". */
+  publishedAt?: string;
+  /** The day the entry last changed, as "YYYY-MM-DD". */
+  modifiedAt?: string;
+  /**
+   * The person a team-member page is about: what the page itself shows. Read
+   * by the page for its structured data (lib/seo/structured-data.ts).
+   */
+  person?: { name: string; role?: string; profileUrl?: string };
   /**
    * Interest-profile keywords for this page.
    *
