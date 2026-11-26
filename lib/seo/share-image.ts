@@ -55,30 +55,34 @@ function isLinearGradient(value: string): boolean {
 
 export interface ShareCardColours {
   /** A colour or a linear gradient. */
-  ground:   string;
-  title:    string;
-  subtitle: string;
+  ground: string;
+  /** The colour of every text on the card. The smaller lines use it lighter, see SHARE_TEXT_STRENGTH. */
+  text:   string;
 }
 
 /**
- * The colours of the card: the ground of the tenant's hero and the colours its
- * hero text has. Anything the card cannot draw falls back to a dark ground with
- * light text, which reads with every logo plate.
+ * How strongly the smaller lines of the card are drawn, as opacity of the
+ * title's colour.
+ *
+ * The first card took the hero's own subtitle colour. On the live site of
+ * 26 Nov 2026 that came out as a grey with little contrast on the purple
+ * ground, and the owner asked for a fixed light tint. A lighter shade of the
+ * title's colour is light wherever the title is, on every theme.
+ */
+export const SHARE_TEXT_STRENGTH = { line: 0.88, host: 0.72 } as const;
+
+/**
+ * The colours of the card: the ground of the tenant's hero and the colour its
+ * hero title has. A ground the card cannot draw falls back to dark with white
+ * text, which reads with every logo plate.
  */
 export function shareCardColours(vars: Readonly<Record<string, string>>): ShareCardColours {
   // An empty fallback tells the hero's own ground from one that led nowhere:
-  // the hero's text colours only go with the hero's own ground.
-  const ground   = resolveCssVar(vars, "--hero-bg", "");
-  const title    = resolveCssVar(vars, "--hero-title-color", "");
-  const subtitle = resolveCssVar(vars, "--hero-subtitle-color", "");
-  if (!isPlainColour(ground) && !isLinearGradient(ground)) {
-    return { ground: "#0f172a", title: "#ffffff", subtitle: "#cbd5e1" };
-  }
-  return {
-    ground,
-    title:    isPlainColour(title) ? title : "#ffffff",
-    subtitle: isPlainColour(subtitle) ? subtitle : "#cbd5e1",
-  };
+  // the hero's title colour only goes with the hero's own ground.
+  const ground = resolveCssVar(vars, "--hero-bg", "");
+  const title  = resolveCssVar(vars, "--hero-title-color", "");
+  if (!isPlainColour(ground) && !isLinearGradient(ground)) return { ground: "#0f172a", text: "#ffffff" };
+  return { ground, text: isPlainColour(title) ? title : "#ffffff" };
 }
 
 /**

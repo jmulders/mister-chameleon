@@ -9,7 +9,7 @@
 import { describe, it } from "node:test";
 import assert           from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { SHARE_IMAGE, shareImageEntry, resolveCssVar, shareCardColours, shareHeadline, clampText } from "@/lib/seo/share-image";
+import { SHARE_IMAGE, SHARE_TEXT_STRENGTH, shareImageEntry, resolveCssVar, shareCardColours, shareHeadline, clampText } from "@/lib/seo/share-image";
 import { organizationJsonLd, articleJsonLd, personJsonLd, absoluteUrl } from "@/lib/seo/structured-data";
 
 const ORIGIN = "https://www.example.org";
@@ -37,13 +37,25 @@ describe("share card: reading the theme", () => {
 
   it("falls back to a dark ground with light text for what it cannot draw", () => {
     for (const ground of ["url(/hero.jpg)", "linear-gradient(var(--a), var(--b))", "radial-gradient(#000, #fff)"]) {
-      assert.deepEqual(shareCardColours({ "--hero-bg": ground, "--hero-title-color": "#111111" }), { ground: "#0f172a", title: "#ffffff", subtitle: "#cbd5e1" });
+      assert.deepEqual(shareCardColours({ "--hero-bg": ground, "--hero-title-color": "#111111" }), { ground: "#0f172a", text: "#ffffff" });
     }
   });
 
-  it("uses the hero's own text colours on the hero's own ground", () => {
-    const colours = shareCardColours({ "--hero-bg": "#2e1a2a", "--hero-title-color": "#fff8f0", "--hero-subtitle-color": "rgb(240, 220, 210)" });
-    assert.deepEqual(colours, { ground: "#2e1a2a", title: "#fff8f0", subtitle: "rgb(240, 220, 210)" });
+  it("uses the hero's title colour on the hero's own ground", () => {
+    assert.deepEqual(shareCardColours({ "--hero-bg": "#2e1a2a", "--hero-title-color": "#fff8f0" }), { ground: "#2e1a2a", text: "#fff8f0" });
+  });
+
+  it("does not take the hero's subtitle colour: it came out grey on the live card", () => {
+    const colours = shareCardColours({ "--hero-bg": "#2e1a2a", "--hero-title-color": "#ffffff", "--hero-subtitle-color": "#8a8296" });
+    assert.deepEqual(colours, { ground: "#2e1a2a", text: "#ffffff" });
+  });
+
+  it("draws the smaller lines as a light shade of the title's colour", () => {
+    const route = readFileSync("app/share-image/route.tsx", "utf8");
+    assert.match(route, /color: colours\.text, opacity: SHARE_TEXT_STRENGTH\.line/);
+    assert.match(route, /color: colours\.text, opacity: SHARE_TEXT_STRENGTH\.host/);
+    assert.ok(SHARE_TEXT_STRENGTH.line >= 0.85 && SHARE_TEXT_STRENGTH.host >= 0.7, "light enough to read");
+    assert.ok(SHARE_TEXT_STRENGTH.line > SHARE_TEXT_STRENGTH.host);
   });
 });
 

@@ -23,7 +23,7 @@ import { resolveThemeForTenant, cssDeclarationsToRecord } from "@/tenant/resolve
 import { getSiteLanguage } from "@/lib/site-texts/server";
 import { requestOrigin } from "@/lib/seo/site-identity";
 import { absoluteUrl } from "@/lib/seo/structured-data";
-import { SHARE_IMAGE, shareCardColours, shareHeadline, clampText, type ShareCardColours } from "@/lib/seo/share-image";
+import { SHARE_IMAGE, SHARE_TEXT_STRENGTH, shareCardColours, shareHeadline, clampText, type ShareCardColours } from "@/lib/seo/share-image";
 import { logger } from "@/lib/logger";
 
 export const dynamic = "force-dynamic";
@@ -65,17 +65,17 @@ function card({ headline, line, host, colours, logoUrl, logoBare }: CardContent)
       </div>
 
       <div style={{ display: "flex", flexDirection: "column" }}>
-        <div style={{ display: "flex", maxWidth: 1000, fontSize: 68, lineHeight: 1.12, letterSpacing: "-0.02em", color: colours.title }}>
+        <div style={{ display: "flex", maxWidth: 1000, fontSize: 68, lineHeight: 1.12, letterSpacing: "-0.02em", color: colours.text }}>
           {headline}
         </div>
         {line && (
-          <div style={{ display: "flex", marginTop: 24, maxWidth: 940, fontSize: 34, lineHeight: 1.35, color: colours.subtitle }}>
+          <div style={{ display: "flex", marginTop: 24, maxWidth: 940, fontSize: 34, lineHeight: 1.35, color: colours.text, opacity: SHARE_TEXT_STRENGTH.line }}>
             {line}
           </div>
         )}
       </div>
 
-      <div style={{ display: "flex", fontSize: 26, color: colours.subtitle }}>{host}</div>
+      <div style={{ display: "flex", fontSize: 26, color: colours.text, opacity: SHARE_TEXT_STRENGTH.host }}>{host}</div>
     </div>
   );
 }
