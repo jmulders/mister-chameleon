@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { tenantIcons } from "@/lib/seo/icons";
 import { requestOrigin } from "@/lib/seo/site-identity";
+import { shareImageEntry } from "@/lib/seo/share-image";
 import "./globals.css";
 // Brand layer for Mister Chameleon's own site; every rule is scoped to html[data-brand].
 import "./brand/mister-chameleon.css";
@@ -143,7 +144,18 @@ export async function generateMetadata(): Promise<Metadata> {
     // og:site_name, one of the signals Google uses for the site name in results.
     // With this object in place Next fills og:title and og:description from
     // each page's own title and description.
-    openGraph:   { siteName: tenant.name || tenant.theme.meta.name },
+    // og:type "website" is what a page is unless it says otherwise (an article
+    // does). og:image is the site's own card, drawn per tenant at /share-image:
+    // without an image a shared link shows as bare text. The card needs the
+    // host to be absolute, so it is only named when the host is known.
+    openGraph:   {
+      siteName: tenant.name || tenant.theme.meta.name,
+      type:     "website",
+      ...(origin ? { images: [shareImageEntry()] } : {}),
+    },
+    // The large card on X and in apps that read Twitter tags. Title,
+    // description and image follow the Open Graph ones.
+    twitter:     { card: "summary_large_image" },
     icons: tenantIcons(tenant.theme.meta.faviconPath),
   };
 }

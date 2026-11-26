@@ -1805,6 +1805,10 @@ export class StatamicProvider implements CMSProvider {
         // content fields
         excerpt?:          string;
         page_blocks?:      unknown;
+        // dates, as Statamic gives them (see listing-dates.ts for the two shapes)
+        date?:             unknown;
+        last_modified?:    unknown;
+        updated_at?:       unknown;
         // team_members fields
         full_name?:        string;
         role?:             string;
@@ -1868,6 +1872,21 @@ export class StatamicProvider implements CMSProvider {
         slug:           fullPath,
         metaKeywords:   normalizeMetaKeywords(entry.meta_keywords),
         ...mapStatamicSeoFields(entry as unknown as Record<string, unknown>, (v) => this.resolveAssetUrl(v) ?? undefined),
+        // For Open Graph and structured data. Only a dated collection has a
+        // publication day, and a last change before that day would be noise.
+        ...(dateOnly(entry.date) ? { publishedAt: dateOnly(entry.date) } : {}),
+        ...(dateOnly(entry.date) && (dateOnly(entry.last_modified ?? entry.updated_at) ?? "") >= dateOnly(entry.date)!
+          ? { modifiedAt: dateOnly(entry.last_modified ?? entry.updated_at) }
+          : {}),
+        ...(collectionHandle === "team_members" && (entry.full_name ?? entry.title)
+          ? {
+              person: {
+                name: (entry.full_name ?? entry.title)!,
+                ...(entry.role ? { role: entry.role } : {}),
+                ...(typeof entry.linkedin_url === "string" && entry.linkedin_url ? { profileUrl: entry.linkedin_url } : {}),
+              },
+            }
+          : {}),
         sections,
         templateKey:    "article-page",
       };

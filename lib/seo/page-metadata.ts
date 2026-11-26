@@ -19,6 +19,7 @@
  */
 
 import type { Metadata } from "next";
+import { shareImageEntry } from "@/lib/seo/share-image";
 
 interface SeoFields {
   title?:          string | null;
@@ -28,6 +29,8 @@ interface SeoFields {
   ogTitle?:        string | null;
   ogDescription?:  string | null;
   ogImage?:        string | null;
+  publishedAt?:    string | null;
+  modifiedAt?:     string | null;
 }
 
 const filled = (value: string | null | undefined): value is string => typeof value === "string" && value.trim() !== "";
@@ -43,6 +46,9 @@ export function ownCanonical(page: SeoFields): Pick<Metadata, "alternates"> | Re
  *
  * @param siteName The site's name, repeated here because a page's Open Graph
  *                 object replaces the layout's as a whole.
+ *
+ * For the same reason the type and the image are repeated: the page is a
+ * "website" page, and without an image of its own it shows the site's card.
  */
 export function ownOpenGraph(page: SeoFields, siteName?: string | null): Pick<Metadata, "openGraph"> | Record<string, never> {
   if (!filled(page.ogTitle) && !filled(page.ogDescription) && !filled(page.ogImage)) return {};
@@ -50,9 +56,33 @@ export function ownOpenGraph(page: SeoFields, siteName?: string | null): Pick<Me
   const description = [page.ogDescription, page.seoDescription].find(filled);
   return {
     openGraph: {
+      type: "website",
       ...(title ? { title } : {}),
       ...(description ? { description } : {}),
-      ...(filled(page.ogImage) ? { images: [page.ogImage] } : {}),
+      images: [filled(page.ogImage) ? page.ogImage : shareImageEntry()],
+      ...(filled(siteName) ? { siteName } : {}),
+    },
+  };
+}
+
+/**
+ * Open Graph for an article: og:type "article", with the day it appeared and
+ * the day it last changed when the CMS knows them.
+ *
+ * Always returns the key, so it replaces the layout's object as a whole. Title,
+ * description, image and site name are therefore all given here.
+ */
+export function articleOpenGraph(page: SeoFields, siteName?: string | null): Pick<Metadata, "openGraph"> {
+  const title       = [page.ogTitle, page.seoTitle, page.title].find(filled);
+  const description = [page.ogDescription, page.seoDescription].find(filled);
+  return {
+    openGraph: {
+      type: "article",
+      ...(title ? { title } : {}),
+      ...(description ? { description } : {}),
+      ...(filled(page.publishedAt) ? { publishedTime: page.publishedAt } : {}),
+      ...(filled(page.modifiedAt) ? { modifiedTime: page.modifiedAt } : {}),
+      images: [filled(page.ogImage) ? page.ogImage : shareImageEntry()],
       ...(filled(siteName) ? { siteName } : {}),
     },
   };

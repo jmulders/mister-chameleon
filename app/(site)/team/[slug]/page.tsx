@@ -25,6 +25,9 @@ import { getSiteLocale } from "@/lib/site-texts/server";
 import { PAGE_TEXTS } from "@/lib/site-texts/pages";
 import { getActiveTenant, getTenantForRender } from "@/tenant/server";
 import { ownCanonical, ownOpenGraph } from "@/lib/seo/page-metadata";
+import { personJsonLd } from "@/lib/seo/structured-data";
+import { getSiteFacts } from "@/lib/seo/site-facts";
+import { JsonLd } from "@/components/site/JsonLd";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -75,9 +78,21 @@ export default async function TeamMemberDetailPage({ params }: PageProps) {
   }
 
   const pageConfig = mapPageDataToPageConfig(page);
+  const { origin, siteName } = await getSiteFacts();
 
   return (
     <main>
+      {origin && page.person && (
+        <JsonLd
+          json={personJsonLd({
+            name:   page.person.name,
+            role:   page.person.role,
+            path:   `/team/${slug}`,
+            sameAs: page.person.profileUrl,
+            siteName,
+          }, origin)}
+        />
+      )}
       {pageNeedsTitleHeading(pageConfig.contextSlots, pageConfig.contentBlocks) && page.title && (
         <PageTitleHeader title={page.title} />
       )}

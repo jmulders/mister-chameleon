@@ -26,7 +26,10 @@ import { PageTitleHeader }         from "@/components/site/PageTitleHeader";
 import { getSiteLocale } from "@/lib/site-texts/server";
 import { PAGE_TEXTS } from "@/lib/site-texts/pages";
 import { getActiveTenant, getTenantForRender } from "@/tenant/server";
-import { ownCanonical, ownOpenGraph } from "@/lib/seo/page-metadata";
+import { ownCanonical, articleOpenGraph } from "@/lib/seo/page-metadata";
+import { articleJsonLd } from "@/lib/seo/structured-data";
+import { getSiteFacts } from "@/lib/seo/site-facts";
+import { JsonLd } from "@/components/site/JsonLd";
 
 type PageProps = {
   params: Promise<{ slug: string }>;
@@ -52,10 +55,11 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     robots:      (page.robots?.noindex || page.robots?.nofollow)
                    ? { index: !page.robots.noindex, follow: !page.robots.nofollow }
                    : undefined,
-    // Only what the editor filled in. Without it the page keeps the layout's:
-    // its own address as canonical, and Open Graph from its title and description.
+    // The canonical only when the editor filled one in: without it the page
+    // keeps its own address, from the layout. Open Graph always: an article is
+    // og:type "article", with the day it appeared.
     ...ownCanonical(page),
-    ...ownOpenGraph(page),
+    ...articleOpenGraph(page, (await getActiveTenant()).name),
   };
 }
 
@@ -78,8 +82,24 @@ export default async function BlogPostDetailPage({ params }: PageProps) {
   // data-page-kind names the page for a brand layer: an article is a stack of
   // text sections, and a house style may want those closer together than the
   // sections of a landing page.
+  const { origin, siteName, logoUrl } = await getSiteFacts();
+
   return (
     <main data-page-kind="article">
+      {origin && (
+        <JsonLd
+          json={articleJsonLd({
+            type:        "BlogPosting",
+            headline:    page.title,
+            description: page.seoDescription,
+            path:        `/blog/${slug}`,
+            publishedAt: page.publishedAt,
+            modifiedAt:  page.modifiedAt,
+            siteName,
+            logoUrl,
+          }, origin)}
+        />
+      )}
       {pageNeedsTitleHeading(pageConfig.contextSlots, pageConfig.contentBlocks) && page.title && (
         <PageTitleHeader title={page.title} />
       )}

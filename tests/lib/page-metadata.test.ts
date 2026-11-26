@@ -10,7 +10,7 @@
 import { describe, it } from "node:test";
 import assert           from "node:assert/strict";
 import { readFileSync, readdirSync } from "node:fs";
-import { ownCanonical, ownOpenGraph } from "@/lib/seo/page-metadata";
+import { ownCanonical, ownOpenGraph, articleOpenGraph } from "@/lib/seo/page-metadata";
 import { sitemapPathsFor } from "@/lib/seo/sitemap";
 
 describe("ownCanonical", () => {
@@ -36,13 +36,37 @@ describe("ownOpenGraph", () => {
   it("fills the rest from the page when the editor filled in one field", () => {
     const page = { title: "Functies", seoTitle: "Website personalisatie software", seoDescription: "Alle functies.", ogImage: "https://example.org/delen.png" };
     assert.deepEqual(ownOpenGraph(page, "Mister Chameleon"), {
-      openGraph: { title: "Website personalisatie software", description: "Alle functies.", images: ["https://example.org/delen.png"], siteName: "Mister Chameleon" },
+      openGraph: { type: "website", title: "Website personalisatie software", description: "Alle functies.", images: ["https://example.org/delen.png"], siteName: "Mister Chameleon" },
     });
   });
 
   it("prefers the Open Graph title and description over the search ones", () => {
     const og = ownOpenGraph({ title: "A", seoTitle: "B", seoDescription: "C", ogTitle: "Voor delen", ogDescription: "Kort" });
-    assert.deepEqual(og, { openGraph: { title: "Voor delen", description: "Kort" } });
+    // The object replaces the layout's as a whole, so it repeats the type and,
+    // without an image of the editor's, the site's own card (26 Nov 2026).
+    assert.deepEqual(og, { openGraph: { type: "website", title: "Voor delen", description: "Kort", images: [{ url: "/share-image", width: 1200, height: 630 }] } });
+  });
+});
+
+describe("articleOpenGraph", () => {
+  const article = { title: "A/B-testen", seoDescription: "Zo werkt een test.", publishedAt: "2026-11-25", modifiedAt: "2026-11-26" };
+
+  it("marks the page as an article, with its days and the site's card", () => {
+    assert.deepEqual(articleOpenGraph(article, "Mister Chameleon"), {
+      openGraph: {
+        type: "article", title: "A/B-testen", description: "Zo werkt een test.",
+        publishedTime: "2026-11-25", modifiedTime: "2026-11-26",
+        images: [{ url: "/share-image", width: 1200, height: 630 }], siteName: "Mister Chameleon",
+      },
+    });
+  });
+
+  it("leaves the days out when the CMS gives none, and keeps the editor's image", () => {
+    const og = articleOpenGraph({ title: "Zonder datum", ogImage: "https://example.org/beeld.png" }).openGraph as Record<string, unknown>;
+    assert.equal(og.type, "article");
+    assert.equal("publishedTime" in og, false);
+    assert.equal("modifiedTime" in og, false);
+    assert.deepEqual(og.images, ["https://example.org/beeld.png"]);
   });
 });
 
@@ -75,6 +99,20 @@ describe("the pages and the layout", () => {
     const fromCms = pages.filter(({ source }) => /generateMetadata/.test(source) && /page\.robots\?\.noindex/.test(source));
     assert.ok(fromCms.length >= 10, `only found ${fromCms.length} CMS page types`);
     for (const { file, source } of fromCms) assert.match(source, /\.\.\.ownCanonical\(page\)/, `${file} does not use the shared rule`);
+  });
+
+  it("the layout gives every page a type, the site's card and the large card on X", () => {
+    const layout = readFileSync("app/layout.tsx", "utf8");
+    assert.match(layout, /type:\s+"website"/);
+    // Only with a known host: the card's address has to be absolute.
+    assert.match(layout, /\.\.\.\(origin \? \{ images: \[shareImageEntry\(\)\] \} : \{\}\)/);
+    assert.match(layout, /twitter:\s+\{ card: "summary_large_image" \}/);
+  });
+
+  it("a blog article says it is an article", () => {
+    const blog = readFileSync("app/(site)/blog/[slug]/page.tsx", "utf8");
+    assert.match(blog, /\.\.\.articleOpenGraph\(page, /);
+    assert.match(blog, /articleJsonLd\(\{/);
   });
 
   it("the layout gives every page its own address as the canonical", () => {

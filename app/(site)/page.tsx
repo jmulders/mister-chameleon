@@ -27,7 +27,10 @@ import { buildTokenContextFromInput }      from "@/lib/tokens/parse-tokens";
 import { cache, Suspense }                 from "react";
 import { cookies, headers }                from "next/headers";
 import { after }                           from "next/server";
-import { homeTitle, requestOrigin, websiteJsonLd } from "@/lib/seo/site-identity";
+import { homeTitle, websiteJsonLd } from "@/lib/seo/site-identity";
+import { organizationJsonLd } from "@/lib/seo/structured-data";
+import { getSiteFacts } from "@/lib/seo/site-facts";
+import { JsonLd } from "@/components/site/JsonLd";
 import type { Metadata }                   from "next";
 import { getActiveTenant, getTenantForRender } from "@/tenant/server";
 import { createCMSProvider }               from "@/cms";
@@ -77,12 +80,9 @@ type PageProps = {
 
 export default async function Home({ searchParams }: PageProps) {
   const params = await searchParams;
-  // WebSite structured data: what Google uses for the site name in results.
-  const [tenant, origin] = await Promise.all([
-    getActiveTenant(),
-    headers().then(requestOrigin),
-  ]);
-  const siteName = tenant.name || tenant.theme.meta.name;
+  // Structured data. WebSite is what Google uses for the site name in results.
+  // Organization says who is behind the site, with its logo.
+  const { origin, siteName, logoUrl } = await getSiteFacts();
 
   // Stream the personalised body so the tenant shell (nav / header / footer from
   // the layout) flushes to the browser immediately while the pipeline + CMS
@@ -92,11 +92,10 @@ export default async function Home({ searchParams }: PageProps) {
   return (
     <>
       {origin && siteName && (
-        <script
-          type="application/ld+json"
-          // eslint-disable-next-line react/no-danger
-          dangerouslySetInnerHTML={{ __html: websiteJsonLd(siteName, origin) }}
-        />
+        <>
+          <JsonLd json={websiteJsonLd(siteName, origin)} />
+          <JsonLd json={organizationJsonLd(siteName, origin, logoUrl)} />
+        </>
       )}
       <Suspense fallback={<HomeSkeleton />}>
         <HomeBody params={params} />
