@@ -663,3 +663,16 @@ html.mc-fx-ready .mc-fx-wipe-reveal.mc-fx-in {
   .prose :where(blockquote) { border-left: 3px solid currentColor; padding-left: 1em; opacity: 0.85; }
   .prose-sm { font-size: 0.875rem; }
 }
+
+/* ── Theme swap ────────────────────────────────────────────────────────────
+   A theme that changes on an open page (Scenario Control, a live preview)
+   changes in one step. While <html> carries this attribute nothing
+   transitions, so the header and the buttons do not fade to their new colours
+   after the rest of the page already has them. The attribute is there for one
+   React commit: components/themes/ThemeSwapGuard.tsx. Why it matters:
+   lib/theme/theme-swap.ts. */
+html[data-theme-swap] *,
+html[data-theme-swap] *::before,
+html[data-theme-swap] *::after {
+  transition: none !important;
+}

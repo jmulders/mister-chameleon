@@ -27,6 +27,8 @@ import { getTenantSiteSettings } from "@/cms/providers/tenant-site-settings";
 import { getRequestThemeDecision } from "@/lib/theme/request-theme";
 import { brandLayerFor }          from "@/lib/brand/brand-layer";
 import { schemeFor }              from "@/lib/theme/scheme";
+import { themeSignature }         from "@/lib/theme/theme-swap";
+import { ThemeSwapGuard }         from "@/components/themes/ThemeSwapGuard";
 
 // ── Fonts ─────────────────────────────────────────────────────────────────────
 //
@@ -411,6 +413,15 @@ export default async function RootLayout({
     ? `${SITE_SELECTOR}{${navTypoEntries.map(([k, v]) => `${k}:${v}`).join(";")}}`
     : "";
 
+  // ── Theme swap ────────────────────────────────────────────────────────────
+  //
+  // One value for everything this request paints the theme with. When a
+  // refresh of an open page brings another one (a scenario changed the theme),
+  // ThemeSwapGuard switches the page over without transitions, so the header
+  // and the buttons do not trail behind the rest. See lib/theme/theme-swap.ts.
+  const brandLayer     = brandLayerFor(tenantSettings?.design, galleryCard) ?? undefined;
+  const themeSwapKey   = themeSignature(cssVarBlock, tokenOverrideCSS, fontRedirectCSS, navTypoCSS, brandLayer);
+
   // ── Leadinfo ──────────────────────────────────────────────────────────────
   const leadinfoSettings = tenantSettings?.leadinfo;
   const leadinfoEnabled  =
@@ -487,7 +498,7 @@ export default async function RootLayout({
       data-theme={finalThemeKey}
       // Decoration that comes with the applied preset: the circles of the
       // "Mister Chameleon" preset (app/brand/mister-chameleon.css).
-      data-brand={brandLayerFor(tenantSettings?.design, galleryCard) ?? undefined}
+      data-brand={brandLayer}
       // Dark or light, worked out from the page background of the look this
       // request gets. For stylesheets that need to know (lib/theme/scheme.ts).
       data-scheme={schemeFor(resolvedTheme.vars["--background"], resolvedTheme.vars["--bg"], finalThemePreset.colors.background.bg)}
@@ -622,6 +633,7 @@ export default async function RootLayout({
         )}
       </head>
       <body className="antialiased">
+        <ThemeSwapGuard signature={themeSwapKey} />
         {gtmContainerId && !gtmWaitsForConsent && (
           <noscript
             dangerouslySetInnerHTML={{

@@ -68,7 +68,10 @@ describe("brand layer follows the applied preset", () => {
     const source = readFileSync("lib/brand/brand-layer.ts", "utf8");
     assert.doesNotMatch(source, /MARKETING_SITE_TENANT|process\.env|tenantId/);
     const layout = readFileSync("app/layout.tsx", "utf8");
-    assert.match(layout, /data-brand=\{brandLayerFor\(tenantSettings\?\.design, galleryCard\)/);
+    // Worked out once, because the theme signature needs it as well, and
+    // written on <html> from that one value.
+    assert.match(layout, /const brandLayer\s*=\s*brandLayerFor\(tenantSettings\?\.design, galleryCard\)/);
+    assert.match(layout, /data-brand=\{brandLayer\}/);
   });
 
   it("is written by the gallery apply when the preset carries one", () => {
