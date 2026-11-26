@@ -502,6 +502,10 @@ export async function resolveSlugPageConfig(
     // any page with adaptive slots. See docs/lead-base-design.md.
     // Anonymity boundary: persist a profile only with persistent-behaviour or
     // enrichment consent; a visit event only with analytics/personalization.
+    //
+    // With a scenario cookie the recorder writes nothing, as on the homepage:
+    // `input` is the context after the override. The visit event is still
+    // written, from the real request.
     const persistProfile = consent.personalization || consent.enrichment;
     const persistEvent   = consent.analytics || consent.personalization;
     after(async () => {

@@ -54,6 +54,22 @@
  *   • Both apply functions return new objects — never mutate the original.
  *   • No network calls, no DB writes — pure transformations only.
  *   • This module has no "use client" — safe to import from Server Components.
+ *
+ * ─── What a request with a scenario may store ────────────────────────────────
+ *
+ *   The panel tells the operator "No real user data modified". The functions
+ *   here keep that for themselves, but their OUTPUT is the context the page
+ *   goes on to store. So the rule for every writer downstream is:
+ *
+ *     A store may be written during a scenario only if what it stores would
+ *     have been the same without the scenario.
+ *
+ *   The stored visitor profile fails that rule (company, region, segments,
+ *   funnel stage and intent all come from the context), and so do the session
+ *   row and the served-variant log. Those writers ask isScenarioRequest() and
+ *   write nothing. A context free of the scenario does not exist at that point:
+ *   pass 1 patches the history before the context is built.
+ *   See tests/scenario/scenario-stores-nothing-made-up.test.ts.
  */
 
 import type { VisitorHistory } from "@/context/visitor-history";
@@ -107,6 +123,18 @@ export function parseScenarioCookie(cookieHeader: string | null | undefined): Sc
   } catch {
     return null;
   }
+}
+
+/**
+ * Whether this request carries scenario overrides, read from its Cookie header.
+ *
+ * For writers that store something derived from the decision context: under a
+ * scenario that context is partly made up, so they must not store it. Uses the
+ * same parser as the pipeline, so "the override was applied" and "the write was
+ * skipped" cannot disagree about a cookie.
+ */
+export function isScenarioRequest(cookieHeader: string | null | undefined): boolean {
+  return parseScenarioCookie(cookieHeader) !== null;
 }
 
 // ── Pass 1: History applier ───────────────────────────────────────────────────
