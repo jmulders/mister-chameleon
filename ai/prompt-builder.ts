@@ -445,6 +445,10 @@ export function buildUserPrompt(input: EnrichedDecisionInput): string {
   if (channelGroup && channelGroup !== "direct") {
     lines.push(`Channel:      ${channelGroup}`);
   }
+  const aiAssistant = input.derived?.aiAssistant ?? null;
+  if (aiAssistant) {
+    lines.push(`AI assistant: ${aiAssistant}`);
+  }
 
   // ── Attribution (UTM / referrer) ───────────────────────────────────────────
   const hasUtm =

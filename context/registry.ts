@@ -2378,6 +2378,22 @@ export const CONTEXT_VARIABLES: readonly ContextVariableDef[] = [
   },
 
   {
+    key:              "aiAssistant",
+    label:            "AI assistant",
+    description:
+      "The AI assistant the visitor clicked through from, read from utm_source and the referrer domain: " +
+      "chatgpt, perplexity, copilot, gemini, claude, or other for a lesser-known one. " +
+      "Empty when the visit did not come from an assistant.",
+    type:             "enum",
+    source:           "derived",
+    operators:        OPS_ENUM,
+    availableToRules: true,
+    availableToAI:    true,
+    allowedValues:    ["chatgpt", "perplexity", "copilot", "gemini", "claude", "other"],
+    exampleValue:     "chatgpt",
+  },
+
+  {
     key:              "campaignType",
     label:            "Campaign type",
     description:

@@ -1539,7 +1539,7 @@ export async function buildDecisionContext(
       // derived (time): computed from other values; no I/O
       derived_time:    ["isWeekend", "dayOfWeek", "currentHour", "timeOfDay", "month", "dateKey", "hasClickedCta", "pageViewCount", "ctaClickCount"],
       // derived (context layer): computed by computeDerivedContext after pipeline
-      derived_context: ["daySegment", "isWorkHours", "isHoliday", "season", "isBadWeather", "temperatureBucket", "companyType", "industryGroup", "channelGroup", "campaignType", "isRetargetedUser", "engagementScore", "pagesVisited", "funnelStage", "visitDepth", "contentInterestCategory", "isResearching", "isReadyToConvert", "primaryInterest"],
+      derived_context: ["daySegment", "isWorkHours", "isHoliday", "season", "isBadWeather", "temperatureBucket", "companyType", "industryGroup", "channelGroup", "aiAssistant", "campaignType", "isRetargetedUser", "engagementScore", "pagesVisited", "funnelStage", "visitDepth", "contentInterestCategory", "isResearching", "isReadyToConvert", "primaryInterest"],
     },
     // ── Enrichment source / cache ──────────────────────────────────────────
     enrichmentSource,

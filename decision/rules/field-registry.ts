@@ -569,6 +569,7 @@ export type RuleFieldKey =
   | "companyType"
   | "industryGroup"
   | "channelGroup"
+  | "aiAssistant"
   | "campaignType"
   | "isRetargetedUser"
   | "engagementScore"
@@ -2225,6 +2226,16 @@ export const FIELD_REGISTRY: Readonly<Record<RuleFieldKey, FieldDefinition>> = {
     operators:     OPS_CATEGORICAL,
     allowedValues: ["paid-search", "paid-social", "organic-search", "organic-social", "email", "direct", "referral", "other"],
     resolve:       (ctx) => ctx.derived?.channelGroup ?? null,
+  },
+
+  aiAssistant: {
+    label:         "AI assistant",
+    description:   "The AI assistant the visitor came from: chatgpt, perplexity, copilot, gemini, claude, or other. Empty for every other visit.",
+    group:         "derived",
+    kind:          "categorical",
+    operators:     OPS_CATEGORICAL,
+    allowedValues: ["chatgpt", "perplexity", "copilot", "gemini", "claude", "other"],
+    resolve:       (ctx) => ctx.derived?.aiAssistant ?? null,
   },
 
   campaignType: {
