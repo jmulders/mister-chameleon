@@ -666,6 +666,11 @@ export async function runHomepagePipeline({ params, includeDebug = false }: Home
   // Anonymity boundary: persist a visitor profile only with persistent-behaviour
   // or enrichment consent (no visitor_profiles row for a purely anonymous visit),
   // and an analytics/personalization visit event only with the matching consent.
+  //
+  // With a scenario cookie the recorder writes nothing: `input` is the context
+  // after the override, and it reads the cookie from the header passed here.
+  // The visit event below is still written. It holds the path, the referrer and
+  // the UTM values of the real request, none of which a scenario touches.
   const persistProfile = consent.personalization || consent.enrichment;
   const persistEvent   = consent.analytics || consent.personalization;
   after(async () => {
@@ -984,7 +989,12 @@ export async function runHomepagePipeline({ params, includeDebug = false }: Home
     // Whether this visitor may be written to analytics: consent for analytics,
     // and a persistent session id to hang the rows on (without personalization
     // consent the id above is a throwaway "anon_…" that no table accepts).
-    analyticsAllowed: consent.analytics && consent.personalization,
+    //
+    // Not under a scenario. The caller writes the session row from `input`
+    // (source, device, visit type and UTM values, all of which a preset
+    // overrides, in a row that is written once and never corrected) and logs
+    // the variants a preset forced as if a visitor had earned them.
+    analyticsAllowed: consent.analytics && consent.personalization && !scenarioOverrides,
     sessionCap,
     personalizationGroup,
     // Experiment

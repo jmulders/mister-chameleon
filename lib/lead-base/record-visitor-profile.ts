@@ -13,6 +13,7 @@ import "server-only";
 
 import type { DecisionContext } from "@/decision/decision-context";
 import { resolveConsent }       from "@/lib/consent/server-consent";
+import { isScenarioRequest }    from "@/lib/scenario/server-scenario";
 import { gateProfileWrite, type ProfileCandidate, type IdentityLevel, type ProfileStatus } from "./profile-gate";
 import { classifyChannel } from "./channel";
 import {
@@ -93,6 +94,11 @@ function mapStatus(funnel: string | null, known: boolean, customer: boolean): Pr
 export async function recordVisitorProfile(args: {
   tenantId:     string;
   visitorKey:   string;        // mc_session_id
+  /**
+   * The request's own Cookie header. Read here for the consent (mc_consent) and
+   * for the scenario cookie (mc_scenario): with a scenario nothing is recorded.
+   * Passing null switches both off, so always pass the real header.
+   */
   cookieHeader: string | null;
   ctx:          DecisionContext;
   abmLeadId?:   string | null;
@@ -101,6 +107,24 @@ export async function recordVisitorProfile(args: {
   scoreConfig?: import("./lead-scoring").LeadScoreConfig;  // tenant score tuning
 }): Promise<void> {
   try {
+    // A request with a Scenario Control override is not recorded at all.
+    //
+    // The context handed in here is the one AFTER the override, so a preset
+    // that says "company recognised" would be stored as a recognised visitor:
+    // company, region, segments, funnel stage and intent all read from it
+    // below. That is how "Voorbeeld BV" from a preset ended up in production
+    // profiles (26 Nov 2026), where the next visit read it back as known
+    // firmographics and wrote it again. Everything after the upsert hangs off
+    // the same made-up values: the lead credit, the profile webhook, the
+    // hot-lead mail and the HubSpot sync.
+    //
+    // Skipped rather than built from the pre-override context, because the
+    // pipeline has none: the journey overrides are applied to the history
+    // before the context is built, and the segments are evaluated after the
+    // override. The price is that last_seen_at and visit_count do not move
+    // while an operator has a scenario on, which is what the panel promises.
+    if (isScenarioRequest(args.cookieHeader)) return;
+
     const { ctx } = args;
     const consent = resolveConsent(args.cookieHeader);
 

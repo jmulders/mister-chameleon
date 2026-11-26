@@ -145,7 +145,10 @@ async function HomeBody({ params }: { params: Record<string, string | string[] |
   // before logServedVariants inserts its row; ON CONFLICT DO NOTHING makes it
   // safe on every page load. Skipped without consent: there is no persistent
   // session then, and the throwaway id was refused by the uuid column on every
-  // such pageview, with an error in the log each time.
+  // such pageview, with an error in the log each time. Skipped under a
+  // Scenario Control preset too (analyticsAllowed is false then): `input` is
+  // the context after the override, so the session row would store the
+  // preset's source, device and UTM values as the visitor's.
   //
   // Billing: idempotent per (tenant, month, session). Only counted when we
   // actually served a personalised page. Over the cap the visitor gets the
