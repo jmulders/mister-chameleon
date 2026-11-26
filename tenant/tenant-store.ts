@@ -459,6 +459,16 @@ export function validateTenantSettings(raw: unknown): StoreResult<TenantSettings
           errors.push(`scenarioPanel.${key}: must be an array of strings when present.`);
         }
       }
+      // moments: an array of objects with a key and a label. Which window or
+      // day each one sets is checked by the panel, which leaves out what
+      // cannot work (components/scenario/demo-moments.ts).
+      if (sp.moments !== undefined) {
+        const ok = Array.isArray(sp.moments) && sp.moments.every((m) =>
+          !!m && typeof m === "object" &&
+          typeof (m as Record<string, unknown>).key === "string" &&
+          typeof (m as Record<string, unknown>).label === "string");
+        if (!ok) errors.push("scenarioPanel.moments: must be an array of { key, label } objects when present.");
+      }
     }
   }
 

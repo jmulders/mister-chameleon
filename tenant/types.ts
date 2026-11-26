@@ -2140,8 +2140,22 @@ export interface TenantScenarioPanelSettings {
   readonly presetKeys?:  readonly string[];
   /** Demo-tab "Who are you?" — subset of ROLES / demo-context-set keys. */
   readonly roleKeys?:    readonly string[];
-  /** Demo-tab "Simulate time" — subset of the time options. */
-  readonly timeOptions?: readonly ("day" | "evening" | "weekend")[];
+  /** Demo-tab "Simulate time" — subset of the time options. "day" is the afternoon. */
+  readonly timeOptions?: readonly ("morning" | "day" | "evening" | "weekend")[];
+  /**
+   * Demo-tab "Simulate a moment" — the tenant's own buttons, in place of the
+   * built-in ones. Each sets a calendar window (`seasonalEvent`) or one day
+   * (`dateKey`, "YYYY-MM-DD"), never both. See components/scenario/demo-moments.ts.
+   */
+  readonly moments?: readonly TenantScenarioMoment[];
+}
+
+/** One "Simulate a moment" button of a tenant. */
+export interface TenantScenarioMoment {
+  readonly key:   string;
+  readonly label: string;
+  readonly seasonalEvent?: "new-year" | "valentines" | "easter" | "back-to-school" | "halloween" | "black-friday" | "cyber-monday" | "christmas";
+  readonly dateKey?: string;
 }
 
 /**

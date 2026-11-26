@@ -2603,6 +2603,7 @@ export function ScenarioControlPanel({ scenarioPanel, scenarioPresets, scenarioO
                 onApply={triggerRefresh}
                 overrides={effectiveOverrides}
                 timeOptions={scenarioPanel?.timeOptions}
+                moments={scenarioPanel?.moments}
               />
             )}
             {tab === "context" && (

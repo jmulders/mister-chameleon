@@ -6,7 +6,9 @@
  *
  * Replaces the two standalone overlays (DemoRoleSwitcher + DemoProfilePanel):
  * a persona picker ("Who are you?") on the real rule path, a plain-language
- * readout of what the site now thinks it knows, and a small time simulator.
+ * readout of what the site now thinks it knows, a small time simulator and a
+ * row of moments (Christmas, a day the national team plays). What the time and
+ * moment buttons set lives in demo-moments.ts.
  * English UI, consistent with the rest of the operator console.
  *
  * Each persona shows a round avatar. It falls back to a coloured emoji chip, but
@@ -20,6 +22,8 @@ import { activateScenario, clearScenario } from "./scenario-store";
 import { SCENARIO_PRESETS } from "./scenario-presets";
 import { getDemoContextSet, getDemoAttributeSet } from "./demo-context-sets";
 import { curateByKey } from "./curate-panel";
+import { TIME_OPTIONS, activeMoment, activeTime, isEmptyScenario, panelMoments, timeLabel, timeOverrides, withMoment } from "./demo-moments";
+import type { DemoMoment, DemoTimeId } from "./demo-moments";
 import { applyRoleOverrides, effectivePresetOverrides, type OverrideMap } from "./scenario-overrides";
 import type { DemoContext, DemoAttribute } from "./demo-context-sets";
 import type { ScenarioState, ScenarioOverrides } from "./scenario-store";
@@ -43,12 +47,9 @@ export const ROLES: Role[] = [
   { key: "demo_role_technisch", segment: "demo-role-technisch", label: "Technical lead",  sub: "Technical lead / developer",     icon: "🛠️", color: "#16a34a" },
 ];
 
-/** The three "Simulate time" options, curated per tenant by their `id`. */
-export const TIME_OPTIONS: { id: "day" | "evening" | "weekend"; label: string }[] = [
-  { id: "day",     label: "Day" },
-  { id: "evening", label: "Evening" },
-  { id: "weekend", label: "Weekend" },
-];
+// The "Simulate time" options, curated per tenant by their `id`. The admin
+// page that curates them imports the list from here.
+export { TIME_OPTIONS };
 
 const ROLE_LABELS: Record<string, string> = {
   "demo-role-marketeer": "Marketer",
@@ -70,33 +71,21 @@ function activeSegment(o: ScenarioOverrides): string | null {
   return typeof seg === "string" && seg ? seg : null;
 }
 
-function timeLabel(o: ScenarioOverrides): string {
-  if (o.isWeekend) return "Weekend";
-  if (o.timeOfDay === "evening" || o.timeOfDay === "night") return "Evening";
-  if (o.timeOfDay) return "Day";
-  return "Now (real time)";
-}
-
-/** Which Simulate-time button is active, derived the same way as timeLabel. */
-function activeTime(o: ScenarioOverrides): "day" | "evening" | "weekend" | null {
-  if (o.isWeekend) return "weekend";
-  if (o.timeOfDay === "evening" || o.timeOfDay === "night") return "evening";
-  if (o.timeOfDay) return "day";
-  return null;
-}
-
 export function DemoStageSection({
   scenario,
   onApply,
   overrides,
   timeOptions,
+  moments,
 }: {
   scenario: ScenarioState;
   onApply:  () => void;
   /** Per-tenant built-in override map (hide/reorder/relabel roles + tweak signals). */
   overrides: OverrideMap;
-  /** Optional tenant curation — subset of "day" | "evening" | "weekend". */
+  /** Optional tenant curation: a subset of the ids in TIME_OPTIONS. */
   timeOptions?: readonly string[];
+  /** The tenant's own moments (`scenarioPanel.moments`). Absent: the built-in ones. */
+  moments?: unknown;
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -158,12 +147,24 @@ export function DemoStageSection({
     startTransition(() => router.refresh());
   }
 
-  function setTime(kind: "day" | "evening" | "weekend") {
-    const base = { ...(scenario.overrides ?? {}) };
-    if (kind === "day")     { base.timeOfDay = "afternoon"; base.currentHour = 14; base.isWeekend = false; }
-    if (kind === "evening") { base.timeOfDay = "evening";   base.currentHour = 20; base.isWeekend = false; }
-    if (kind === "weekend") { base.timeOfDay = "afternoon"; base.currentHour = 14; base.isWeekend = true;  }
+  function setTime(kind: DemoTimeId) {
+    const base = { ...(scenario.overrides ?? {}), ...timeOverrides(kind) };
     activateScenario(base, "demo_time", "Time");
+    onApply();
+    startTransition(() => router.refresh());
+  }
+
+  // A moment sets what a real visit on that day would have: a calendar window
+  // or a date. The rules decide what the page does with it. A second click on
+  // the active moment takes it away again.
+  const momentList = panelMoments(moments);
+  const moment     = activeMoment(o, momentList);
+  function setMoment(next: DemoMoment) {
+    const taken = moment?.key === next.key;
+    const base  = withMoment(scenario.overrides ?? {}, taken ? null : next);
+    if (isEmptyScenario(base)) clearScenario();
+    // With the moment gone the scenario must not keep its name.
+    else activateScenario(base, "demo_moment", taken ? "Demo" : next.label);
     onApply();
     startTransition(() => router.refresh());
   }
@@ -233,6 +234,7 @@ export function DemoStageSection({
           <Row label="Stage"    value={String(stageText)} />
           <Row label="Intent"   value={intentText} />
           <Row label="Time"     value={timeLabel(o)} />
+          <Row label="Moment"   value={moment ? moment.label : "None"} />
         </div>
       )}
 
@@ -247,6 +249,22 @@ export function DemoStageSection({
               active={activeTime(o) === opt.id}
               disabled={pending}
               onClick={() => setTime(opt.id)}
+            />
+          ))}
+        </div>
+      </div>
+
+      {/* ── Moment simulator ───────────────────────────────────────────────── */}
+      <div>
+        <div style={S.sectionLabel}>Simulate a moment</div>
+        <div data-part="scenario-moments" style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+          {momentList.map((item) => (
+            <TimeBtn
+              key={item.key}
+              label={item.label}
+              active={moment?.key === item.key}
+              disabled={pending}
+              onClick={() => setMoment(item)}
             />
           ))}
         </div>
@@ -377,7 +395,7 @@ function TimeBtn({ label, active, disabled, onClick }: { label: string; active: 
       disabled={disabled}
       aria-pressed={active}
       style={{
-        flex: 1, borderRadius: 8, padding: "6px 4px",
+        flex: "1 1 auto", minWidth: 64, borderRadius: 8, padding: "6px 8px",
         fontSize: 11, fontWeight: active ? 700 : 600, cursor: disabled ? "wait" : "pointer",
         // Same active treatment as the persona rows (S.row): indigo border + tint.
         border: active ? "1.5px solid #6366f1" : "1px solid #e5e7eb",

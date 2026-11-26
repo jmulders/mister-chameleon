@@ -22,6 +22,7 @@
 import { useState, useTransition } from "react";
 import { SCENARIO_PRESET_LIST }     from "@/components/scenario/scenario-presets";
 import { ROLES, TIME_OPTIONS }      from "@/components/scenario/DemoStageSection";
+import { isDemoTimeId }             from "@/components/scenario/demo-moments";
 import type { DemoContext }         from "@/components/scenario/demo-context-sets";
 import { saveScenarioPanelAction }  from "../actions";
 import type { SaveScenarioPanelResult } from "../actions";
@@ -85,9 +86,7 @@ export function ScenarioPanelCurationClient({
       const result: SaveScenarioPanelResult = await saveScenarioPanelAction(tenantId, {
         presetKeys:  [...presets],
         roleKeys:    [...roles],
-        timeOptions: [...times].filter(
-          (t): t is "day" | "evening" | "weekend" => t === "day" || t === "evening" || t === "weekend",
-        ),
+        timeOptions: [...times].filter(isDemoTimeId),
       });
       if (result.ok) setSaveState({ mode: "success" });
       else           setSaveState({ mode: "error", message: result.error });
