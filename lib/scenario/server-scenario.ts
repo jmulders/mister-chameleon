@@ -62,6 +62,7 @@ import type { ScenarioOverrides } from "@/components/scenario/scenario-store";
 import type { RuleEvaluationContext } from "@/decision/rules/field-registry";
 import { applyScenarioOverride } from "@/components/scenario/apply-scenario-override";
 import { computeDerivedContext } from "@/context/derived-context";
+import { fillCompanyFromLeadinfo } from "@/context/leadinfo-company-fill";
 import { emptyJourneyState } from "@/lib/journey/types";
 
 // ── Cookie name (must match SCENARIO_COOKIE in scenario-store.ts) ─────────────
@@ -269,9 +270,15 @@ export function applyScenarioToDecisionContext(
     const baseEnrichment = ctx.enrichment ?? {};
 
     // Step 1: merge enrichmentPatch (lower priority than individual fields)
-    const afterBatch = hasEnrichmentBatch
+    const patched = hasEnrichmentBatch
       ? { ...baseEnrichment, ...(overrides.enrichmentPatch as Record<string, unknown>) }
       : { ...baseEnrichment };
+
+    // A patch that simulates a Leadinfo match (the "Leadinfo (dataLayer)"
+    // enricher re-run) fills the empty generic company fields exactly as the
+    // real mc_li cookie does in buildDecisionContext, so the demo and a real
+    // visit evaluate the same rules. Individual overrides below still win.
+    const afterBatch = fillCompanyFromLeadinfo(patched).enrichment;
 
     // Step 2: merge individual field overrides (highest priority)
     const merged = {
@@ -435,9 +442,19 @@ export function applyScenarioToDecisionContext(
     }
 
     effective = ctxAny as unknown as RuleEvaluationContext;
+  }
 
-    // Recompute derived context so downstream consumers (rules, AI, debug panel)
-    // see consistent daySegment / isWorkHours / season / isHoliday values.
+  // Recompute derived context so downstream consumers (rules, AI, debug panel)
+  // see consistent daySegment / isWorkHours / season / isHoliday values after a
+  // time override, and companyType / industryGroup / isBadWeather /
+  // temperatureBucket after an enrichment override. Without the second half an
+  // override of companyIndustry or companySize left industryGroup and
+  // companyType at the real visitor's values, so a rule on them could not be
+  // shown here. An enrichment override recomputes only a context that already
+  // carries derived signals: the theme pass hands in a minimal context without
+  // them and must keep evaluating without them.
+  const enrichmentChanged = hasEnrichmentBatch || hasEnrichmentOverrides;
+  if (hasTimeOverrides || (enrichmentChanged && effective.derived != null)) {
     const updatedDerived = computeDerivedContext(effective);
     effective = {
       ...effective,
