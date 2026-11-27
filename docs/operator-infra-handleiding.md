@@ -170,13 +170,13 @@ Dev-only toggles: `NEXT_PUBLIC_DEBUG_DIAGNOSTICS`, `NEXT_PUBLIC_SHOW_SCENARIO_PA
 
 ### Mollie (naast Stripe)
 
-Mollie neemt stap voor stap geldstromen over van Stripe. Live zijn de **losse aankopen** (sessie-bundels, AI-credits, tegoed opwaarderen) en het **automatisch opwaarderen** via een machtiging. Abonnementen, de proefperiode, pakketwissels en het klantportaal lopen nog via Stripe.
+Mollie neemt stap voor stap geldstromen over van Stripe. Live zijn de **losse aankopen** (sessie-bundels, AI-credits, tegoed opwaarderen), het **automatisch opwaarderen** via een machtiging, de **proefaanmelding** en het **maandelijks afschrijven van het abonnement**. Pakketwissels met verrekening, een eigen beheerpagina voor de betaalmethode en facturen zijn er voor Mollie nog niet.
 
 | Variabele | Verplicht | Uitleg |
 |---|---|---|
 | `PAYMENT_PROVIDER` | nee | `mollie` stuurt de losse aankopen via Mollie. Leeg of iets anders is Stripe. |
 | `MOLLIE_API_KEY` | bij `mollie` | `test_…` of `live_…`. De sleutel bepaalt test of live. **Secret** |
-| `MOLLIE_TRIAL_SIGNUP` | nee | `on` laat ook de **proefaanmelding** via Mollie lopen. Pas aanzetten als het maandelijks afschrijven via Mollie (stap 3) live is: tot dan wordt een proef die zo begint na 14 dagen niet omgezet naar betaald. |
+| `MOLLIE_TRIAL_SIGNUP` | nee | `on` laat ook de **proefaanmelding** via Mollie lopen. Kan aan zodra migratie 195 gedraaid is: zonder die tabel kan het abonnement na de proef niet worden afgeschreven. |
 
 - **Geen prijs-ID's.** Bij Mollie noemt het platform zelf het bedrag (`priceCents` in `billing/plans.ts`). De `STRIPE_PRICE_*`-variabelen zijn dan niet nodig voor de bundels.
 - **Webhook:** `/api/webhooks/mollie`. Het adres gaat per betaling mee, je stelt het niet in het Mollie-dashboard in. Het wordt afgeleid van `NEXT_PUBLIC_APP_URL`, anders van het adres waar de klant op zit. Op localhost gaat er geen webhook mee, daar bevestigt de terugkeerpagina de betaling.
@@ -184,6 +184,12 @@ Mollie neemt stap voor stap geldstromen over van Stripe. Live zijn de **losse aa
 - **Migratie 192** hoort erbij en geldt ook voor Stripe: de functie `credit_wallet` weigerde elke bijschrijving van AI-credits omdat de statuskolom tekst is en de functie naar een enum castte.
 - **Btw:** het platform rekent het bedrag uit de code af en telt er niets bij op, net als bij Stripe.
 - **Proefaanmelding via Mollie** (alleen met `MOLLIE_TRIAL_SIGNUP=on`): de bezoeker betaalt € 0,01 om de betaalmethode te controleren. Die betaling legt de machtiging vast waarop het pakket na de proef wordt afgeschreven. Het account wordt aangemaakt zodra die betaling betaald is.
+- **Abonnement via Mollie** (tabel `mollie_renewals`, migratie 195): de dagelijkse taak `/api/cron/billing-renewal` schrijft het pakket af van de machtiging. Zo loopt het:
+  - Een proef die afloopt schuift eerst naar de 1e van de volgende maand (een paar gratis dagen, zoals bij Stripe). Op of na de 1e wordt het pakket afgeschreven en loopt de periode van de 1e tot de 1e.
+  - Een incasso die Mollie aanneemt telt als geïnd: de periode schuift door en de klant blijft actief, ook al is de incasso nog enkele werkdagen "pending".
+  - Weigert de bank de incasso later, of boekt de klant hem terug, dan gaat de klant op "betaling te laat" met dezelfde herinneringsmail en dezelfde quarantaine als bij Stripe.
+  - Er is geen automatische nieuwe poging. De klant betaalt het openstaande bedrag zelf in het dashboard ("Pay now"). Daarmee is het abonnement weer actief en ligt er een verse machtiging.
+  - Per periode wordt één keer afgeschreven, ook als de taak twee keer draait.
 - **Machtiging voor automatisch opwaarderen:** de klant betaalt in het dashboard de eerste opwaardering en geeft daarmee toestemming voor de volgende (tabel `mollie_customers`, migratie 193). Een eerste betaling met iDEAL levert een incassomachtiging op, en dat kan alleen als **SEPA-incasso** in het Mollie-profiel aanstaat.
 - **Incasso is niet direct betaald.** Een automatische opwaardering via incasso staat enkele werkdagen op "pending". Het tegoed komt erbij zodra Mollie "paid" meldt, niet eerder, en in de tussentijd start er geen tweede. Een machtiging via creditcard wordt direct afgeschreven.
 - **Migratie 194** repareert zes wallet-functies die niet konden draaien, ook voor Stripe: een geslaagde automatische opwaardering werd niet bijgeschreven en een mislukte kon niet als mislukt worden vastgelegd.

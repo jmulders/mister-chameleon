@@ -53,6 +53,8 @@ import { renewSubscriptionPeriod, syncPackageKeyFromPlan } from "@/billing/subsc
 import { BILLING_PLANS }             from "@/billing/plans";
 import { attemptSubscriptionCharge } from "@/billing/subscription-charge";
 import { renewalCharge, renewalIdempotencyKey } from "@/billing/renewal-charge";
+import { getPaymentProvider }        from "@/billing/payment-provider";
+import { chargeMollieRenewal, noteRenewalAdvanced, trialRealign } from "@/billing/mollie-renewal";
 import {
   markTenantPastDue,
   markTenantUnpaid,
@@ -88,6 +90,7 @@ interface RenewalResult {
             | "annual_to_monthly"
             | "canceled"
             | "trial_expired"
+            | "trial_realigned"
             | "past_due"
             | "unpaid_escalated";
   error?:   string;
@@ -123,6 +126,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
   const now     = new Date().toISOString();
   const results: RenewalResult[] = [];
+
+  // With Mollie as the provider the charge goes to the tenant's mandate
+  // (billing/mollie-renewal.ts). Everything around the charge stays this job's.
+  const viaMollie = getPaymentProvider() === "mollie";
 
   // ── Pass 1: expired active/trialing subscriptions ─────────────────────────────
 
@@ -161,6 +168,27 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       continue;
     }
 
+    // ── a2. Mollie: an ended trial first moves to the 1st ────────────────────
+    //
+    // The Stripe path does the same when a trial converts: a few free days,
+    // then a period that runs with the calendar month, like the session limit
+    // does. Nothing is charged in this run. The trial stays a trial, so its
+    // session limit holds, and the run on or after the 1st charges it. A
+    // trial that already ends on a 1st is not moved again.
+    if (viaMollie) {
+      const move = trialRealign(sub);
+      if (move.realign) {
+        const { error } = await client
+          .from("subscriptions")
+          .update({ current_period_end: move.periodEnd, trial_end: move.periodEnd, updated_at: now })
+          .eq("tenant_id", tenant_id)
+          .eq("status", "trialing");
+        results.push({ tenantId: tenant_id, action: "trial_realigned", error: error?.message });
+        console.info(`[billing-renewal] trial realigned: tenant=${tenant_id} to=${move.periodEnd}`);
+        continue;
+      }
+    }
+
     // ── b. Determine plan and amount for this renewal ────────────────────────
     // One decision for both the charge and the new period (see
     // billing/renewal-charge.ts): an annual term continues per month, and is
@@ -176,15 +204,29 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     // is set.  In that case we skip charging to avoid a double-charge.
     const planLabel    = BILLING_PLANS[activePlan as keyof typeof BILLING_PLANS]?.name ?? activePlan;
     const isPrepaid    = Boolean(sub.pending_plan_paid_at);
-    const chargeResult = (amountCents > 0 && !isPrepaid)
-      ? await attemptSubscriptionCharge(
-          client,
-          tenant_id,
-          amountCents,
-          `Subscription renewal — ${planLabel}`,
-          renewalIdempotencyKey(tenant_id, sub.current_period_end),
-        )
-      : { ok: true as const, paymentIntentId: isPrepaid ? "pre_paid_plan_change" : "no_charge_starter" };
+    // The period this run renews. It names the charge at Mollie, and it is
+    // read here because the renewal below overwrites it.
+    const renewedFrom  = sub.current_period_end ?? now;
+    const mustCharge   = amountCents > 0 && !isPrepaid;
+    const chargeResult = !mustCharge
+      ? { ok: true as const, paymentIntentId: isPrepaid ? "pre_paid_plan_change" : "no_charge_starter" }
+      : viaMollie
+        ? await chargeMollieRenewal(client, {
+            tenantId:       tenant_id,
+            periodEnd:      renewedFrom,
+            amountCents,
+            plan:           activePlan,
+            cycle:          charge.cycle,
+            description:    `Mister Chameleon: ${planLabel} subscription`,
+            idempotencyKey: renewalIdempotencyKey(tenant_id, sub.current_period_end),
+          })
+        : await attemptSubscriptionCharge(
+            client,
+            tenant_id,
+            amountCents,
+            `Subscription renewal — ${planLabel}`,
+            renewalIdempotencyKey(tenant_id, sub.current_period_end),
+          );
 
     if (!chargeResult.ok) {
       // ── Charge failed → mark past_due + send dunning email ────────────────
@@ -248,6 +290,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         // must not push the period on by another month.
         .eq("billing_cycle", "annual");
 
+      if (!error && viaMollie && mustCharge) await noteRenewalAdvanced(client, tenant_id, renewedFrom);
       results.push({ tenantId: tenant_id, action: "annual_to_monthly", error: error?.message });
       console.info(`[billing-renewal] annual→monthly: tenant=${tenant_id}`);
       continue;
@@ -256,6 +299,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     // Standard monthly renewal (or annual with pending downgrade).
     const renewal = await renewSubscriptionPeriod(client, tenant_id, { force: true });
     const action  = sub.pending_plan ? "plan_activated" : "renewed";
+
+    if (renewal.ok && viaMollie && mustCharge) await noteRenewalAdvanced(client, tenant_id, renewedFrom);
 
     // Also clear any dunning state (in case this is a recovered past_due sub).
     if (renewal.ok) {

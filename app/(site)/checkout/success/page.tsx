@@ -18,10 +18,17 @@ import { getDb }             from "@/data/db";
 import { settleMolliePayment } from "@/billing/mollie-checkout";
 import { settleMollieTrialReturn } from "@/billing/mollie-trial";
 
-export async function generateMetadata(): Promise<Metadata> {
+export async function generateMetadata({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}): Promise<Metadata> {
   const t = SHOP_TEXTS[await getSiteLocale()];
+  // With ?ref= the visitor is back from Mollie and may not have paid: the tab
+  // must not say "payment confirmed" before the page knows.
+  const fromMollie = typeof (await searchParams)["ref"] === "string";
   return {
-    title:  t.metaSuccessTitle,
+    title:  fromMollie ? t.metaCheckoutTitle : t.metaSuccessTitle,
     robots: { index: false },
   };
 }

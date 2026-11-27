@@ -94,6 +94,8 @@ export type MollieFulfilment =
   | { outcome: "refused";  reason: string }
   /** A charge on a mandate for the automatic top-up (mollie-auto-reload.ts). */
   | { outcome: "auto-reload"; state: "succeeded" | "failed" | "waiting"; status: string }
+  /** A subscription period charged on a mandate, or paid by the tenant afterwards (mollie-renewal.ts). */
+  | { outcome: "renewal"; state: "paid" | "failed" | "waiting" | "unknown"; status: string }
   /** The verification payment of a trial signup (mollie-trial.ts). */
   | { outcome: "trial-signup"; state: "created" | "already" | "waiting" | "not-paid" | "refused"; status: string; tenantId: string | null };
 
