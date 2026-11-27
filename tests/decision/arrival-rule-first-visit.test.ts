@@ -138,7 +138,8 @@ describe("the homepage pipeline", () => {
   });
 
   it("keeps the control group, the cap and bots on the default plan before any rule runs", () => {
-    assert.match(source, /const forceDefaultForBot = isControl \|\| isWarmup \|\| isBotUserAgent/);
+    assert.match(source, /const isUaBot = isBotUserAgent\(h\.get\("user-agent"\)\);/);
+    assert.match(source, /const forceDefaultForBot = isControl \|\| isWarmup \|\| isUaBot;/);
     assert.match(source, /new RulesDecisionProvider\(tenantRulesConfig \?\? undefined, forceDefaultForBot,/);
   });
 });

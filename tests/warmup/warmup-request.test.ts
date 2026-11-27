@@ -52,7 +52,7 @@ test("the pipeline proves a warm-up with the helper, never with a bare value", (
 });
 
 test("a warm-up gets the default experience and reaches no AI provider", () => {
-  assert.match(pipeline, /const forceDefaultForBot = isControl \|\| isWarmup \|\| isBotUserAgent\(/);
+  assert.match(pipeline, /const forceDefaultForBot = isControl \|\| isWarmup \|\| isUaBot;/);
   assert.match(pipeline, /const aiMode = isWarmup \? "off" : aiConfig\.mode;/);
   // Every branch that builds an AI provider goes through aiMode.
   assert.equal((pipeline.match(/aiConfig\.mode/g) ?? []).length, 1);
@@ -64,7 +64,9 @@ test("a warm-up gets the default experience and reaches no AI provider", () => {
 
 test("the homepage counts no session and writes no analytics for a warm-up", () => {
   assert.match(pipeline, /\n\s+isWarmup,\n/, "the pipeline hands isWarmup to the page");
-  assert.match(page, /const countSession = !result\.sessionCap\.overLimit && !result\.isWarmup;/);
+  // The rule itself (no session for a warm-up) is tested on the function, in
+  // tests/billing/bot-visit-not-counted.test.ts. Here: the page hands it the flag.
+  assert.match(page, /const countSession = countsAsPersonalizedSession\(\{[^}]*\bisWarmup:\s+result\.isWarmup,[^}]*\}\);/);
   assert.match(page, /const logAnalytics = [^;]*&& !result\.isWarmup;/);
 });
 

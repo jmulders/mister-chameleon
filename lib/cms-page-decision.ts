@@ -90,7 +90,7 @@ import {
   applySessionCap,
   servesDefaultExperience,
 }                                        from "@/lib/lead-base/holdout";
-import { checkSessionSoftCapRemembered, recordPersonalizedSession } from "@/billing/plan-enforcement";
+import { checkSessionSoftCapRemembered, countsAsPersonalizedSession, recordPersonalizedSession } from "@/billing/plan-enforcement";
 import { after }                     from "next/server";
 import { getTenantAiRuntimeConfig } from "@/ai/config";
 import { createAiProvider }        from "@/ai/providers/create-ai-provider";
@@ -344,7 +344,12 @@ export async function resolveSlugPageConfig(
     // Skipped over the cap: the visitor got the default page, so there is
     // nothing to bill — and counting it would inflate the counter that decides
     // the cap in the first place.
-    if (!sessionCap.overLimit) {
+    //
+    // Skipped for a bot by User-Agent as well: it is served the default plan
+    // below, and without cookies every request of it would be a new session.
+    // The rule lives in countsAsPersonalizedSession(), shared with the homepage.
+    const isUaBot = isBotUserAgent(request.headers.get("user-agent"));
+    if (countsAsPersonalizedSession({ overLimit: sessionCap.overLimit, isBot: isUaBot })) {
       void recordPersonalizedSession(tenantId, webSessionId, sessionCap).catch(() => null);
     }
 
@@ -356,7 +361,7 @@ export async function resolveSlugPageConfig(
     // Serving exclusion: clear UA bots get the default experience. Separate from
     // `isControl` so the holdout distribution is unaffected (bot measurement
     // exclusion lives in recordVisitorProfile).
-    const forceDefaultForBot = isControl || isBotUserAgent(request.headers.get("user-agent"));
+    const forceDefaultForBot = isControl || isUaBot;
 
     const baseDecisionProvider = new ExperimentDecisionProvider(
       new RulesDecisionProvider(tenantRulesConfig ?? undefined, forceDefaultForBot, tenantId, sessionId, consent),
