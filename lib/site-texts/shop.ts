@@ -74,6 +74,11 @@ export type ShopTexts = {
   startingTrial:      (planName: string) => string;
   accountDetails:     string;
   trialCardNote:      string;
+  /**
+   * The same note when the signup goes through Mollie: there the visitor pays
+   * a small verification amount now, which is also the mandate for the plan.
+   */
+  trialVerificationNote: (cents: number) => string;
   fullName:           string;
   fullNamePlaceholder: string;
   companyName:        string;
@@ -135,6 +140,12 @@ export type ShopTexts = {
   paymentConfirmed:   string;
   thanksTrialStarted: string;
   settingUpAccount:   string;
+  /** Back from the payment provider without a completed payment. */
+  paymentNotCompletedTitle: string;
+  paymentNotCompletedBody:  string;
+  backToCheckout:           string;
+  /** Back from the payment provider while the bank has not confirmed yet. */
+  paymentPendingNote:       string;
   stepPayment:        string;
   stepAccount:        string;
   stepEmail:          string;
@@ -223,6 +234,7 @@ export const SHOP_TEXTS: SiteTexts<ShopTexts> = {
     startingTrial:       (planName) => `Starting your ${planName} trial`,
     accountDetails:      "Account details",
     trialCardNote:       `14-day free trial, up to ${TRIAL_SESSION_LIMIT} personalised sessions. You'll add a card now but won't be charged until the trial ends.`,
+    trialVerificationNote: (cents) => `14-day free trial, up to ${TRIAL_SESSION_LIMIT} personalised sessions. You pay €${(cents / 100).toFixed(2)} now to verify your payment method. With it you authorise us to collect the plan once the trial ends. The plan itself is not charged before that.`,
     fullName:            "Full name",
     fullNamePlaceholder: "Jane Smith",
     companyName:         "Company name",
@@ -279,6 +291,10 @@ export const SHOP_TEXTS: SiteTexts<ShopTexts> = {
     paymentConfirmed:   "Payment confirmed!",
     thanksTrialStarted: "Thank you — your 14-day free trial has started.",
     settingUpAccount:   "We're setting up your account now and will send a welcome email with login instructions within a few minutes.",
+    paymentNotCompletedTitle: "The payment was not completed",
+    paymentNotCompletedBody:  "Nothing was charged and no account was created. You can start again whenever you like.",
+    backToCheckout:           "Back to checkout",
+    paymentPendingNote:       "Your bank has not confirmed the payment yet. Your account is created as soon as it does, and you will get the welcome email then. You do not need to pay again.",
     stepPayment:        "Payment confirmed",
     stepAccount:        "Account being created",
     stepEmail:          "Welcome email on its way",
@@ -366,6 +382,7 @@ export const SHOP_TEXTS: SiteTexts<ShopTexts> = {
     startingTrial:       (planName) => `Start je proefperiode met ${planName}`,
     accountDetails:      "Je gegevens",
     trialCardNote:       `14 dagen gratis proberen, tot ${TRIAL_SESSION_LIMIT} gepersonaliseerde bezoeken. Je vult nu je kaart in, maar je betaalt pas als de proefperiode voorbij is.`,
+    trialVerificationNote: (cents) => `14 dagen gratis proberen, tot ${TRIAL_SESSION_LIMIT} gepersonaliseerde bezoeken. Je betaalt nu € ${(cents / 100).toFixed(2).replace(".", ",")} om je betaalmethode te controleren. Daarmee geef je ons een machtiging om het pakket af te schrijven zodra de proefperiode voorbij is. Het pakket zelf betaal je pas daarna.`,
     fullName:            "Volledige naam",
     fullNamePlaceholder: "Jan Jansen",
     companyName:         "Bedrijfsnaam",
@@ -422,6 +439,10 @@ export const SHOP_TEXTS: SiteTexts<ShopTexts> = {
     paymentConfirmed:   "Je betaling is gelukt!",
     thanksTrialStarted: "Bedankt. Je gratis proefperiode van 14 dagen is begonnen.",
     settingUpAccount:   "We maken nu je account aan. Binnen een paar minuten krijg je een welkomstmail met uitleg over het inloggen.",
+    paymentNotCompletedTitle: "De betaling is niet afgerond",
+    paymentNotCompletedBody:  "Er is niets afgeschreven en er is geen account aangemaakt. Je kunt het opnieuw proberen wanneer je wilt.",
+    backToCheckout:           "Terug naar afrekenen",
+    paymentPendingNote:       "Je bank heeft de betaling nog niet bevestigd. Zodra dat gebeurt maken we je account aan en krijg je de welkomstmail. Je hoeft niet opnieuw te betalen.",
     stepPayment:        "Betaling gelukt",
     stepAccount:        "Account wordt aangemaakt",
     stepEmail:          "Welkomstmail is onderweg",

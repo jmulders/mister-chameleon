@@ -93,7 +93,9 @@ export type MollieFulfilment =
   | { outcome: "not-paid"; status: string }
   | { outcome: "refused";  reason: string }
   /** A charge on a mandate for the automatic top-up (mollie-auto-reload.ts). */
-  | { outcome: "auto-reload"; state: "succeeded" | "failed" | "waiting"; status: string };
+  | { outcome: "auto-reload"; state: "succeeded" | "failed" | "waiting"; status: string }
+  /** The verification payment of a trial signup (mollie-trial.ts). */
+  | { outcome: "trial-signup"; state: "created" | "already" | "waiting" | "not-paid" | "refused"; status: string; tenantId: string | null };
 
 export interface MollieFulfilDeps {
   /** checkout-credit-claim.ts: runs `credit` once per payment id. */

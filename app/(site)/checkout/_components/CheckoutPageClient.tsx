@@ -105,7 +105,13 @@ function PasswordStrength({ password }: { password: string }) {
 
 // ── Main component ────────────────────────────────────────────────────────────
 
-export function CheckoutPageClient() {
+export function CheckoutPageClient({ verificationCents = null }: {
+  /**
+   * Set when the trial signup goes through Mollie: the amount of the payment
+   * that verifies the payment method. Null means Stripe, card on file.
+   */
+  verificationCents?: number | null;
+} = {}) {
   const t       = SHOP_TEXTS[useSiteLocale()];
   const fmtEuro = t.money;
 
@@ -230,7 +236,7 @@ export function CheckoutPageClient() {
               </h2>
               {cart.plan && (
                 <p style={{ fontSize: "0.875rem", color: "#6b7280", marginTop: "0.375rem", marginBottom: 0 }}>
-                  {t.trialCardNote}
+                  {verificationCents ? t.trialVerificationNote(verificationCents) : t.trialCardNote}
                 </p>
               )}
             </div>

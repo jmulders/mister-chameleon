@@ -51,6 +51,8 @@ import { headers }                               from "next/headers";
 import { getActiveTenant }                       from "@/tenant/server";
 import { resolveSession }                        from "@/data/session";
 
+import type { SupabaseClient } from "@supabase/supabase-js";
+import { mollieTrialSignupEnabled, startMollieTrialSignup } from "@/billing/mollie-trial";
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
@@ -133,6 +135,32 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   }
 
   const pendingId = pending.id as string;
+
+  // ── 5b. Mollie ───────────────────────────────────────────────────────────────
+  //
+  // With Mollie as the provider (and its trial switch on) the visitor pays a
+  // small verification amount instead of putting a card on file. Paying it
+  // gives the mandate the plan is charged on after the trial. The account is
+  // created when that payment is paid (billing/mollie-trial.ts).
+
+  if (mollieTrialSignupEnabled()) {
+    const publicBaseUrl = process.env["NEXT_PUBLIC_APP_URL"] ?? null;
+    const origin        = request.headers.get("origin") ?? publicBaseUrl ?? "http://localhost:3000";
+    try {
+      const { url, paymentId } = await startMollieTrialSignup(
+        db as unknown as SupabaseClient,
+        { pendingId, company, email, planId, origin, publicBaseUrl },
+      );
+      console.log(`[trial/checkout-session] Mollie verification payment created: ${paymentId}`);
+      return NextResponse.json({ url });
+    } catch (err) {
+      console.error("[trial/checkout-session] Mollie error:", err instanceof Error ? err.message : err);
+      // Clean up the pending row so the visitor can try again.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await (db as any).from("pending_trial_signups").delete().eq("id", pendingId);
+      return NextResponse.json({ error: t.paymentError }, { status: 500 });
+    }
+  }
 
   // ── 6. Resolve Stripe credentials + price ID ────────────────────────────────
   // Credentials are resolved first so mode can be passed to price ID lookup —

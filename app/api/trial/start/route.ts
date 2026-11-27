@@ -251,10 +251,11 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { error: assignError } = await (db as any)
     .from("admin_user_tenants")
+    // The timestamp column is `assigned_at`, filled by its default. A
+    // `created_at` that does not exist made this insert fail every time.
     .insert({
       user_id:    userId,
       tenant_id:  tenantId,
-      created_at: trialStartedAt,
     });
 
   if (assignError) {
