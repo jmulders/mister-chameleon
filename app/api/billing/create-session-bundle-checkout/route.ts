@@ -25,6 +25,11 @@
  *   which verifies the session and calls the add_session_credits() Postgres RPC.
  *   This works without webhooks — critical for local development.
  *
+ *   The Stripe webhook (checkout.session.completed and
+ *   checkout.session.async_payment_succeeded) delivers the same session, so a
+ *   buyer who closes the tab, or pays with a delayed method, is credited too.
+ *   Both go through fulfilSessionBundleCheckout(), once per Checkout session.
+ *
  *   On cancel, Stripe redirects to:
  *     /admin/tenants/{tenantId}/billing?session_bundle=cancelled
  *
