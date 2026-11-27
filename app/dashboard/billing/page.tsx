@@ -167,6 +167,12 @@ export default async function BillingPage({ searchParams }: PageProps) {
               Purchase a top-up below to restore personalisation for the rest of this month.
             </p>
           )}
+          {!cap.overLimit && cap.limit > 0 && usagePct >= 80 && (
+            <p className="mt-3 text-xs text-amber-700 font-medium">
+              {usagePct}% of this month&apos;s sessions are used. When they run out, visitors get the
+              default experience until the first day of next month.
+            </p>
+          )}
         </div>
 
         {/* Credit balance */}

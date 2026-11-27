@@ -228,6 +228,66 @@ export async function notifyEnrichmentsPaused(
   }
 }
 
+/** What the session-limit mail says, for a threshold of 80 or 100. Pure. */
+export function sessionCapNoticeText(info: {
+  threshold:     number;
+  count:         number;
+  planLimit:     number;
+  bonusSessions: number;
+  monthKey:      string;
+}): { subject: string; body: string } {
+  const n = (value: number) => value.toLocaleString("en-GB");
+  const used = `${n(info.count)} of the ${n(info.planLimit)} personalised sessions in your plan`;
+
+  if (info.threshold >= 100) {
+    const bonus = Math.max(0, info.bonusSessions);
+    return {
+      subject: "[Mister Chameleon] Monthly session limit reached",
+      body:
+        `You have used ${used} for ${info.monthKey}.\n\n` +
+        (bonus > 0
+          ? `You have ${n(bonus)} extra sessions left from a bundle you bought. Personalisation continues until those are used, and stops after that.\n\n`
+          : `From now on visitors get the default version of your pages: no personalised content and no personalised colours. Nothing breaks, and nothing is charged.\n\n`) +
+        `Personalisation starts again on the first day of next month. To continue this month, buy extra sessions or move to a larger plan in your dashboard, under Billing.`,
+    };
+  }
+  return {
+    subject: `[Mister Chameleon] ${info.threshold}% of your monthly sessions used`,
+    body:
+      `You have used ${used} for ${info.monthKey}.\n\n` +
+      `When the plan is used up, visitors get the default version of your pages until the first day of next month. ` +
+      `To keep personalising, buy extra sessions or move to a larger plan in your dashboard, under Billing.`,
+  };
+}
+
+/**
+ * Tell the tenant that the month's personalised sessions reached 80% of the
+ * plan, or that the plan is used up. Called once per threshold per month
+ * (billing/session-cap-notice.ts holds the claim).
+ */
+export async function notifySessionCap(
+  client:   SupabaseClient,
+  tenantId: string,
+  info:     { threshold: number; count: number; planLimit: number; bonusSessions: number; monthKey: string },
+): Promise<void> {
+  try {
+    const prefs = await getWalletPrefs(client, tenantId);
+    if (!prefs || !prefs.notify_email || !prefs.notification_email) {
+      // The row is claimed, so this is the one chance to say it. Leave a trace.
+      logger.warn("[billing/notifications] session limit notice has no recipient", {
+        tenantId, threshold: info.threshold, monthKey: info.monthKey,
+      });
+      return;
+    }
+    const { subject, body } = sessionCapNoticeText(info);
+    await sendEmail({ to: prefs.notification_email, subject, body });
+  } catch (err) {
+    console.error("[billing/notifications] notifySessionCap error", {
+      tenantId, ...serializeError(err),
+    });
+  }
+}
+
 /**
  * Notify that auto-reload successfully added funds to the wallet.
  */
