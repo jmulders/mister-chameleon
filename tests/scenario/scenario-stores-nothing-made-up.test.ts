@@ -193,7 +193,8 @@ describe("the pipelines under a scenario", () => {
     // The served-variant log would count a variant the preset forced.
     assert.match(homepage, /analyticsAllowed: consent\.analytics && consent\.personalization && !scenarioOverrides,/);
     // Both writes of the page hang on that one answer.
-    assert.match(page, /const logAnalytics = isFeatureEnabled\(tenant, "analytics"\) && result\.analyticsAllowed;/);
+    // (A keep-warm ping is kept out of both as well.)
+    assert.match(page, /const logAnalytics = isFeatureEnabled\(tenant, "analytics"\) && result\.analyticsAllowed && !result\.isWarmup;/);
     const guarded = /if \(logAnalytics\) \{([\s\S]*?)\n    \}\n/.exec(page)?.[1] ?? "";
     assert.match(guarded, /upsertSession\(/);
     assert.match(guarded, /logServedVariants\(/);

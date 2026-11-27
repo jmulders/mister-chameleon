@@ -44,6 +44,7 @@ import type { ExperiencePlan }             from "@/decision/types";
 import { buildDecisionContext }            from "@/decision/context/build-decision-context";
 import type { EnrichmentDebugInfo }        from "@/decision/context/build-decision-context";
 import { isBotUserAgent }                  from "@/decision/context/detect-bot";
+import { isWarmupHeader, WARMUP_HEADER }   from "@/lib/warmup/warmup-request";
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import { createCMSProvider, createPreviewCMSProvider, createDraftStatamicProvider } from "@/cms";
 import { getDraft } from "@/lib/statamic-draft-store";
@@ -194,9 +195,10 @@ export async function runHomepagePipeline({ params, includeDebug = false }: Home
   const h             = await headers();
   const cookieHeader  = h.get("cookie");
   // Keep-warm pings (from /api/cron/keep-warm) carry this header. They exist
-  // only to keep the serverless function + data caches warm, so they must never
-  // consume enrichment credits — billing is disabled for them below.
-  const isWarmup      = h.get("x-mc-warmup") === "1";
+  // only to keep the serverless function + data caches warm, so they must cost
+  // nothing: no enrichment credit (billing is disabled below), no AI call, no
+  // personalisation and no counted session (the caller reads isWarmup).
+  const isWarmup      = isWarmupHeader(h.get(WARMUP_HEADER));
   const cookieStore   = await cookies();
   const localeRaw     = cookieStore.get(LOCALE_COOKIE)?.value ?? "";
   const locale        = isSupportedLocale(localeRaw) ? localeRaw : DEFAULT_LOCALE;
@@ -358,7 +360,8 @@ export async function runHomepagePipeline({ params, includeDebug = false }: Home
   // Serving exclusion: clear User-Agent bots get the default experience (no
   // personalization). Kept separate from `isControl` so the holdout distribution
   // is unaffected — bot measurement exclusion is handled in recordVisitorProfile.
-  const forceDefaultForBot = isControl || isBotUserAgent(h.get("user-agent"));
+  // A warm-up ping is nobody: it gets the default experience as well.
+  const forceDefaultForBot = isControl || isWarmup || isBotUserAgent(h.get("user-agent"));
 
   const rulesProvider = new RulesDecisionProvider(tenantRulesConfig ?? undefined, forceDefaultForBot, tenantConfig.tenantId, sessionId, consent);
   const baseDecisionProvider = new ExperimentDecisionProvider(
@@ -377,7 +380,11 @@ export async function runHomepagePipeline({ params, includeDebug = false }: Home
 
   let decisionProvider: DecisionProvider = baseDecisionProvider;
 
-  if (aiConfig.mode === "shadow") {
+  // A warm-up ping never reaches an AI provider: every call costs money, and
+  // a ping every few minutes would be most of the calls on a quiet site.
+  const aiMode = isWarmup ? "off" : aiConfig.mode;
+
+  if (aiMode === "shadow") {
     try {
       const aiProvider = createAiProvider(aiConfig.shadowProvider);
       decisionProvider = new ShadowAiDecisionProvider(
@@ -393,7 +400,7 @@ export async function runHomepagePipeline({ params, includeDebug = false }: Home
         error: err instanceof Error ? err.message : String(err),
       });
     }
-  } else if (aiConfig.mode === "live") {
+  } else if (aiMode === "live") {
     try {
       const aiProvider = createAiProvider(aiConfig.liveProvider);
       decisionProvider = new AiDecisionProvider(
@@ -996,6 +1003,9 @@ export async function runHomepagePipeline({ params, includeDebug = false }: Home
     // the variants a preset forced as if a visitor had earned them.
     analyticsAllowed: consent.analytics && consent.personalization && !scenarioOverrides,
     sessionCap,
+    // A keep-warm ping, proven by its header. The caller counts no session
+    // and writes no analytics for it.
+    isWarmup,
     personalizationGroup,
     // Experiment
     appliedExperiment,
