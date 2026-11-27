@@ -114,6 +114,7 @@ import type { BlockEffectRef }        from "@/design-system/effects/effect-ref";
 import { listDesignEffectSets }      from "@/lib/design-effect-sets/effect-sets-store";
 import { normaliseVisitorId }        from "@/lib/snippet/visitor-id";
 import { resolveDecisionPersistence } from "@/lib/snippet/decision-persistence";
+import { apiVisitCounts, countApiSession, readApiSessionCap } from "@/lib/snippet/session-limit";
 import { loadAdRuleSignals }         from "@/lib/snippet/ad-rule-signals";
 import { toJourneyEventId }          from "@/lib/snippet/event-id";
 import { sanitizeDecideContext, type DecideContext } from "@/lib/snippet/decide-context";
@@ -929,7 +930,7 @@ async function handleDecide(request: NextRequest) {
     // enrichers + firmographic reuse are built only with enrichment consent; the
     // chain is the SAME one the platform-hosted homepage runs (shared builder),
     // so a Statamic snippet visit resolves company/industry identically.
-    const [rawHistory, tenantRulesConfig, stagedEnrichers, seedFirmographics] = await Promise.all([
+    const [rawHistory, tenantRulesConfig, stagedEnrichers, seedFirmographics, sessionCap] = await Promise.all([
       consentPersonalization
         ? fetchVisitorHistory(sessionId, tenantId).catch(() => emptyHistory())
         : Promise.resolve(emptyHistory()),
@@ -944,6 +945,9 @@ async function handleDecide(request: NextRequest) {
             tenant.enrichment?.firmographicFreshnessDays ?? 30,
           ).catch(() => null)
         : Promise.resolve(null),
+      // The month's session limit, the verdict the hosted pages use (remembered
+      // for a minute, null when it could not be read).
+      readApiSessionCap(tenantId),
     ]);
 
     const history = rawHistory;
@@ -977,6 +981,36 @@ async function handleDecide(request: NextRequest) {
     });
 
     const isUaBot = isBotUserAgent(request.headers.get("user-agent"));
+
+    // ── Monthly session limit ──────────────────────────────────────────────────
+    //
+    //   Over the limit the visitor gets the tenant's default plan: the rules are
+    //   skipped, and with no matched rule no experiment runs either. The rest of
+    //   the response is built as usual, so forms and default blocks keep working
+    //   on the host page. Until now this route never looked at the limit, so a
+    //   snippet site personalised without end (lib/snippet/session-limit.ts).
+    const overSessionLimit = sessionCap?.overLimit === true;
+    if (overSessionLimit) {
+      logger.info("[snippet/decide] Session limit reached — serving default plan", {
+        tenantId, current: sessionCap?.current, limit: sessionCap?.limit,
+      });
+    }
+
+    // ── Billing: count this visitor ────────────────────────────────────────────
+    //
+    //   One row per visitor per month, the same table and key as the hosted
+    //   pages, so every pageview of the visitor is one session. Only with
+    //   personalization consent, because the row is kept per visitor, and never
+    //   for a bot. After the response, so the page does not wait for the write.
+    if (stableId && apiVisitCounts({
+      overLimit:              overSessionLimit,
+      isBot:                  isUaBot,
+      visitorId:              stableId,
+      personalizationConsent: consentPersonalization,
+    })) {
+      after(() => countApiSession(tenantId, stableId, sessionCap));
+    }
+
     // Rule-context writes and experiment assignments are persisted per session,
     // so the providers only get the sessionId with personalization consent and
     // never for UA bots. Without it, rules still evaluate in memory and
@@ -996,7 +1030,8 @@ async function handleDecide(request: NextRequest) {
       // ctx.isBot in the engine / profile recorder.
       new RulesDecisionProvider(
         tenantRulesConfig ?? undefined,
-        isUaBot,
+        // Default plan for a bot, and for everyone once the month is used up.
+        isUaBot || overSessionLimit,
         tenantId,
         persistence.sessionId,
         consent,

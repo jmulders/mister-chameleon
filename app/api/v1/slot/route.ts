@@ -33,7 +33,7 @@
  *   429 per-tenant rate limit (the adapter renders its own default on any non-200).
  */
 
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import { getTenantBySiteKey } from "@/tenant/server";
 import { getDb } from "@/data/db";
 import { getTenantDunningSettings } from "@/billing/dunning";
@@ -61,6 +61,7 @@ import type {
 import { logger } from "@/lib/logger";
 import { normaliseVisitorId } from "@/lib/snippet/visitor-id";
 import { resolveDecisionPersistence } from "@/lib/snippet/decision-persistence";
+import { apiVisitCounts, countApiSession, readApiSessionCap } from "@/lib/snippet/session-limit";
 import { recordJourneyEvent } from "@/lib/journey/record-event";
 import { resolvePageMeta } from "@/tracking/page-meta-map";
 import { deterministicUuid } from "@/lib/snippet/event-id";
@@ -357,12 +358,27 @@ export async function POST(request: NextRequest) {
       }).catch(() => false);
     }
 
-    const [history, rulesConfig] = await Promise.all([
+    const [history, rulesConfig, sessionCap] = await Promise.all([
       consent.personalization
         ? fetchVisitorHistory(sessionId, tenantId).catch(() => emptyHistory())
         : Promise.resolve(emptyHistory()),
       loadTenantRulesConfig(tenantId, undefined, { allowUnknownVariantKeys: true }).catch(() => null),
+      // The month's session limit, the verdict the hosted pages use (remembered
+      // for a minute, null when it could not be read).
+      readApiSessionCap(tenantId),
     ]);
+
+    // ── Monthly session limit ──────────────────────────────────────────────────
+    //
+    //   Over the limit the adapter gets the CMS default, with or without a
+    //   visitor id. Until now this endpoint never looked at the limit, so a
+    //   site on its own CMS personalised without end (lib/snippet/session-limit.ts).
+    if (sessionCap?.overLimit) {
+      logger.info("[v1/slot] session limit reached — serving default", {
+        tenantId, current: sessionCap.current, limit: sessionCap.limit,
+      });
+      return respondDefault();
+    }
 
     const input = await buildDecisionContext({
       request: decisionRequest,
@@ -375,6 +391,23 @@ export async function POST(request: NextRequest) {
     });
 
     const isUaBot = isBotUserAgent(request.headers.get("user-agent"));
+
+    // ── Billing: count this visitor ────────────────────────────────────────────
+    //
+    //   One row per visitor per month, the same table and key as the hosted
+    //   pages, so the six slot calls of one page and every later page of the
+    //   visitor are one session. Only with a visitor id, which this endpoint
+    //   binds to under personalization consent alone, and never for a bot.
+    //   After the response, so the adapter does not wait for the write.
+    if (stableId && apiVisitCounts({
+      overLimit:              false,   // answered above: over the limit never gets here
+      isBot:                  isUaBot,
+      visitorId:              stableId,
+      personalizationConsent: consent.personalization,
+    })) {
+      after(() => countApiSession(tenantId, stableId, sessionCap));
+    }
+
     // Rule-context writes and experiment assignments are persisted per session:
     // only with personalization consent and never for UA bots. Without it the
     // ephemeral id would still leave a visitor_behavior_state / assignment row
