@@ -71,7 +71,7 @@ import { DEMO_FLOW_LIST, runDemoFlow, type DemoFlowProgress } from "./demo-flows
 import { applyScenarioOverride } from "./apply-scenario-override";
 import { shouldPollJourneyState, consoleIsActive, shouldFetchBackendState } from "./journey-poll";
 import { startsMinimized } from "./panel-start";
-import { TOUCH_LAYOUT_QUERY, panelCloseSizes, panelWidthCss, escapeCloses } from "./panel-close";
+import { TOUCH_LAYOUT_QUERY, HEADER_LINE, panelCloseSizes, panelWidthCss, escapeCloses } from "./panel-close";
 import { claimLauncherSide } from "@/lib/layout/floating-stack";
 import { getConsent } from "@/tracking/consent-store";
 import { ENRICHER_REGISTRY, type EnricherKey } from "@/lib/scenario/enricher-registry";
@@ -2568,20 +2568,21 @@ export function ScenarioControlPanel({ scenarioPanel, scenarioPresets, scenarioO
               aria-label="Close Scenario Control"
               title="Close"
               style={{ display: "flex", alignItems: "center", gap: 7, flex: 1, minWidth: 0,
-                alignSelf: "stretch", margin: "-9px 0 -9px -13px", padding: "9px 8px 9px 13px",
+                alignSelf: "stretch", margin: "-9px 0 -9px -13px",
+                padding: closeSizes.compactHeader ? "9px 4px 9px 13px" : "9px 8px 9px 13px",
                 background: "transparent", border: "none", textAlign: "left",
                 font: "inherit", cursor: "pointer" }}>
-              <span style={{ fontSize: 14 }}>🎭</span>
+              {!closeSizes.compactHeader && <span style={{ fontSize: 14 }}>🎭</span>}
               <span style={{ display: "block", minWidth: 0 }}>
-                <span style={{ display: "block", fontSize: 12, fontWeight: 700, color: "#111827" }}>
+                <span style={{ ...HEADER_LINE, fontSize: 12, fontWeight: 700, color: "#111827" }}>
                   Scenario Control
                 </span>
                 {scenario.active ? (
-                  <span style={{ display: "block", fontSize: 10, color: "#ef4444", fontWeight: 600 }}>
+                  <span style={{ ...HEADER_LINE, fontSize: 10, color: "#ef4444", fontWeight: 600 }}>
                     ⚡ {scenario.label ?? "SCENARIO MODE ACTIVE"}
                   </span>
                 ) : (
-                  <span style={{ display: "block", fontSize: 10, color: "#9ca3af" }}>Real behavioral data</span>
+                  <span style={{ ...HEADER_LINE, fontSize: 10, color: "#9ca3af" }}>Real behavioral data</span>
                 )}
               </span>
             </button>
@@ -2603,7 +2604,7 @@ export function ScenarioControlPanel({ scenarioPanel, scenarioPresets, scenarioO
                   borderRadius: 5, fontSize: 10, fontWeight: 700, textDecoration: "none",
                   whiteSpace: "nowrap" }}
               >
-                All variables ↗
+                {closeSizes.compactHeader ? "Variables ↗" : "All variables ↗"}
               </a>
               {scenario.active && (
                 <button onClick={() => { clearScenario(); triggerRefresh(); }}

@@ -30,6 +30,13 @@ export interface PanelCloseSizes {
   headerClose: { minHeight: number; padding: string; fontSize: number };
   /** Whether the foot of the panel carries a close button of its own. */
   footClose:   boolean;
+  /**
+   * A header with less in it, so the title stays on one line on a phone. With
+   * a scenario active the header also holds "Exit", and on a screen of 360 to
+   * 375 pixels "Scenario Control" then broke over two lines: the mask icon
+   * goes and the link to the variables gets a shorter word.
+   */
+  compactHeader: boolean;
 }
 
 /** Sizes of the open and close controls, for a mouse or for a finger. */
@@ -37,14 +44,16 @@ export function panelCloseSizes(touch: boolean): PanelCloseSizes {
   if (touch) {
     return {
       opener:      { minHeight: TOUCH_TARGET, padding: "0 18px", fontSize: 13 },
-      headerClose: { minHeight: TOUCH_TARGET, padding: "0 14px", fontSize: 13 },
+      headerClose: { minHeight: TOUCH_TARGET, padding: "0 12px", fontSize: 13 },
       footClose:   true,
+      compactHeader: true,
     };
   }
   return {
     opener:      { minHeight: 30, padding: "0 14px", fontSize: 11 },
     headerClose: { minHeight: 26, padding: "0 10px", fontSize: 11 },
     footClose:   false,
+    compactHeader: false,
   };
 }
 
@@ -64,3 +73,12 @@ export function escapeCloses(key: string, targetTag: string | null | undefined, 
   const tag = (targetTag ?? "").toLowerCase();
   return tag !== "input" && tag !== "textarea" && tag !== "select";
 }
+
+/**
+ * One line of text in the header that never wraps: what does not fit is cut
+ * with an ellipsis. For the title and for the scenario's name under it, which
+ * can be as long as a tenant made its preset label.
+ */
+export const HEADER_LINE = {
+  display: "block", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+} as const;

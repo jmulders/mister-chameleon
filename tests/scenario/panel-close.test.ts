@@ -11,7 +11,7 @@ import assert           from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
 import {
-  TOUCH_LAYOUT_QUERY, TOUCH_TARGET, panelCloseSizes, panelWidthCss, escapeCloses,
+  TOUCH_LAYOUT_QUERY, TOUCH_TARGET, HEADER_LINE, panelCloseSizes, panelWidthCss, escapeCloses,
 } from "../../components/scenario/panel-close.ts";
 
 const panel  = readFileSync("components/scenario/ScenarioControlPanel.tsx", "utf8");
@@ -45,6 +45,27 @@ describe("Scenario Control: sizes of the open and close controls", () => {
 
   it("never makes the panel wider than the screen", () => {
     assert.equal(panelWidthCss(360, 16), "min(360px, calc(100vw - 32px))");
+  });
+});
+
+describe("Scenario Control: the title on one line", () => {
+  it("makes room in the header on a phone, and only there", () => {
+    assert.equal(panelCloseSizes(true).compactHeader, true);
+    assert.equal(panelCloseSizes(false).compactHeader, false);
+    const title = part(header, "scenario-title");
+    // The mask icon goes and the link gets a shorter word.
+    assert.match(title, /\{!closeSizes\.compactHeader && <span[^>]*>🎭<\/span>\}/);
+    assert.match(header, /closeSizes\.compactHeader \? "Variables ↗" : "All variables ↗"/);
+  });
+
+  it("never wraps the title or the scenario's name: what does not fit is cut", () => {
+    assert.equal(HEADER_LINE.whiteSpace, "nowrap");
+    assert.equal(HEADER_LINE.overflow, "hidden");
+    assert.equal(HEADER_LINE.textOverflow, "ellipsis");
+    const title = part(header, "scenario-title");
+    // The title, the scenario's name and the line shown without a scenario.
+    assert.equal((title.match(/\.\.\.HEADER_LINE/g) ?? []).length, 3);
+    assert.match(title, /minWidth: 0/, "the title may shrink, or the ellipsis never shows");
   });
 });
 
