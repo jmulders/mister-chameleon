@@ -102,8 +102,9 @@ const DEFAULT_FEATURES: PlanFeatures = {
   prioritySupport:     false,
 };
 
+// What a new plan starts with in the form: the limit of Starter.
 const DEFAULT_LIMITS: PlanLimits = {
-  personalizedSessionsPerMonth: 25_000,
+  personalizedSessionsPerMonth: 1_500,
 };
 
 // ── Formatting helpers ─────────────────────────────────────────────────────────
@@ -170,7 +171,7 @@ function PlanForm({ initial, existingIds, isNew, onCancel, onSaved }: PlanFormPr
   const [yearly,     setYearly]     = useState(String(initial.yearly_price ?? 0));
   const [annualMo,   setAnnualMo]   = useState(String(initial.annual_monthly_price ?? 0));
   const [features,     setFeatures]     = useState<PlanFeatures>({ ...DEFAULT_FEATURES, ...initial.features });
-  const [sessionCap,   setSessionCap]   = useState(String(initial.limits?.personalizedSessionsPerMonth ?? 25_000));
+  const [sessionCap,   setSessionCap]   = useState(String(initial.limits?.personalizedSessionsPerMonth ?? DEFAULT_LIMITS.personalizedSessionsPerMonth));
   const [stripeM,      setStripeM]      = useState(initial.stripe_monthly_price_id      ?? "");
   const [stripeY,      setStripeY]      = useState(initial.stripe_yearly_price_id       ?? "");
   const [stripeTestM,  setStripeTestM]  = useState(initial.stripe_test_monthly_price_id ?? "");

@@ -35,7 +35,9 @@ const FIELD_STYLE = { background: "var(--bg)", borderColor: "var(--card-border)"
 
 export function CreditCalculator({ prices }: { prices: PublicLookupPrices }) {
   const id = useId();
-  const [visits, setVisits]         = useState(25_000);
+  // Starts at what Starter includes, so the first answer is for a site that
+  // fits the smallest plan (billing/plans.ts; a test keeps the two equal).
+  const [visits, setVisits]         = useState(1_500);
   const [consent, setConsent]       = useState(50);
   const [recognised, setRecognised] = useState(10);
   const [on, setOn] = useState<Record<SourceKey, boolean>>(

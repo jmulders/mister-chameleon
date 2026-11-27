@@ -55,7 +55,7 @@ export const BILLING_PLANS: Record<BillingPlanId, BillingPlan> = {
   starter: {
     id:          "starter",
     name:        "Starter",
-    description: "Adaptive homepage personalisation for growing teams. Up to 25K personalised sessions/month.",
+    description: "Adaptive homepage personalisation for growing teams. Up to 1,500 personalised sessions/month.",
 
     monthlyPriceCents:  14900,   // €149/mo
     annualPriceCents:   148800,  // €1488/yr (€124/mo — 17% saving)
@@ -76,14 +76,14 @@ export const BILLING_PLANS: Record<BillingPlanId, BillingPlan> = {
     },
 
     limits: {
-      personalizedSessionsPerMonth: 25_000,
+      personalizedSessionsPerMonth: 1_500,
     },
   },
 
   growth: {
     id:          "growth",
     name:        "Growth",
-    description: "AI personalisation, CRM/ABM enrichment, and the full analytics dashboard. Up to 150K sessions/month.",
+    description: "AI personalisation, CRM/ABM enrichment, and the full analytics dashboard. Up to 7,500 sessions/month.",
 
     monthlyPriceCents:  34900,   // €349/mo
     annualPriceCents:   334800,  // €3348/yr (€279/mo — 20% saving)
@@ -104,14 +104,14 @@ export const BILLING_PLANS: Record<BillingPlanId, BillingPlan> = {
     },
 
     limits: {
-      personalizedSessionsPerMonth: 150_000,
+      personalizedSessionsPerMonth: 7_500,
     },
   },
 
   pro: {
     id:          "pro",
     name:        "Pro",
-    description: "Full platform with agency multi-tenant management and priority support. Up to 500K sessions/month.",
+    description: "Full platform with agency multi-tenant management and priority support. Up to 40,000 sessions/month.",
 
     monthlyPriceCents:  74900,   // €749/mo
     annualPriceCents:   718800,  // €7188/yr (€599/mo — 20% saving)
@@ -132,8 +132,8 @@ export const BILLING_PLANS: Record<BillingPlanId, BillingPlan> = {
     },
 
     limits: {
-      // 0 = effectively unlimited; enforced as 500K in UI but overrideable per tenant
-      personalizedSessionsPerMonth: 500_000,
+      // Overrideable per tenant (0 = no cap).
+      personalizedSessionsPerMonth: 40_000,
     },
   },
 };
@@ -171,14 +171,19 @@ export const CREDIT_BUNDLES: CreditBundle[] = [
 //   until consumed.
 //
 //   Pricing: €2.49 / 1K sessions (flat rate across all plans).
-//   Upgrading to Pro is more cost-effective for tenants consistently needing
-//   more than 50K extra sessions per month.
 //
-//   Rate comparison (per 1K sessions):
-//     Starter plan:  €5.96 / 1K  (25K sessions for €149/mo)
-//     Growth plan:   €2.33 / 1K  (150K sessions for €349/mo)
-//     Pro plan:      €1.50 / 1K  (500K sessions for €749/mo)
-//     Top-up (any):  €2.49 / 1K  ← purposely above Pro to incentivise upgrading
+//   Rate comparison (per 1K sessions), since the plan limits went down on
+//   27 Nov 2026 to what a B2B site really gets (they were 25K / 150K / 500K):
+//     Starter plan:  €99.33 / 1K  (1,500 sessions for €149/mo)
+//     Growth plan:   €46.53 / 1K  (7,500 sessions for €349/mo)
+//     Pro plan:      €18.73 / 1K  (40,000 sessions for €749/mo)
+//     Top-up (any):   €2.49 / 1K
+//
+//   OPEN: the bundles below were priced against the old limits, just above the
+//   old Pro rate so that upgrading stayed attractive. They are now far below
+//   every plan: 10,000 extra sessions for €24.90 beside a plan of 1,500. As
+//   long as they stand, the limits steer nobody to a larger plan. New sizes
+//   and prices are the owner's decision, and need new prices in Stripe.
 
 export const SESSION_CREDIT_BUNDLES: SessionCreditBundle[] = [
   {

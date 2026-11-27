@@ -46,7 +46,7 @@ import { CreditCalculator } from "./_components/CreditCalculator";
 
 export const metadata: Metadata = {
   title:       "Prijzen website personalisatie | Mister Chameleon",
-  description: "Vanaf € 149 per maand voor 25.000 gepersonaliseerde bezoeken. Bekijk de drie pakketten en probeer 14 dagen gratis.",
+  description: "Vanaf € 149 per maand voor 1.500 gepersonaliseerde bezoeken. Bekijk de drie pakketten en probeer 14 dagen gratis.",
   alternates:  { canonical: "/prijzen" },
 };
 

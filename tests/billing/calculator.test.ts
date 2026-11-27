@@ -67,6 +67,14 @@ describe("Plan model", () => {
     assert.equal(BILLING_PLANS.pro.monthlyPriceCents,     74_900);
   });
 
+  it("the plans hold 1,500 / 7,500 / 40,000 personalised sessions a month", () => {
+    // The owner's choice on 27 Nov 2026: what a B2B site really gets. They
+    // were 25,000 / 150,000 / 500,000, which no B2B customer would outgrow.
+    assert.equal(BILLING_PLANS.starter.limits.personalizedSessionsPerMonth, 1_500);
+    assert.equal(BILLING_PLANS.growth.limits.personalizedSessionsPerMonth,  7_500);
+    assert.equal(BILLING_PLANS.pro.limits.personalizedSessionsPerMonth,     40_000);
+  });
+
   it("each plan up the ladder allows more personalised sessions", () => {
     assert.ok(
       BILLING_PLANS.growth.limits.personalizedSessionsPerMonth >

@@ -10,7 +10,7 @@
  *   profiles, scoring rules, and audience segments.
  *
  *   The single numeric limit is:
- *     personalizedSessionsPerMonth  — 25 K / 150 K / 500 K for Starter/Growth/Pro.
+ *     personalizedSessionsPerMonth  — 1,500 / 7,500 / 40,000 for Starter/Growth/Pro.
  *
  *   When a tenant exceeds their monthly cap, subsequent visitor requests receive
  *   the default (unmodified) experience.  No errors are thrown; the platform
