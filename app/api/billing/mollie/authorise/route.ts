@@ -21,6 +21,8 @@ import { mollieConfigured, MollieError } from "@/billing/mollie";
 import { ensureMollieCustomer }      from "@/billing/mollie-customer";
 import { startMollieCheckout }       from "@/billing/mollie-checkout";
 import { firstPaymentAmount }        from "@/billing/mollie-authorise";
+import { chargeAmounts, vatMetadata } from "@/billing/billing-details";
+import { vatRateLabel }              from "@/billing/vat";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -67,12 +69,18 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       email: (wallet as { notification_email?: string | null } | null)?.notification_email ?? null,
     });
 
+    // The top-up amount is exclusive of VAT: the tenant pays it plus VAT, and
+    // the wallet gets the amount itself.
+    const amounts = await chargeAmounts(client, tenantId, amount.cents);
     const { url, paymentId } = await startMollieCheckout(client, {
       tenantId,
       kind:               "wallet_top_up",
       bundleId:           null,
-      amountCents:        amount.cents,
-      description:        `Mister Chameleon: wallet top-up €${(amount.cents / 100).toFixed(2)} and authorisation for automatic top-ups`,
+      amountCents:        amounts.grossCents,
+      extraMetadata:      vatMetadata(amounts),
+      description:        `Mister Chameleon: wallet top-up €${(amount.cents / 100).toFixed(2)}` +
+                          (amounts.vatCents > 0 ? ` plus ${vatRateLabel(amounts.rateBp)} VAT` : "") +
+                          ` and authorisation for automatic top-ups`,
       origin,
       publicBaseUrl,
       firstForCustomerId: customerId,

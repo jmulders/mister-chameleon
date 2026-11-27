@@ -96,6 +96,12 @@ interface RenewalResult {
   error?:   string;
 }
 
+/** What a failed charge left open: the provider's own total when it gave one. */
+function owedCents(result: { chargedCents?: number } | object, fallback: number): number {
+  const charged = (result as { chargedCents?: unknown }).chargedCents;
+  return typeof charged === "number" && charged > 0 ? charged : fallback;
+}
+
 // ── Auth helper ────────────────────────────────────────────────────────────────
 
 function isAuthorized(request: NextRequest): boolean {
@@ -247,7 +253,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
         await sendDunningEmail(client, tenant_id, {
           planName:      planLabel,
-          amountCents,
+          // With Mollie what is owed includes VAT: name that amount.
+          amountCents:   owedCents(chargeResult, amountCents),
           dueDate:       paymentDueSince.toISOString(),
           quarantineEnd: quarantineEnd.toISOString(),
         });

@@ -120,6 +120,9 @@ export async function changePlanViaMollie(
     now,
   });
 
+  // What the tenant is charged: the difference plus VAT. Known after the charge.
+  let chargedCents = 0;
+
   if (dueCents > 0) {
     if (!(await mollieReloadSource(client, tenantId, deps?.mollie))) {
       return {
@@ -148,8 +151,9 @@ export async function changePlanViaMollie(
     // The plan changes with the charge. If the bank refuses the debit later
     // the tenant goes past due for this amount, like for any other charge.
     await noteRenewalAdvanced(client, tenantId, nowIso);
+    chargedCents = charge.chargedCents ?? dueCents;
   }
 
   await switchNow();
-  return { ok: true, effectiveNextPeriod: false, chargedCents: dueCents };
+  return { ok: true, effectiveNextPeriod: false, chargedCents };
 }

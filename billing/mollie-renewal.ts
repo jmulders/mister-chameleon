@@ -41,6 +41,8 @@ import {
 } from "./mollie";
 import { mollieReloadSource } from "./mollie-auto-reload";
 import type { MollieFulfilment } from "./mollie-fulfil";
+import { chargeAmounts, vatMetadata } from "./billing-details";
+import { vatRateLabel } from "./vat";
 
 /** `metadata.type` of a charge the renewal job made on a mandate. */
 export const RENEWAL_PAYMENT_TYPE = "subscription_renewal";
@@ -82,13 +84,14 @@ export function trialRealign(
 
 /** The same shape as attemptSubscriptionCharge(), so the job treats both alike. */
 export type MollieRenewalResult =
-  | { ok: true;  paymentIntentId: string; settled: boolean }
-  | { ok: false; error: string; noPaymentMethod: boolean };
+  | { ok: true;  paymentIntentId: string; settled: boolean; chargedCents?: number }
+  | { ok: false; error: string; noPaymentMethod: boolean; chargedCents?: number };
 
 export interface MollieRenewalInput {
   tenantId:    string;
   /** The end of the period being renewed. With the tenant it names the charge. */
   periodEnd:   string;
+  /** The price exclusive of VAT. The VAT for this tenant is added to it. */
   amountCents: number;
   plan:        string;
   cycle:       "monthly" | "annual";
@@ -114,8 +117,13 @@ export async function chargeMollieRenewal(
   input:  MollieRenewalInput,
   deps?:  MollieDeps,
 ): Promise<MollieRenewalResult> {
-  const { tenantId, periodEnd, amountCents } = input;
+  const { tenantId, periodEnd } = input;
   const key = { tenant_id: tenantId, period_end: periodEnd };
+
+  // What is owed is the price plus VAT. That total is what the row holds, what
+  // Mollie is asked for and what the tenant pays later if this charge fails.
+  const amounts     = await chargeAmounts(client, tenantId, input.amountCents);
+  const amountCents = amounts.grossCents;
 
   // ── Claim the period ────────────────────────────────────────────────────────
   const { data: claimed, error: claimErr } = await client
@@ -138,7 +146,7 @@ export async function chargeMollieRenewal(
 
   const fail = async (error: string, noPaymentMethod: boolean): Promise<MollieRenewalResult> => {
     await client.from("mollie_renewals").update({ status: "failed", problem: error.slice(0, 300), updated_at: new Date().toISOString() }).match(key);
-    return { ok: false, error, noPaymentMethod };
+    return { ok: false, error, noPaymentMethod, chargedCents: amountCents };
   };
 
   // ── The mandate ─────────────────────────────────────────────────────────────
@@ -151,7 +159,7 @@ export async function chargeMollieRenewal(
     payment = await createMolliePayment(
       {
         amountCents,
-        description:    input.description,
+        description:    amounts.vatCents > 0 ? `${input.description}, incl. ${vatRateLabel(amounts.rateBp)} VAT` : input.description,
         sequenceType:   "recurring",
         customerId:     source.customerId,
         mandateId:      source.mandateId,
@@ -163,6 +171,7 @@ export async function chargeMollieRenewal(
           period_end:   periodEnd,
           plan:         input.plan,
           amount_cents: String(amountCents),
+          ...vatMetadata(amounts),
         },
       },
       deps,
@@ -191,7 +200,7 @@ export async function chargeMollieRenewal(
     .update({ payment_id: payment.id, status: settled ? "paid" : "pending", updated_at: new Date().toISOString(), ...(settled ? { settled_at: new Date().toISOString() } : {}) })
     .match(key);
 
-  return { ok: true, paymentIntentId: payment.id, settled };
+  return { ok: true, paymentIntentId: payment.id, settled, chargedCents: amountCents };
 }
 
 /** The job moved the period on for this charge. Kept for the way back. */

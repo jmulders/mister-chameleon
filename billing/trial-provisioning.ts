@@ -23,6 +23,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { PLATFORM_FROM } from "@/lib/platform-contact";
 import { resolveRequestBaseUrl } from "@/lib/base-url";
+import { cleanBillingDetails, saveBillingDetails } from "./billing-details";
 
 /** A trial lasts this long, whichever provider confirmed it. */
 export const TRIAL_DAYS = 14;
@@ -97,6 +98,7 @@ export async function provisionTrialTenant(
   const { name, email, company, password_hash, plan_id } = pending as {
     name: string; email: string; company: string; password_hash: string; plan_id: string;
   };
+  const { country, vat_number } = pending as { country?: string | null; vat_number?: string | null };
 
   // Derive a unique tenant slug
   const tenantId = await uniqueSlug(client, company);
@@ -163,6 +165,17 @@ export async function provisionTrialTenant(
     await client.from("admin_users").delete().eq("id", userId);
     await client.from("pending_trial_signups").update({ status: "failed" }).eq("id", pendingId);
     return { ok: false, action: "trial_signup_binding_failed" };
+  }
+
+  // Who to invoice and which VAT holds, from what the form asked. Without it
+  // the tenant is charged as a Dutch customer, so a failure here is logged and
+  // the signup goes on: the tenant can fill it in on the billing page.
+  const billing = cleanBillingDetails(tenantId, { company_name: company, country, vat_number, invoice_email: email });
+  if (billing.ok) {
+    const saved = await saveBillingDetails(client, billing.details);
+    if (!saved.ok) console.error(`${logTag} trial_signup: billing details not saved`, saved.error);
+  } else {
+    console.error(`${logTag} trial_signup: billing details not usable`, billing.error);
   }
 
   return {

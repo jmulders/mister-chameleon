@@ -24,6 +24,8 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { createMolliePayment, mollieWebhookUrl, type MollieDeps, type MolliePayment } from "./mollie";
 import { currentMollieMode, getMollieCustomerRow, usableMandate } from "./mollie-customer";
 import type { MollieFulfilment } from "./mollie-fulfil";
+import { chargeAmounts, vatMetadata } from "./billing-details";
+import { vatRateLabel } from "./vat";
 
 /** `metadata.type` of a charge made for the automatic top-up. */
 export const AUTO_RELOAD_PAYMENT_TYPE = "wallet_auto_reload";
@@ -73,6 +75,7 @@ export async function chargeMollieReload(
   input: {
     tenantId:       string;
     attemptId:      string;
+    /** The top-up itself, exclusive of VAT: what the wallet will get. */
     amountCents:    number;
     idempotencyKey: string;
     source:         MollieReloadSource;
@@ -80,10 +83,14 @@ export async function chargeMollieReload(
   deps?: MollieDeps,
 ): Promise<ReloadCharge> {
   const publicBaseUrl = process.env["NEXT_PUBLIC_APP_URL"] ?? null;
+  // The mandate is charged the top-up plus VAT. The wallet is credited the
+  // top-up itself: that amount is on the reload attempt, not on the payment.
+  const amounts = await chargeAmounts(client, input.tenantId, input.amountCents);
   const payment = await createMolliePayment(
     {
-      amountCents:    input.amountCents,
-      description:    `Mister Chameleon: automatic wallet top-up €${(input.amountCents / 100).toFixed(2)}`,
+      amountCents:    amounts.grossCents,
+      description:    `Mister Chameleon: automatic wallet top-up €${(input.amountCents / 100).toFixed(2)}` +
+                      (amounts.vatCents > 0 ? ` plus ${vatRateLabel(amounts.rateBp)} VAT` : ""),
       sequenceType:   "recurring",
       customerId:     input.source.customerId,
       mandateId:      input.source.mandateId,
@@ -93,7 +100,8 @@ export async function chargeMollieReload(
         type:              AUTO_RELOAD_PAYMENT_TYPE,
         tenant_id:         input.tenantId,
         reload_attempt_id: input.attemptId,
-        amount_cents:      String(input.amountCents),
+        amount_cents:      String(amounts.grossCents),
+        ...vatMetadata(amounts),
       },
     },
     deps,
@@ -107,7 +115,7 @@ export async function chargeMollieReload(
     tenant_id:    input.tenantId,
     kind:         AUTO_RELOAD_PAYMENT_TYPE,
     bundle_id:    null,
-    amount_cents: input.amountCents,
+    amount_cents: amounts.grossCents,
     mode:         payment.mode === "live" ? "live" : "test",
     status:       String(payment.status),
   });

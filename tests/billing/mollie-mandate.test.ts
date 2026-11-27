@@ -229,13 +229,17 @@ describe("the automatic top-up on a mandate", () => {
     assert.equal(body["sequenceType"], "recurring");
     assert.equal(body["customerId"], CUST);
     assert.equal(body["mandateId"], MDT);
-    assert.deepEqual(body["amount"], { currency: "EUR", value: "50.00" });
+    // The top-up is 50.00. The tenant has no billing details, so it is charged
+    // as a Dutch customer: 21% VAT on top. The wallet still gets 50.00.
+    assert.deepEqual(body["amount"], { currency: "EUR", value: "60.50" });
     assert.deepEqual(body["metadata"], {
       type: AUTO_RELOAD_PAYMENT_TYPE, tenant_id: "statamic",
-      reload_attempt_id: "0a1b2c3d-0000-4000-8000-000000000001", amount_cents: "5000",
+      reload_attempt_id: "0a1b2c3d-0000-4000-8000-000000000001", amount_cents: "6050",
+      net_cents: "5000", vat_cents: "1050", vat_rate_bp: "2100", vat_treatment: "nl",
     });
     assert.equal((f.calls[0]!.init.headers as Record<string, string>)["Idempotency-Key"], "wr:abc");
     assert.equal(inserts[0]!.row["kind"], AUTO_RELOAD_PAYMENT_TYPE);
+    assert.equal(inserts[0]!.row["amount_cents"], 6050);
     assert.equal(inserts[0]!.row["mode"], "live");
   });
 

@@ -53,6 +53,7 @@ import { resolveSession }                        from "@/data/session";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { mollieTrialSignupEnabled, startMollieTrialSignup } from "@/billing/mollie-trial";
+import { cleanBillingDetails } from "@/billing/billing-details";
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
@@ -67,7 +68,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
   // ── 1. Parse body ────────────────────────────────────────────────────────────
 
-  let body: { name?: string; email?: string; company?: string; password?: string; planId?: string };
+  let body: { name?: string; email?: string; company?: string; password?: string; planId?: string; country?: string; vatNumber?: string };
   try {
     body = await request.json() as typeof body;
   } catch {
@@ -91,6 +92,15 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
   if (!["starter", "growth", "pro"].includes(planId)) {
     return NextResponse.json({ error: t.invalidPlan }, { status: 400 });
+  }
+
+  // The country and the VAT number decide the VAT on what is charged after the
+  // trial. A number that is none, or of another country, is refused here: it
+  // would otherwise quietly change what the tenant pays.
+  const billing = cleanBillingDetails("pending", { country: body.country, vat_number: body.vatNumber });
+  if (!billing.ok) {
+    const aboutCountry = typeof body.country === "string" && body.country.trim() !== "" && !/^[A-Za-z]{2}$/.test(body.country.trim());
+    return NextResponse.json({ error: aboutCountry ? t.countryInvalid : t.vatNumberInvalid }, { status: 400 });
   }
 
   // ── 3. Check email uniqueness ────────────────────────────────────────────────
@@ -125,7 +135,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: pending, error: pendingError } = await (db as any)
     .from("pending_trial_signups")
-    .insert({ name, email, company, password_hash: passwordHash, plan_id: planId })
+    .insert({
+      name, email, company, password_hash: passwordHash, plan_id: planId,
+      country: billing.details.country, vat_number: billing.details.vat_number,
+    })
     .select("id")
     .single();
 

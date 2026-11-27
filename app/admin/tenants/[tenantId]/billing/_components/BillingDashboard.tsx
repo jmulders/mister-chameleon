@@ -56,6 +56,7 @@ import {
   saveCreditSettingsAction,
   saveWalletCapAction,
   saveAutoReloadAction,
+  saveBillingDetailsAction,
   saveNotificationSettingsAction,
   addCreditsAction,
   reactivateWalletAction,
@@ -236,6 +237,11 @@ export interface BillingDashboardProps {
    * reversed: what the tenant can pay to restore the subscription.
    */
   mollieOverdue?: { amountCents: number } | null;
+  /**
+   * Who to invoice, and the country and VAT number that decide the VAT. Set
+   * when Mollie is the provider: there the platform adds the VAT itself.
+   */
+  billingDetails?: BillingDetailsView | null;
   /**
    * Set when Mollie is the payment provider: whether this tenant has given a
    * mandate for automatic top-ups, and through which method. Absent means
@@ -1109,7 +1115,7 @@ function AutoReloadCard({
               <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700 space-y-2">
                 <p>⚠ Not authorised yet. Auto-reload will not fire.</p>
                 <p className="text-amber-800">
-                  Pay the first top-up of €{((parseInt(amountVal, 10) || 0) / 100).toFixed(2)} now. By paying it you
+                  Pay the first top-up of €{((parseInt(amountVal, 10) || 0) / 100).toFixed(2)} (plus VAT) now. By paying it you
                   authorise Mister Chameleon to collect later automatic top-ups of the amount set above from the same
                   account, within the monthly cap. You can switch auto-reload off at any time.
                 </p>
@@ -1157,6 +1163,112 @@ function AutoReloadCard({
 }
 
 // ── PART 8: Stripe / payment status ──────────────────────────────────────────
+
+// ── Billing details ───────────────────────────────────────────────────────────
+
+export interface BillingDetailsView {
+  company_name:  string | null;
+  address_line:  string | null;
+  postal_code:   string | null;
+  city:          string | null;
+  country:       string;
+  vat_number:    string | null;
+  invoice_email: string | null;
+  /** What these details come to: "21% VAT", or why it is 0%. */
+  vatLine:       string;
+}
+
+/**
+ * Who the invoices go to, and the two fields that decide the VAT: the country
+ * and the VAT number. Changing them changes what later charges cost, so the
+ * card says what holds now.
+ */
+function BillingDetailsCard({ tenantId, details }: { tenantId: string; details: BillingDetailsView }) {
+  const [pending, startTransition] = useTransition();
+  const [saved,   setSaved]        = useState(false);
+  const [error,   setError]        = useState<string | null>(null);
+  const [form, setForm] = useState({
+    company_name:  details.company_name  ?? "",
+    address_line:  details.address_line  ?? "",
+    postal_code:   details.postal_code   ?? "",
+    city:          details.city          ?? "",
+    country:       details.country,
+    vat_number:    details.vat_number    ?? "",
+    invoice_email: details.invoice_email ?? "",
+  });
+  const set = (key: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) => setForm((f) => ({ ...f, [key]: e.target.value }));
+
+  function handleSave(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+    startTransition(async () => {
+      const r = await saveBillingDetailsAction(tenantId, form);
+      if (!r.ok) { setError(r.error); return; }
+      setSaved(true);
+      setTimeout(() => window.location.reload(), 900);
+    });
+  }
+
+  const input = "w-full rounded-lg border border-neutral-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-300";
+  const label = "mb-1 block text-xs font-medium text-neutral-600";
+  const incomplete = !details.company_name || !details.address_line || !details.postal_code || !details.city;
+
+  return (
+    <Card>
+      <SectionTitle sub="Who your invoices go to. The country and the VAT number decide the VAT on what you are charged.">
+        Billing details
+      </SectionTitle>
+      <form onSubmit={handleSave} className="space-y-3">
+        <div>
+          <label className={label}>Company name</label>
+          <input className={input} value={form.company_name} onChange={set("company_name")} autoComplete="organization" />
+        </div>
+        <div>
+          <label className={label}>Address</label>
+          <input className={input} value={form.address_line} onChange={set("address_line")} autoComplete="street-address" />
+        </div>
+        <div className="grid grid-cols-3 gap-3">
+          <div>
+            <label className={label}>Postal code</label>
+            <input className={input} value={form.postal_code} onChange={set("postal_code")} autoComplete="postal-code" />
+          </div>
+          <div>
+            <label className={label}>City</label>
+            <input className={input} value={form.city} onChange={set("city")} autoComplete="address-level2" />
+          </div>
+          <div>
+            <label className={label}>Country code</label>
+            <input className={input} value={form.country} onChange={set("country")} maxLength={2} placeholder="NL" autoComplete="country" />
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className={label}>VAT number <span className="font-normal text-neutral-400">(optional)</span></label>
+            <input className={input} value={form.vat_number} onChange={set("vat_number")} placeholder="NL123456789B01" />
+          </div>
+          <div>
+            <label className={label}>Send invoices to</label>
+            <input className={input} type="email" value={form.invoice_email} onChange={set("invoice_email")} autoComplete="email" />
+          </div>
+        </div>
+
+        <div className="rounded-lg border border-neutral-200 bg-neutral-50 px-3 py-2 text-xs text-neutral-600">
+          Prices exclude VAT. With these details: <strong>{details.vatLine}</strong>
+        </div>
+        {incomplete && (
+          <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
+            ⚠ An invoice needs your company name and full address. Please complete them.
+          </div>
+        )}
+        {error && <p className="text-xs text-red-600">{error}</p>}
+
+        <div className="flex justify-end">
+          <SaveButton pending={pending} saved={saved} />
+        </div>
+      </form>
+    </Card>
+  );
+}
 
 // ── Mollie: payment method and subscription state ────────────────────────────
 //
@@ -2763,6 +2875,7 @@ function BuyCreditsPanel({ tenantId, bundles }: { tenantId: string; bundles: Cre
 
               <p className="mb-4 text-2xl font-bold text-neutral-900">
                 €{priceEuro}
+                <span className="ml-1 text-xs font-normal text-neutral-400">excl. VAT</span>
               </p>
 
               {(bundle.purchasable ?? Boolean(bundle.stripePrice)) ? (
@@ -3271,6 +3384,7 @@ export function BillingDashboard({
   paymentNotice,
   mollieMandate,
   mollieOverdue,
+  billingDetails,
   dunningSettings,
   stripeInvoices = [],
   stripeInvoicesError,
@@ -3458,7 +3572,10 @@ export function BillingDashboard({
             <>
               {/* PART 8: payment status. Mollie has no portal: its own card. */}
               {mollieMandate ? (
-                <MolliePaymentCard tenantId={tenantId} subscription={subscription} mollieMandate={mollieMandate} />
+                <>
+                  <MolliePaymentCard tenantId={tenantId} subscription={subscription} mollieMandate={mollieMandate} />
+                  {billingDetails && <BillingDetailsCard tenantId={tenantId} details={billingDetails} />}
+                </>
               ) : (
                 <StripeStatusCard
                   tenantId={tenantId}
@@ -3768,7 +3885,10 @@ function SessionsTab({
                   )}
                 </div>
 
-                <p className="mb-4 text-2xl font-bold text-neutral-900">€{priceEuro}</p>
+                <p className="mb-4 text-2xl font-bold text-neutral-900">
+                  €{priceEuro}
+                  <span className="ml-1 text-xs font-normal text-neutral-400">excl. VAT</span>
+                </p>
 
                 {(bundle.purchasable ?? Boolean(bundle.stripePrice)) ? (
                   <button

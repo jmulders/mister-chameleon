@@ -83,6 +83,11 @@ export type ShopTexts = {
   fullNamePlaceholder: string;
   companyName:        string;
   companyPlaceholder: string;
+  country:            string;
+  vatNumber:          string;
+  vatNumberPlaceholder: string;
+  /** Under the VAT field: when it matters, and that prices exclude VAT. */
+  vatHint:            string;
   workEmail:          string;
   emailPlaceholder:   string;
   password:           string;
@@ -239,6 +244,10 @@ export const SHOP_TEXTS: SiteTexts<ShopTexts> = {
     fullNamePlaceholder: "Jane Smith",
     companyName:         "Company name",
     companyPlaceholder:  "Acme Inc.",
+    country:             "Country",
+    vatNumber:           "VAT number (optional)",
+    vatNumberPlaceholder: "NL123456789B01",
+    vatHint:             "Prices exclude VAT. In the Netherlands 21% is added. With a VAT number from another EU country the VAT is reverse-charged to you.",
     workEmail:           "Work email",
     emailPlaceholder:    "you@company.com",
     password:            "Password",
@@ -387,6 +396,10 @@ export const SHOP_TEXTS: SiteTexts<ShopTexts> = {
     fullNamePlaceholder: "Jan Jansen",
     companyName:         "Bedrijfsnaam",
     companyPlaceholder:  "Jouw bedrijf B.V.",
+    country:             "Land",
+    vatNumber:           "Btw-nummer (optioneel)",
+    vatNumberPlaceholder: "NL123456789B01",
+    vatHint:             "Prijzen zijn exclusief btw. In Nederland komt er 21% bij. Met een btw-nummer uit een ander EU-land wordt de btw naar jou verlegd.",
     workEmail:           "Zakelijk e-mailadres",
     emailPlaceholder:    "jij@bedrijf.nl",
     password:            "Wachtwoord",
