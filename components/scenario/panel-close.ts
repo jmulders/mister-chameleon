@@ -28,6 +28,16 @@ export interface PanelCloseSizes {
   opener:      { minHeight: number; padding: string; fontSize: number };
   /** The close button in the header. */
   headerClose: { minHeight: number; padding: string; fontSize: number };
+  /**
+   * "Exit" in the header, which leaves the scenario. For a mouse it is the
+   * small chip it always was; for a finger it is a full-size target.
+   */
+  headerExit:  { minHeight: number; padding: string; fontSize: number };
+  /**
+   * Height of the link to the variables beside it. Only the height grows for
+   * a finger: wider would take the room the title needs.
+   */
+  headerLinkMinHeight: number;
   /** Whether the foot of the panel carries a close button of its own. */
   footClose:   boolean;
   /**
@@ -45,6 +55,8 @@ export function panelCloseSizes(touch: boolean): PanelCloseSizes {
     return {
       opener:      { minHeight: TOUCH_TARGET, padding: "0 18px", fontSize: 13 },
       headerClose: { minHeight: TOUCH_TARGET, padding: "0 12px", fontSize: 13 },
+      headerExit:  { minHeight: TOUCH_TARGET, padding: "0 10px", fontSize: 13 },
+      headerLinkMinHeight: TOUCH_TARGET,
       footClose:   true,
       compactHeader: true,
     };
@@ -52,6 +64,8 @@ export function panelCloseSizes(touch: boolean): PanelCloseSizes {
   return {
     opener:      { minHeight: 30, padding: "0 14px", fontSize: 11 },
     headerClose: { minHeight: 26, padding: "0 10px", fontSize: 11 },
+    headerExit:  { minHeight: 19, padding: "2px 7px", fontSize: 10 },
+    headerLinkMinHeight: 19,
     footClose:   false,
     compactHeader: false,
   };

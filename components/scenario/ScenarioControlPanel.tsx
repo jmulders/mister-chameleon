@@ -2579,7 +2579,8 @@ export function ScenarioControlPanel({ scenarioPanel, scenarioPresets, scenarioO
                 </span>
                 {scenario.active ? (
                   <span style={{ ...HEADER_LINE, fontSize: 10, color: "#ef4444", fontWeight: 600 }}>
-                    ⚡ {scenario.label ?? "SCENARIO MODE ACTIVE"}
+                    {/* On a phone the red says it already; the mark would cost the name its last letters. */}
+                    {closeSizes.compactHeader ? "" : "⚡ "}{scenario.label ?? "SCENARIO MODE ACTIVE"}
                   </span>
                 ) : (
                   <span style={{ ...HEADER_LINE, fontSize: 10, color: "#9ca3af" }}>Real behavioral data</span>
@@ -2600,17 +2601,24 @@ export function ScenarioControlPanel({ scenarioPanel, scenarioPresets, scenarioO
                 target="_blank"
                 rel="noopener"
                 title="Every context variable of this visit, with its value"
-                style={{ padding: "2px 7px", background: "#eef2ff", color: "#4338ca",
+                style={{ display: "inline-flex", alignItems: "center",
+                  minHeight: closeSizes.headerLinkMinHeight, boxSizing: "border-box",
+                  padding: "2px 7px", background: "#eef2ff", color: "#4338ca",
                   borderRadius: 5, fontSize: 10, fontWeight: 700, textDecoration: "none",
                   whiteSpace: "nowrap" }}
               >
                 {closeSizes.compactHeader ? "Variables ↗" : "All variables ↗"}
               </a>
               {scenario.active && (
-                <button onClick={() => { clearScenario(); triggerRefresh(); }}
-                  style={{ padding: "2px 7px", background: "#fee2e2", color: "#dc2626",
-                    border: "none", borderRadius: 5, fontSize: 10, fontWeight: 700,
-                    cursor: "pointer" }}>
+                <button
+                  type="button"
+                  data-part="scenario-exit"
+                  onClick={() => { clearScenario(); triggerRefresh(); }}
+                  aria-label="Exit the scenario"
+                  style={{ minHeight: closeSizes.headerExit.minHeight, padding: closeSizes.headerExit.padding,
+                    background: "#fee2e2", color: "#dc2626",
+                    border: "none", borderRadius: 5, fontSize: closeSizes.headerExit.fontSize, fontWeight: 700,
+                    cursor: "pointer", whiteSpace: "nowrap" }}>
                   Exit
                 </button>
               )}

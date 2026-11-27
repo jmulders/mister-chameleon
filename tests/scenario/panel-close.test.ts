@@ -48,6 +48,29 @@ describe("Scenario Control: sizes of the open and close controls", () => {
   });
 });
 
+describe("Scenario Control: Exit in the header", () => {
+  it("is a full-size target for a finger, and the small chip it was for a mouse", () => {
+    const touch = panelCloseSizes(true);
+    assert.ok(touch.headerExit.minHeight >= TOUCH_TARGET);
+    assert.ok(touch.headerLinkMinHeight >= TOUCH_TARGET);
+    const mouse = panelCloseSizes(false);
+    assert.deepEqual(mouse.headerExit, { minHeight: 19, padding: "2px 7px", fontSize: 10 });
+    assert.equal(mouse.headerLinkMinHeight, 19);
+  });
+
+  it("takes its size from the helper and still leaves the scenario", () => {
+    const exit = part(header, "scenario-exit");
+    assert.ok(exit.length > 0, "Exit is gone from the header");
+    assert.match(exit, /clearScenario\(\); triggerRefresh\(\);/);
+    assert.match(exit, /minHeight: closeSizes\.headerExit\.minHeight/);
+    assert.match(exit, /padding: closeSizes\.headerExit\.padding/);
+    // Only shown while a scenario is active.
+    assert.match(header, /\{scenario\.active && \(\s*<button\s+type="button"\s+data-part="scenario-exit"/);
+    // The link beside it grows in height only.
+    assert.match(header, /minHeight: closeSizes\.headerLinkMinHeight/);
+  });
+});
+
 describe("Scenario Control: the title on one line", () => {
   it("makes room in the header on a phone, and only there", () => {
     assert.equal(panelCloseSizes(true).compactHeader, true);
@@ -56,6 +79,8 @@ describe("Scenario Control: the title on one line", () => {
     // The mask icon goes and the link gets a shorter word.
     assert.match(title, /\{!closeSizes\.compactHeader && <span[^>]*>🎭<\/span>\}/);
     assert.match(header, /closeSizes\.compactHeader \? "Variables ↗" : "All variables ↗"/);
+    // And the scenario's name loses its mark, so a long name still fits beside a full-size Exit.
+    assert.match(title, /\{closeSizes\.compactHeader \? "" : "⚡ "\}\{scenario\.label \?\? "SCENARIO MODE ACTIVE"\}/);
   });
 
   it("never wraps the title or the scenario's name: what does not fit is cut", () => {
