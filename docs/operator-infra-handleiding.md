@@ -111,7 +111,13 @@ Dev-only toggles: `NEXT_PUBLIC_DEBUG_DIAGNOSTICS`, `NEXT_PUBLIC_SHOW_SCENARIO_PA
 | Variabele | Waar | Verplicht | Waarvoor |
 |---|---|---|---|
 | `CRON_SECRET` | Vercel | ja (prod) | Gate op alle cron-endpoints. Eén cron in `vercel.json` (`/api/cron/daily`, 03:00 UTC) draait alle jobs na elkaar. Zonder deze variabele antwoordt elke cron 401 en draait er niets. **Secret** |
-| `KEEP_WARM_URLS` | Vercel | nee | URL's voor de keep-warm-cron |
+| `KEEP_WARM_URLS` | Vercel | nee | Sites die het opwarmen bezoekt, met komma's ertussen. Standaard `https://www.misterchameleon.nl` |
+
+**Opwarmen (`/api/cron/keep-warm`).** Een functie bij Vercel stopt na een tijd zonder verzoeken, en de eerstvolgende bezoeker wacht dan seconden tot er een gestart is. Dit adres vraagt de homepage op, zodat de functie wakker blijft. Het wordt van buiten aangeroepen, elke vijf minuten: de cron van Vercel mag op het Hobby-plan maar eens per dag, en de planner van GitHub draaide de "uurlijkse" afrekening in november 2026 twee tot drie keer per dag.
+
+- **Instellen bij cron-job.org:** een taak met het adres `https://www.misterchameleon.nl/api/cron/keep-warm`, methode GET, elke 5 minuten. Geen kop en geen sleutel: het adres vraagt er geen, omdat `CRON_SECRET` ook de afrekening opent en niet bij een derde hoort.
+- **Een ping kost niets.** Het adres stuurt een kop mee die van `CRON_SECRET` is afgeleid, en de homepage geeft zo'n verzoek de standaardpagina: geen AI-aanroep, geen verrijking, geen getelde sessie. Zonder `CRON_SECRET` pingt het adres niet (antwoord 500).
+- **Controleren:** het antwoord is `{"ok":true,…}` met per site een status 200. Een 502 met `"mitigated":"challenge"` betekent dat de firewall van Vercel het bezoek aan de homepage tegenhoudt. Een 429 met het controlescherm op het adres zelf betekent dat de firewall de planner tegenhoudt. In beide gevallen is een **Bypass**-regel nodig in Vercel → Firewall → Rules (zie stap 20).
 
 ### Lead-base & webhooks
 | Variabele | Waar | Verplicht | Waarvoor |
@@ -242,7 +248,7 @@ Resolutie: tenant → platform_settings → env.
 **Nog open:**
 
 - **De dagelijkse cron deed op productie niets** (vastgesteld 14-11-2026): 1.164 bezoekersprofielen stonden over hun bewaartermijn, de oudste sinds 26 september, en de ad-sync liep voor het laatst op 25 augustus. De oorzaak is nog niet vastgesteld, die staat in het Vercel-log van de cron. Admin → Platform → System toont sindsdien per nacht of de cron gelopen heeft en wat elke job deed. Staat daar "No run on record" of "too long ago": controleer in Vercel (Schedules → Cron Jobs) of de cron bestaat en aan staat, en lees View Logs. Een 401 betekent dat `CRON_SECRET` niet voor Production gezet is (Vercel maakt hem niet zelf aan, en een nieuwe waarde werkt pas na een redeploy). Geen logregel betekent dat de cron de app niet bereikt, bijvoorbeeld door een firewallregel die `/api/cron/` challenget.
-- `/api/cron/billing-renewal` en `/api/cron/keep-warm` bestaan als routes maar staan **niet in `vercel.json`** → draaien niet automatisch. Bewust niet stilzwijgend aangezet: billing-renewal activeren heeft echte gevolgen.
+- `/api/cron/billing-renewal` bestaat als route maar staat **niet in `vercel.json`** → draait niet automatisch. Bewust niet stilzwijgend aangezet: billing-renewal activeren heeft echte gevolgen. `/api/cron/keep-warm` staat er ook niet in: dat wordt van buiten aangeroepen (zie §3, Cron / jobs).
 - `NEXTAUTH_URL` wordt alleen als fallback-base-URL gelezen; er is geen NextAuth-implementatie (admin-auth is een eigen JWT).
 - `.nvmrc` zegt Node 22, CI draait Node 20.
 

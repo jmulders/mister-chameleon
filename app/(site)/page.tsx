@@ -156,8 +156,12 @@ async function HomeBody({ params }: { params: Record<string, string | string[] |
   // for something they did not receive, and would inflate the very counter
   // that decides the cap. sessionCap comes from the pipeline, which already
   // computed it to make that decision.
-  const logAnalytics = isFeatureEnabled(tenant, "analytics") && result.analyticsAllowed;
-  const countSession = !result.sessionCap.overLimit;
+  //
+  // A keep-warm ping is not a visit: it is counted nowhere. Without this each
+  // ping would arrive without a cookie, get a fresh session id and take one
+  // session from the tenant's monthly bundle.
+  const logAnalytics = isFeatureEnabled(tenant, "analytics") && result.analyticsAllowed && !result.isWarmup;
+  const countSession = !result.sessionCap.overLimit && !result.isWarmup;
   const sessionInput = sessionInputFromContext(input, input.pathname ?? "/");
 
   after(async () => {

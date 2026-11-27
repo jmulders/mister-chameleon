@@ -191,7 +191,7 @@ Zie ook `STAGING.md` in de repo-root voor de volledige end-to-end guide (migrati
 
 **Nog open:**
 
-- `/api/cron/billing-renewal` en `/api/cron/keep-warm` staan niet in `vercel.json` en draaien dus niet automatisch. Bewust niet stilzwijgend aangezet: billing-renewal activeren heeft echte gevolgen.
+- `/api/cron/billing-renewal` staat niet in `vercel.json` en draait dus niet automatisch. Bewust niet stilzwijgend aangezet: billing-renewal activeren heeft echte gevolgen. `/api/cron/keep-warm` wordt van buiten aangeroepen, zie de operator-handleiding (§3, Cron / jobs).
 - `set-previews.yml` heeft nog een placeholder `CMS_REPO` en is niet af.
 - Geen apart staging-Supabase-project — `develop`/staging is nog niet bekabeld (§7, §10 zijn de "voor als het er komt"-guide).
 

@@ -1,46 +1,47 @@
 /**
  * GET /api/cron/keep-warm
  *
- * Keep-warm cron. Serverless functions on Vercel are recycled after a few
- * minutes of inactivity; the next visitor then pays a cold start (seconds),
- * and on a cold ISR window the render also re-fetches Sanity. This cron pings
- * the production homepage(s) on a schedule so the render function stays warm and
- * the Sanity/data caches stay primed — keeping first-visit TTFB low.
+ * Serverless functions on Vercel are stopped after a while without requests;
+ * the next visitor then waits for one to start (seconds). This endpoint
+ * requests the production homepage, so the function that renders it stays
+ * awake and the remembered configuration stays fresh.
  *
- * How it warms things:
- *   - It fetches the real homepage URL, so the exact render path runs and all
- *     its Sanity fetches (site settings, home page, block variants) refresh the
- *     shared Next data cache for everyone.
- *   - The `x-mc-warmup: 1` header marks the request as a warm-up: the homepage
- *     pipeline disables billing for it, so keep-warm pings never consume
- *     enrichment credits (see lib/pipeline/homepage-pipeline.ts).
+ * What a ping costs: nothing but the render. It carries the warm-up header
+ * (lib/warmup/warmup-request.ts, derived from CRON_SECRET), and the homepage
+ * pipeline answers such a request with the default experience: no AI call, no
+ * enrichment credit, no counted session, no analytics row.
+ *
+ * The answer is 200 only when every target answered 200. A target that the
+ * Vercel Firewall challenged is reported as such (`mitigated`), because a
+ * challenge page warms nothing; the answer is 502 then, so the scheduler that
+ * calls this shows the failure.
+ *
+ * No login, on purpose. The caller is an outside scheduler, and the only key
+ * this platform has for such calls (CRON_SECRET) also opens the billing jobs;
+ * that key does not belong at a third party. Nothing here needs guarding: one
+ * call renders the homepage once, which anyone can do by visiting it, the
+ * targets come from the environment and not from the request, and the proxy
+ * rate-limits /api/* per address like every other endpoint.
  *
  * Config:
- *   KEEP_WARM_URLS  comma-separated list of URLs to warm.
+ *   KEEP_WARM_URLS  comma-separated list of site origins to warm.
  *                   Default: "https://www.misterchameleon.nl".
- *   CRON_SECRET     Bearer auth (required in production; see the other crons).
+ *   CRON_SECRET     The source of the warm-up header. Never leaves the server.
  *
- * Vercel cron (vercel.json):
- *   { "path": "/api/cron/keep-warm", "schedule": "*\/5 * * * *" }
- *   Frequent schedules (every few minutes) require a Vercel Pro plan. On Hobby,
- *   use an external uptime pinger hitting the homepage instead.
+ * Who calls it: an outside scheduler, every five minutes (see
+ * docs/operator-infra-handleiding.md). Vercel's own cron runs daily at most
+ * on the Hobby plan, and GitHub's scheduler ran the "hourly" billing job two
+ * or three times a day in November 2026, so neither can keep a function awake.
  */
 
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { logger } from "@/lib/logger";
+import { WARMUP_HEADER, warmupToken } from "@/lib/warmup/warmup-request";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 const DEFAULT_TARGETS = ["https://www.misterchameleon.nl"];
-
-function isAuthorized(request: NextRequest): boolean {
-  const cronSecret = process.env["CRON_SECRET"];
-  if (process.env["NODE_ENV"] !== "production" && !cronSecret) return true;
-  if (!cronSecret) return false;
-  const authHeader = request.headers.get("authorization") ?? "";
-  return authHeader === `Bearer ${cronSecret}`;
-}
 
 function targets(): string[] {
   const raw = process.env["KEEP_WARM_URLS"];
@@ -48,9 +49,12 @@ function targets(): string[] {
   return raw.split(",").map((s) => s.trim()).filter(Boolean);
 }
 
-export async function GET(request: NextRequest): Promise<NextResponse> {
-  if (!isAuthorized(request)) {
-    return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
+export async function GET(): Promise<NextResponse> {
+  // Without the token the homepage would treat the ping as a visitor: a
+  // counted session and an AI call each time. Then it is better not to ping.
+  const token = warmupToken() ?? (process.env["NODE_ENV"] !== "production" ? "1" : null);
+  if (!token) {
+    return NextResponse.json({ ok: false, error: "CRON_SECRET is not set" }, { status: 500 });
   }
 
   const startedAt = Date.now();
@@ -62,15 +66,16 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         const res = await fetch(url, {
           method: "GET",
           headers: {
-            "x-mc-warmup": "1",
+            [WARMUP_HEADER]: token,
             "user-agent": "MisterChameleon-KeepWarm/1.0",
           },
           cache: "no-store",
           redirect: "follow",
         });
-        // Drain the body so the full render (and its Sanity fetches) completes.
+        // Drain the body so the whole render completes.
         await res.text().catch(() => "");
-        return { url, status: res.status, ms: Date.now() - t0 };
+        const mitigated = res.headers.get("x-vercel-mitigated");
+        return { url, status: res.status, ms: Date.now() - t0, ...(mitigated ? { mitigated } : {}) };
       } catch (err) {
         return { url, error: err instanceof Error ? err.message : String(err), ms: Date.now() - t0 };
       }
@@ -78,6 +83,11 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   );
 
   const durationMs = Date.now() - startedAt;
-  logger.info("[keep-warm] Completed", { results, durationMs });
-  return NextResponse.json({ ok: true, results, durationMs, runAt: new Date().toISOString() });
+  const ok = results.every((r) => "status" in r && r.status === 200);
+  if (ok) logger.info("[keep-warm] Completed", { results, durationMs });
+  else    logger.warn("[keep-warm] A target did not answer 200", { results, durationMs });
+  return NextResponse.json(
+    { ok, results, durationMs, runAt: new Date().toISOString() },
+    { status: ok ? 200 : 502 },
+  );
 }
