@@ -22,6 +22,7 @@ import { syncPackageKeyFromPlan } from "./subscriptions";
 import { mollieReloadSource } from "./mollie-auto-reload";
 import { chargeMollieRenewal, noteRenewalAdvanced, type MollieRenewalResult } from "./mollie-renewal";
 import { upgradeProrationCents } from "./plan-change-proration";
+import { upgradeDescription } from "./mollie-invoicing";
 import type { MollieDeps } from "./mollie";
 
 const PLAN_TIER: Record<string, number> = { starter: 0, growth: 1, pro: 2 };
@@ -120,6 +121,9 @@ export async function changePlanViaMollie(
     now,
   });
 
+  // What the tenant is charged: the difference plus VAT. Known after the charge.
+  let chargedCents = 0;
+
   if (dueCents > 0) {
     if (!(await mollieReloadSource(client, tenantId, deps?.mollie))) {
       return {
@@ -137,6 +141,7 @@ export async function changePlanViaMollie(
       plan:           newPlanId,
       cycle:          "monthly",
       description:    `Mister Chameleon: upgrade to ${planLabel}, rest of the period`,
+      invoiceDescription: upgradeDescription(newPlanId),
       idempotencyKey: `upgrade:${tenantId}:${currentPlanId}:${newPlanId}:${sub.current_period_end ?? "none"}`,
     }, deps?.mollie);
     if (!charge.ok) {
@@ -148,8 +153,9 @@ export async function changePlanViaMollie(
     // The plan changes with the charge. If the bank refuses the debit later
     // the tenant goes past due for this amount, like for any other charge.
     await noteRenewalAdvanced(client, tenantId, nowIso);
+    chargedCents = charge.chargedCents ?? dueCents;
   }
 
   await switchNow();
-  return { ok: true, effectiveNextPeriod: false, chargedCents: dueCents };
+  return { ok: true, effectiveNextPeriod: false, chargedCents };
 }

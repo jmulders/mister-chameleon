@@ -55,6 +55,7 @@ import { attemptSubscriptionCharge } from "@/billing/subscription-charge";
 import { renewalCharge, renewalIdempotencyKey } from "@/billing/renewal-charge";
 import { getPaymentProvider }        from "@/billing/payment-provider";
 import { chargeMollieRenewal, noteRenewalAdvanced, trialRealign } from "@/billing/mollie-renewal";
+import { renewalDescription }        from "@/billing/mollie-invoicing";
 import {
   markTenantPastDue,
   markTenantUnpaid,
@@ -94,6 +95,12 @@ interface RenewalResult {
             | "past_due"
             | "unpaid_escalated";
   error?:   string;
+}
+
+/** What a failed charge left open: the provider's own total when it gave one. */
+function owedCents(result: { chargedCents?: number } | object, fallback: number): number {
+  const charged = (result as { chargedCents?: unknown }).chargedCents;
+  return typeof charged === "number" && charged > 0 ? charged : fallback;
 }
 
 // ── Auth helper ────────────────────────────────────────────────────────────────
@@ -218,6 +225,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
             plan:           activePlan,
             cycle:          charge.cycle,
             description:    `Mister Chameleon: ${planLabel} subscription`,
+            invoiceDescription: renewalDescription(activePlan, renewedFrom, charge.cycle),
             idempotencyKey: renewalIdempotencyKey(tenant_id, sub.current_period_end),
           })
         : await attemptSubscriptionCharge(
@@ -247,7 +255,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
         await sendDunningEmail(client, tenant_id, {
           planName:      planLabel,
-          amountCents,
+          // With Mollie what is owed includes VAT: name that amount.
+          amountCents:   owedCents(chargeResult, amountCents),
           dueDate:       paymentDueSince.toISOString(),
           quarantineEnd: quarantineEnd.toISOString(),
         });

@@ -12,6 +12,8 @@ import type { SupabaseClient }       from "@supabase/supabase-js";
 import { mollieConfigured, MollieError } from "@/billing/mollie";
 import { startMollieCheckout }       from "@/billing/mollie-checkout";
 import type { MolliePurchaseKind }   from "@/billing/mollie-fulfil";
+import { chargeAmounts, vatMetadata } from "@/billing/billing-details";
+import { vatRateLabel }              from "@/billing/vat";
 
 export async function mollieCheckoutResponse(
   client:  SupabaseClient,
@@ -20,6 +22,7 @@ export async function mollieCheckoutResponse(
     tenantId:    string;
     kind:        MolliePurchaseKind;
     bundleId:    string | null;
+    /** The price exclusive of VAT. The VAT for this tenant is added here. */
     amountCents: number;
     description: string;
   },
@@ -38,7 +41,17 @@ export async function mollieCheckoutResponse(
   }
 
   try {
-    const { url, paymentId } = await startMollieCheckout(client, { ...purchase, origin, publicBaseUrl });
+    // The prices in the code are exclusive of VAT. What the tenant pays is
+    // the price plus the VAT that holds for them (billing/vat.ts).
+    const amounts = await chargeAmounts(client, purchase.tenantId, purchase.amountCents);
+    const { url, paymentId } = await startMollieCheckout(client, {
+      ...purchase,
+      amountCents:   amounts.grossCents,
+      description:   amounts.vatCents > 0 ? `${purchase.description}, incl. ${vatRateLabel(amounts.rateBp)} VAT` : purchase.description,
+      extraMetadata: vatMetadata(amounts),
+      origin,
+      publicBaseUrl,
+    });
     console.info("[billing/mollie] payment created", {
       tenantId: purchase.tenantId, kind: purchase.kind, bundleId: purchase.bundleId, paymentId,
     });

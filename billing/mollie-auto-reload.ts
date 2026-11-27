@@ -24,6 +24,9 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { createMolliePayment, mollieWebhookUrl, type MollieDeps, type MolliePayment } from "./mollie";
 import { currentMollieMode, getMollieCustomerRow, usableMandate } from "./mollie-customer";
 import type { MollieFulfilment } from "./mollie-fulfil";
+import { chargeAmounts, vatMetadata } from "./billing-details";
+import { vatRateLabel } from "./vat";
+import { invoiceAutoReload } from "./mollie-invoicing";
 
 /** `metadata.type` of a charge made for the automatic top-up. */
 export const AUTO_RELOAD_PAYMENT_TYPE = "wallet_auto_reload";
@@ -73,6 +76,7 @@ export async function chargeMollieReload(
   input: {
     tenantId:       string;
     attemptId:      string;
+    /** The top-up itself, exclusive of VAT: what the wallet will get. */
     amountCents:    number;
     idempotencyKey: string;
     source:         MollieReloadSource;
@@ -80,10 +84,14 @@ export async function chargeMollieReload(
   deps?: MollieDeps,
 ): Promise<ReloadCharge> {
   const publicBaseUrl = process.env["NEXT_PUBLIC_APP_URL"] ?? null;
+  // The mandate is charged the top-up plus VAT. The wallet is credited the
+  // top-up itself: that amount is on the reload attempt, not on the payment.
+  const amounts = await chargeAmounts(client, input.tenantId, input.amountCents);
   const payment = await createMolliePayment(
     {
-      amountCents:    input.amountCents,
-      description:    `Mister Chameleon: automatic wallet top-up €${(input.amountCents / 100).toFixed(2)}`,
+      amountCents:    amounts.grossCents,
+      description:    `Mister Chameleon: automatic wallet top-up €${(input.amountCents / 100).toFixed(2)}` +
+                      (amounts.vatCents > 0 ? ` plus ${vatRateLabel(amounts.rateBp)} VAT` : ""),
       sequenceType:   "recurring",
       customerId:     input.source.customerId,
       mandateId:      input.source.mandateId,
@@ -93,7 +101,8 @@ export async function chargeMollieReload(
         type:              AUTO_RELOAD_PAYMENT_TYPE,
         tenant_id:         input.tenantId,
         reload_attempt_id: input.attemptId,
-        amount_cents:      String(input.amountCents),
+        amount_cents:      String(amounts.grossCents),
+        ...vatMetadata(amounts),
       },
     },
     deps,
@@ -107,13 +116,17 @@ export async function chargeMollieReload(
     tenant_id:    input.tenantId,
     kind:         AUTO_RELOAD_PAYMENT_TYPE,
     bundle_id:    null,
-    amount_cents: input.amountCents,
+    amount_cents: amounts.grossCents,
     mode:         payment.mode === "live" ? "live" : "test",
     status:       String(payment.status),
   });
   if (error) {
     console.error("[billing/mollie-auto-reload] could not record the payment", { paymentId: payment.id, error: error.message });
   }
+
+  // A card mandate can be paid at once. The caller credits the wallet then,
+  // without waiting for the webhook, so the invoice is issued here too.
+  if (payment.status === "paid") await invoiceAutoReload(client, payment);
 
   return { id: payment.id, status: String(payment.status), succeeded: payment.status === "paid" };
 }
@@ -176,8 +189,12 @@ export async function settleMollieAutoReload(
       };
     }
     if (!deps) await adoptReloadAttempt(client, payment);
-    if (state === "succeeded") await handlers.onSuccess(client, payment.id);
-    else                       await handlers.onFailure(client, payment.id, `Mollie payment ${status}`);
+    if (state === "succeeded") {
+      await handlers.onSuccess(client, payment.id);
+      // The top-up is in the wallet: it gets its invoice, once per payment.
+      if (!deps) await invoiceAutoReload(client, payment);
+    }
+    else await handlers.onFailure(client, payment.id, `Mollie payment ${status}`);
   }
   return { outcome: "auto-reload", state, status };
 }

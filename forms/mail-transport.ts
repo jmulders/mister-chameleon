@@ -88,6 +88,14 @@ export interface MailMessage {
   readonly text:     string;
   /** Optional HTML body. When present, clients prefer HTML over text. */
   readonly html?:    string;
+  /** Optional files to attach, for example an invoice as a PDF. */
+  readonly attachments?: readonly MailAttachment[];
+}
+
+export interface MailAttachment {
+  readonly filename:    string;
+  readonly content:     Uint8Array;
+  readonly contentType: string;
 }
 
 /**
@@ -249,6 +257,8 @@ interface ResendPayload {
   subject:   string;
   text:      string;
   html?:     string;
+  /** Resend takes the file's bytes as base64. */
+  attachments?: { filename: string; content: string }[];
 }
 
 async function sendViaResend(
@@ -268,6 +278,9 @@ async function sendViaResend(
     subject: message.subject,
     text:    message.text,
     ...(message.html    ? { html:     message.html    } : {}),
+    ...(message.attachments?.length
+      ? { attachments: message.attachments.map((a) => ({ filename: a.filename, content: Buffer.from(a.content).toString("base64") })) }
+      : {}),
     ...(message.replyTo ? { reply_to: message.replyTo } : {}),
   };
 
@@ -550,6 +563,9 @@ async function sendViaSMTP(
       subject: message.subject,
       text:    message.text,
       html:    message.html,
+      ...(message.attachments?.length
+        ? { attachments: message.attachments.map((a) => ({ filename: a.filename, content: Buffer.from(a.content), contentType: a.contentType })) }
+        : {}),
     });
 
     return { ok: true };

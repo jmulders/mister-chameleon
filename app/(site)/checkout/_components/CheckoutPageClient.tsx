@@ -21,6 +21,7 @@ import Link                          from "next/link";
 import { useCart }                   from "@/lib/cart/cart-context";
 import { useSiteLocale }             from "@/components/site/SiteLocale";
 import { SHOP_TEXTS }                from "@/lib/site-texts/shop";
+import { EU_COUNTRIES }              from "@/billing/vat";
 
 // ── Field component ───────────────────────────────────────────────────────────
 
@@ -105,6 +106,21 @@ function PasswordStrength({ password }: { password: string }) {
 
 // ── Main component ────────────────────────────────────────────────────────────
 
+/**
+ * The countries the form offers: the EU, and the neighbours a Dutch company
+ * most often sells to. The Netherlands first, the rest by name in the
+ * visitor's language.
+ */
+const COUNTRY_CODES = [...EU_COUNTRIES, "GB", "CH", "NO", "US", "CA", "AU"];
+
+function countryOptions(locale: string): { code: string; name: string }[] {
+  let names: Intl.DisplayNames | null = null;
+  try { names = new Intl.DisplayNames([locale], { type: "region" }); } catch { /* codes will do */ }
+  const all = COUNTRY_CODES.map((code) => ({ code, name: names?.of(code) ?? code }));
+  const rest = all.filter((c) => c.code !== "NL").sort((a, b) => a.name.localeCompare(b.name, locale));
+  return [...all.filter((c) => c.code === "NL"), ...rest];
+}
+
 export function CheckoutPageClient({ verificationCents = null }: {
   /**
    * Set when the trial signup goes through Mollie: the amount of the payment
@@ -112,7 +128,8 @@ export function CheckoutPageClient({ verificationCents = null }: {
    */
   verificationCents?: number | null;
 } = {}) {
-  const t       = SHOP_TEXTS[useSiteLocale()];
+  const locale  = useSiteLocale();
+  const t       = SHOP_TEXTS[locale];
   const fmtEuro = t.money;
 
   const { cart, clearCart: _clearCart, totalCents: _totalCents } = useCart();
@@ -120,6 +137,8 @@ export function CheckoutPageClient({ verificationCents = null }: {
   const [name,     setName]     = useState("");
   const [email,    setEmail]    = useState("");
   const [company,  setCompany]  = useState("");
+  const [country,  setCountry]  = useState("NL");
+  const [vatNumber, setVatNumber] = useState("");
   const [password, setPassword] = useState("");
 
   const [loading,  setLoading]  = useState(false);
@@ -190,6 +209,8 @@ export function CheckoutPageClient({ verificationCents = null }: {
           name,
           email,
           company,
+          country,
+          vatNumber,
           password,
           planId: cart.plan?.planId ?? "starter",
         }),
@@ -255,6 +276,26 @@ export function CheckoutPageClient({ verificationCents = null }: {
                   <Field id="co-name"    label={t.fullName}    value={name}    onChange={setName}    required placeholder={t.fullNamePlaceholder}   autoComplete="name"         error={errors.name}    />
                   <Field id="co-company" label={t.companyName} value={company} onChange={setCompany} required placeholder={t.companyPlaceholder}    autoComplete="organization" error={errors.company} />
                 </div>
+
+                {/* Country and VAT number decide the VAT on what is charged after the trial. */}
+                <div className="form-row">
+                  <div style={{ display: "flex", flexDirection: "column", gap: "0.375rem" }}>
+                    <label htmlFor="co-country" style={{ fontSize: "0.875rem", fontWeight: 500, color: "#111827" }}>
+                      {t.country}<span style={{ color: "#6366f1", marginLeft: "0.2rem" }}>*</span>
+                    </label>
+                    <select
+                      id="co-country"
+                      value={country}
+                      onChange={(e) => setCountry(e.target.value)}
+                      autoComplete="country"
+                      style={{ padding: "0.625rem 0.875rem", borderRadius: "0.625rem", border: "1px solid #d1d5db", fontSize: "0.9375rem", color: "#111827", background: "white" }}
+                    >
+                      {countryOptions(locale).map((c) => <option key={c.code} value={c.code}>{c.name}</option>)}
+                    </select>
+                  </div>
+                  <Field id="co-vat" label={t.vatNumber} value={vatNumber} onChange={setVatNumber} placeholder={t.vatNumberPlaceholder} autoComplete="off" error={errors.vatNumber} />
+                </div>
+                <p style={{ fontSize: "0.8125rem", color: "#6b7280", margin: "-0.5rem 0 0" }}>{t.vatHint}</p>
 
                 <Field id="co-email"    label={t.workEmail} type="email"    value={email}    onChange={setEmail}    required placeholder={t.emailPlaceholder} autoComplete="email"        error={errors.email}    />
                 <Field id="co-password" label={t.password}   type="password" value={password} onChange={setPassword} required                               autoComplete="new-password" error={errors.password} />

@@ -82,7 +82,12 @@ export function planMolliePayment(payment: MolliePayment): MolliePlan {
     return { action: "credit", kind, tenantId, bundleId, credits: bundle.credits, label: bundle.label, amountCents: paidCents };
   }
   if (kind === "wallet_top_up") {
-    return { action: "credit", kind, tenantId, amountCents: paidCents };
+    // The wallet gets what was bought, not what was paid: the VAT on top of a
+    // top-up is tax, not balance. A payment from before VAT was charged has
+    // no net amount in its metadata and credits what was paid, as it did.
+    const net    = Number.parseInt(metaString(payment, "net_cents"), 10);
+    const credit = Number.isInteger(net) && net > 0 && net <= paidCents ? net : paidCents;
+    return { action: "credit", kind, tenantId, amountCents: credit };
   }
   return { action: "refuse", reason: "unknown_kind" };
 }

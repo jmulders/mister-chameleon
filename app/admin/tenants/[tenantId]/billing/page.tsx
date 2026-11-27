@@ -67,6 +67,9 @@ import { bundlePurchasable, getPaymentProvider } from "@/billing/payment-provide
 import { mollieConfigured }         from "@/billing/mollie";
 import { currentMollieMode, getMollieCustomerRow, usableMandate } from "@/billing/mollie-customer";
 import { overdueAmount }            from "@/billing/mollie-renewal";
+import { getBillingDetails }        from "@/billing/billing-details";
+import { listInvoices }             from "@/billing/invoices";
+import { vatDecision, vatNote, vatRateLabel } from "@/billing/vat";
 import { getDunningSettingsAction, getStripeInvoicesAction } from "./actions";
 import type { StripeInvoiceRow } from "./actions";
 import { BillingDashboard }         from "./_components/BillingDashboard";
@@ -650,6 +653,42 @@ export default async function TenantBillingPage({
   const sessionBundles = SESSION_CREDIT_BUNDLES
     .map((b) => ({ ...b, purchasable: bundlePurchasable(b, paymentProvider, mollieReady) }));
 
+  // With Mollie the platform adds the VAT itself, from the tenant's country
+  // and VAT number. The card shows them, and what they come to.
+  let billingDetails: {
+    company_name: string | null; address_line: string | null; postal_code: string | null; city: string | null;
+    country: string; vat_number: string | null; invoice_email: string | null; vatLine: string;
+  } | null = null;
+  if (paymentProvider === "mollie") {
+    const details  = await getBillingDetails(client, tenantId);
+    const decision = vatDecision({ country: details.country, vatNumber: details.vat_number });
+    billingDetails = {
+      company_name:  details.company_name,
+      address_line:  details.address_line,
+      postal_code:   details.postal_code,
+      city:          details.city,
+      country:       details.country,
+      vat_number:    details.vat_number,
+      invoice_email: details.invoice_email,
+      vatLine:       decision.rateBp > 0
+        ? `${vatRateLabel(decision.rateBp)} VAT is added to what you are charged.`
+        : (vatNote(decision.treatment) ?? "No VAT is added."),
+    };
+  }
+
+  // The invoices the platform issued itself, for what it charged through Mollie.
+  let platformInvoices: { number: string; issuedAt: string; description: string; grossCents: number; paid: boolean }[] = [];
+  if (paymentProvider === "mollie") {
+    try {
+      platformInvoices = (await listInvoices(client, tenantId)).map((inv) => ({
+        number: inv.number, issuedAt: inv.issued_at, description: inv.description, grossCents: inv.gross_cents, paid: inv.paid_at !== null,
+      }));
+    } catch (err) {
+      rethrowNextInternal(err);
+      console.warn("[billing/page] invoices read failed:", err);
+    }
+  }
+
   // A subscription charge on the mandate that failed or was reversed: the
   // tenant can pay it here. Only asked for a tenant that is behind.
   let mollieOverdue: { amountCents: number } | null = null;
@@ -784,6 +823,8 @@ export default async function TenantBillingPage({
         paymentNotice={paymentNotice}
         mollieMandate={mollieMandate}
         mollieOverdue={mollieOverdue}
+        billingDetails={billingDetails}
+        platformInvoices={platformInvoices}
         sessionBuyStatus={sessionBuyStatus}
         sessionBoughtBundleId={sessionBoughtBundleId}
         dunningSettings={dunningSettings}

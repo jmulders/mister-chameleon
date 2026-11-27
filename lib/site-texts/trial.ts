@@ -13,6 +13,10 @@ export type TrialTexts = {
   emailRequired:   string;
   companyRequired: string;
   invalidPlan:     string;
+  /** The country is not one of the codes the form offers. */
+  countryInvalid:  string;
+  /** A VAT number that is none, or that belongs to another country. */
+  vatNumberInvalid: string;
   accountExists:   string;
   tryAgain:        string;
   paymentDown:     string;
@@ -27,6 +31,8 @@ export const TRIAL_TEXTS: SiteTexts<TrialTexts> = {
     emailRequired:   "Vul een geldig e-mailadres in.",
     companyRequired: "Vul je bedrijfsnaam in.",
     invalidPlan:     "Dit pakket bestaat niet. Kies een pakket op de prijspagina.",
+    countryInvalid:  "Kies een land.",
+    vatNumberInvalid: "Dit btw-nummer klopt niet of hoort niet bij het land dat je koos. Het begint met twee letters, bijvoorbeeld NL123456789B01.",
     accountExists:   "Er bestaat al een account met dit e-mailadres. Log in met dat account.",
     tryAgain:        "Er ging iets mis. Probeer het opnieuw.",
     paymentDown:     "Betalen lukt op dit moment niet. Mail ons, dan helpen we je verder.",
@@ -39,6 +45,8 @@ export const TRIAL_TEXTS: SiteTexts<TrialTexts> = {
     emailRequired:   "A valid email address is required.",
     companyRequired: "Company name is required.",
     invalidPlan:     "Invalid plan.",
+    countryInvalid:  "Choose a country.",
+    vatNumberInvalid: "This VAT number is not valid or does not belong to the country you chose. It starts with two letters, for example NL123456789B01.",
     accountExists:   "An account with this email address already exists. Please sign in instead.",
     tryAgain:        "Server error. Please try again.",
     paymentDown:     "Payment provider not configured. Contact support.",

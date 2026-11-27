@@ -48,6 +48,7 @@ import type { CreditSettings }                 from "@/billing/credits";
 import { CREDIT_SETTINGS_DEFAULTS }            from "@/billing/credits";
 import type { FallbackMode }                   from "@/billing/credits";
 import { creditWallet, debitWallet, ensureWallet, updateWalletStatus } from "@/billing/wallet";
+import { cleanBillingDetails, saveBillingDetails, type BillingDetailsInput } from "@/billing/billing-details";
 import { CREDIT_BUNDLES, SESSION_CREDIT_BUNDLES, isValidPlanId } from "@/billing/plans";
 import type { BillingPlanId }                    from "@/billing/types";
 import { addCredits }                          from "@/billing/usage";
@@ -1173,6 +1174,30 @@ export async function confirmSessionBundlePurchaseAction(
 
   } catch (err) {
     console.error("[billing/actions] confirmSessionBundlePurchaseAction failed", err);
+    return { ok: false, error: (err as Error).message };
+  }
+}
+
+// ── Billing details: who to invoice, and which VAT holds ──────────────────────
+
+/**
+ * Save the tenant's billing details. The country and the VAT number decide
+ * the VAT on every later charge, so what is typed is checked first: a VAT
+ * number must be one, and must belong to the country chosen.
+ */
+export async function saveBillingDetailsAction(
+  tenantId: string,
+  input:    BillingDetailsInput,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  await requireTenantAction(tenantId);
+
+  try {
+    await requireAdmin();
+    const cleaned = cleanBillingDetails(tenantId, input);
+    if (!cleaned.ok) return { ok: false, error: cleaned.error };
+    return await saveBillingDetails(getServiceClient(), cleaned.details);
+  } catch (err) {
+    console.error("[billing/actions] saveBillingDetailsAction failed", err);
     return { ok: false, error: (err as Error).message };
   }
 }
