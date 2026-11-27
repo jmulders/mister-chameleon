@@ -146,16 +146,15 @@ export interface CreditBundle {
  * One session credit = one unique personalised visitor session beyond the
  * monthly plan cap.
  *
- * Pricing rationale (per 1 K sessions):
- *   Starter plan   €5.96 / 1K  (most expensive — small plan, many features included)
- *   Growth plan    €2.33 / 1K
- *   Pro plan       €1.50 / 1K
- *   Top-up credits €2.49 / 1K  (between Growth and Starter; upgrading Pro is better value for heavy users)
+ * Pricing rationale (per 1 K sessions; the numbers are in billing/plans.ts):
+ *   every bundle costs more per session than the Pro plan, so buying extra
+ *   covers a busy month and a larger plan is better value for a tenant who
+ *   needs more every month.
  */
 export interface SessionCreditBundle {
-  /** Stable machine-readable ID, e.g. "sessions_10k". */
+  /** Stable machine-readable ID, e.g. "sessions_5k". */
   id:              string;
-  /** Display label, e.g. "10,000 Sessions". */
+  /** Display label, e.g. "5,000 Sessions". */
   label:           string;
   /** Number of additional sessions purchased. */
   sessions:        number;

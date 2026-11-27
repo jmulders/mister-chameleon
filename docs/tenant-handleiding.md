@@ -214,9 +214,9 @@ Statussen: `active`, `trialing`, `past_due`, `canceled`, `unpaid`, `paused`. Eff
 
 ### 9.3 Sessie-credits
 
-Bundels: 10.000 (€24,90), 50.000 (€99), 200.000 (€349). **Verlopen nooit**, komen bovenop de plan-cap.
+Bundels: 1.000 (€29), 5.000 (€119), 20.000 (€399). **Verlopen nooit**, komen bovenop de plan-cap.
 
-De sessie-cap is een **soft cap**: boven de limiet krijgen bezoekers de standaard (niet-gepersonaliseerde) ervaring zonder errors, tot de maand reset of je bijkoopt. De top-upprijs (€2,49/1K) ligt bewust boven het Pro-tarief (€1,50/1K) om upgraden te stimuleren.
+De sessie-cap is een **soft cap**: boven de limiet krijgen bezoekers de standaard (niet-gepersonaliseerde) ervaring zonder errors, tot de maand reset of je bijkoopt. De top-upprijs (€19,95 tot €29 per 1.000) ligt bewust boven het Pro-tarief (€18,73 per 1.000): bijkopen vangt een drukke maand op, wie elke maand meer nodig heeft is met een groter pakket beter uit.
 
 ### 9.4 Het dashboard
 

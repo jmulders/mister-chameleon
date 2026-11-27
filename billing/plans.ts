@@ -170,45 +170,49 @@ export const CREDIT_BUNDLES: CreditBundle[] = [
 //   plan allowance.  Purchased session credits never expire — they roll over
 //   until consumed.
 //
-//   Pricing: €2.49 / 1K sessions (flat rate across all plans).
-//
-//   Rate comparison (per 1K sessions), since the plan limits went down on
-//   27 Nov 2026 to what a B2B site really gets (they were 25K / 150K / 500K):
+//   Rate per 1K sessions, with the plan limits of 27 Nov 2026:
 //     Starter plan:  €99.33 / 1K  (1,500 sessions for €149/mo)
 //     Growth plan:   €46.53 / 1K  (7,500 sessions for €349/mo)
 //     Pro plan:      €18.73 / 1K  (40,000 sessions for €749/mo)
-//     Top-up (any):   €2.49 / 1K
+//     Top-up:        €29.00 / €23.80 / €19.95 per 1K, by bundle size
 //
-//   OPEN: the bundles below were priced against the old limits, just above the
-//   old Pro rate so that upgrading stayed attractive. They are now far below
-//   every plan: 10,000 extra sessions for €24.90 beside a plan of 1,500. As
-//   long as they stand, the limits steer nobody to a larger plan. New sizes
-//   and prices are the owner's decision, and need new prices in Stripe.
+//   Every bundle stays above the Pro rate, so buying extra covers a busy
+//   month and a tenant who needs more every month is better off on a larger
+//   plan. The bundles before this were priced against limits of 25K / 150K /
+//   500K (10,000 sessions for €24.90): beside a plan of 1,500 sessions nobody
+//   would ever have upgraded.
+//
+//   The amount charged is the Stripe price behind `stripePrice`, not
+//   `priceCents`. That is why these bundles read their price ids from new
+//   variables (STRIPE_PRICE_SESSIONS_1K / _5K / _20K): the old variables point
+//   at the old prices, and reading those would sell 1,000 sessions for the old
+//   €24.90. Until the new prices exist in Stripe and their ids are set, a
+//   bundle answers "not configured".
 
 export const SESSION_CREDIT_BUNDLES: SessionCreditBundle[] = [
   {
-    id:               "sessions_10k",
-    label:            "10,000 Sessions",
-    sessions:         10_000,
-    priceCents:       2490,          // €24.90  — €2.49/1K
-    centsPerThousand: 249,
-    stripePrice:      process.env["STRIPE_PRICE_SESSIONS_10K"] ?? undefined,
+    id:               "sessions_1k",
+    label:            "1,000 Sessions",
+    sessions:         1_000,
+    priceCents:       2900,          // €29  — €29.00/1K
+    centsPerThousand: 2900,
+    stripePrice:      process.env["STRIPE_PRICE_SESSIONS_1K"] ?? undefined,
   },
   {
-    id:               "sessions_50k",
-    label:            "50,000 Sessions",
-    sessions:         50_000,
-    priceCents:       9900,          // €99  — €1.98/1K (slight bulk discount)
-    centsPerThousand: 198,
-    stripePrice:      process.env["STRIPE_PRICE_SESSIONS_50K"] ?? undefined,
+    id:               "sessions_5k",
+    label:            "5,000 Sessions",
+    sessions:         5_000,
+    priceCents:       11900,         // €119  — €23.80/1K
+    centsPerThousand: 2380,
+    stripePrice:      process.env["STRIPE_PRICE_SESSIONS_5K"] ?? undefined,
   },
   {
-    id:               "sessions_200k",
-    label:            "200,000 Sessions",
-    sessions:         200_000,
-    priceCents:       34900,         // €349  — €1.75/1K (best top-up rate)
-    centsPerThousand: 175,
-    stripePrice:      process.env["STRIPE_PRICE_SESSIONS_200K"] ?? undefined,
+    id:               "sessions_20k",
+    label:            "20,000 Sessions",
+    sessions:         20_000,
+    priceCents:       39900,         // €399  — €19.95/1K (best top-up rate)
+    centsPerThousand: 1995,
+    stripePrice:      process.env["STRIPE_PRICE_SESSIONS_20K"] ?? undefined,
   },
 ];
 

@@ -9,7 +9,7 @@
  *
  *   {
  *     tenantId: string;   // Tenant slug, e.g. "mister-chameleon"
- *     bundleId: string;   // "sessions_10k" | "sessions_50k" | "sessions_200k"
+ *     bundleId: string;   // "sessions_1k" | "sessions_5k" | "sessions_20k"
  *   }
  *
  * ─── Response ─────────────────────────────────────────────────────────────────
@@ -86,7 +86,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       {
         error:
           `Session bundle "${bundleId}" has no Stripe Price ID configured. ` +
-          `Add STRIPE_PRICE_SESSIONS_10K / _50K / _200K to your environment variables and ` +
+          `Add STRIPE_PRICE_SESSIONS_1K / _5K / _20K to your environment variables and ` +
           `create matching one-time prices in your Stripe dashboard.`,
       },
       { status: 500 },
