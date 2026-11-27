@@ -168,6 +168,22 @@ Dev-only toggles: `NEXT_PUBLIC_DEBUG_DIAGNOSTICS`, `NEXT_PUBLIC_SHOW_SCENARIO_PA
 | `ENABLE_DIRECT_CHECKOUT` / `STARTER_DIRECT_CHECKOUT` | nee | Self-service checkout |
 | `CHAMELEON_DEMO_MODE` / `ENABLE_BILLING_TEST_MODE` / `BILLING_DEBUG` | nee | Demo/test/logging |
 
+### Mollie (naast Stripe)
+
+Mollie neemt stap voor stap geldstromen over van Stripe. Stap 1 is live: de **losse aankopen** (sessie-bundels, AI-credits, tegoed opwaarderen). Abonnementen, de proefperiode, pakketwissels en het klantportaal lopen nog via Stripe.
+
+| Variabele | Verplicht | Uitleg |
+|---|---|---|
+| `PAYMENT_PROVIDER` | nee | `mollie` stuurt de losse aankopen via Mollie. Leeg of iets anders is Stripe. |
+| `MOLLIE_API_KEY` | bij `mollie` | `test_…` of `live_…`. De sleutel bepaalt test of live. **Secret** |
+
+- **Geen prijs-ID's.** Bij Mollie noemt het platform zelf het bedrag (`priceCents` in `billing/plans.ts`). De `STRIPE_PRICE_*`-variabelen zijn dan niet nodig voor de bundels.
+- **Webhook:** `/api/webhooks/mollie`. Het adres gaat per betaling mee, je stelt het niet in het Mollie-dashboard in. Het wordt afgeleid van `NEXT_PUBLIC_APP_URL`, anders van het adres waar de klant op zit. Op localhost gaat er geen webhook mee, daar bevestigt de terugkeerpagina de betaling.
+- **Tabel:** `mollie_payments` (migratie 191) moet bestaan voordat `PAYMENT_PROVIDER=mollie` aangaat.
+- **Migratie 192** hoort erbij en geldt ook voor Stripe: de functie `credit_wallet` weigerde elke bijschrijving van AI-credits omdat de statuskolom tekst is en de functie naar een enum castte.
+- **Btw:** het platform rekent het bedrag uit de code af en telt er niets bij op, net als bij Stripe.
+- **Terugboekingen** worden nog niet verwerkt: een teruggeboekte betaling haalt het tegoed niet vanzelf weer weg.
+
 ### Email
 Resolutie: per-tenant → `SMTP_HOST` → `RESEND_API_KEY` → skip.
 

@@ -225,6 +225,13 @@ export interface BillingDashboardProps {
   /** Bundle ID that was just purchased (only present when sessionBuyStatus="success"). */
   sessionBoughtBundleId?: string;
   /**
+   * A payment that came back without a final answer (Mollie).
+   * "pending" — not paid yet but still open: a slow method, or the answer is
+   *             on its way by webhook. The balance updates by itself.
+   * "problem" — paid, but the platform could not match it to a purchase.
+   */
+  paymentNotice?: "pending" | "problem";
+  /**
    * Dunning (payment-due) settings for this tenant.
    * When present, the Payment Due Notifications panel is shown in the Plan tab.
    */
@@ -2515,7 +2522,7 @@ function BuyCreditsPanel({ tenantId, bundles }: { tenantId: string; bundles: Cre
                 €{priceEuro}
               </p>
 
-              {bundle.stripePrice ? (
+              {(bundle.purchasable ?? Boolean(bundle.stripePrice)) ? (
                 <button
                   onClick={() => handleBuy(bundle.id)}
                   disabled={isAnyLoading}
@@ -3018,6 +3025,7 @@ export function BillingDashboard({
   sessionBundles,
   sessionBuyStatus,
   sessionBoughtBundleId,
+  paymentNotice,
   dunningSettings,
   stripeInvoices = [],
   stripeInvoicesError,
@@ -3042,6 +3050,30 @@ export function BillingDashboard({
 
       {/* Alert banners */}
       <AlertBanners wallet={wallet} reloadAttempts={reloadAttempts} statusKey={statusKey} spendThisMonth={spendThisMonth} />
+
+      {/* A payment without a final answer yet, or one that needs a look */}
+      {paymentNotice === "pending" && (
+        <div className="mb-4 flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
+          <span className="mt-0.5 text-amber-500">…</span>
+          <div>
+            <p className="text-sm font-semibold text-amber-800">Payment in progress</p>
+            <p className="text-xs text-amber-700 mt-0.5">
+              Your bank has not confirmed the payment yet. Your balance is updated as soon as it does. You do not need to pay again.
+            </p>
+          </div>
+        </div>
+      )}
+      {paymentNotice === "problem" && (
+        <div className="mb-4 flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3">
+          <span className="mt-0.5 text-red-500">!</span>
+          <div>
+            <p className="text-sm font-semibold text-red-800">We could not process this payment automatically</p>
+            <p className="text-xs text-red-700 mt-0.5">
+              Nothing has been added to your balance. Please contact support and do not pay again.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Purchase result banner — shown after returning from credit-bundle Checkout */}
       {buyStatus === "success" && (
@@ -3454,7 +3486,7 @@ function SessionsTab({
 
                 <p className="mb-4 text-2xl font-bold text-neutral-900">€{priceEuro}</p>
 
-                {bundle.stripePrice ? (
+                {(bundle.purchasable ?? Boolean(bundle.stripePrice)) ? (
                   <button
                     onClick={() => handleBuyBundle(bundle.id)}
                     disabled={isAnyLoading}

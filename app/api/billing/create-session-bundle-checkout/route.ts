@@ -43,6 +43,8 @@ import Stripe                        from "stripe";
 import { SESSION_CREDIT_BUNDLES }    from "@/billing/plans";
 import { getPlatformStripeSettings } from "@/platform/platform-store";
 import { getStripeMode, STRIPE_API_VERSION } from "@/billing/stripe-config";
+import { getPaymentProvider }       from "@/billing/payment-provider";
+import { mollieCheckoutResponse }   from "../_lib/mollie-checkout";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -81,7 +83,11 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     );
   }
 
-  if (!bundle.stripePrice) {
+  // With Mollie the platform names the amount itself (bundle.priceCents), so
+  // no Stripe Price ID is needed.
+  const provider = getPaymentProvider();
+
+  if (provider !== "mollie" && !bundle.stripePrice) {
     return NextResponse.json(
       {
         error:
@@ -116,6 +122,18 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
   if (!tenant) {
     return NextResponse.json({ error: "Tenant not found" }, { status: 404 });
+  }
+
+  // ── 4b. Mollie ───────────────────────────────────────────────────────────────
+
+  if (provider === "mollie") {
+    return mollieCheckoutResponse(client, request, {
+      tenantId,
+      kind:        "session_bundle",
+      bundleId,
+      amountCents: bundle.priceCents,
+      description: `Mister Chameleon: ${bundle.label}`,
+    });
   }
 
   // ── 5. Resolve Stripe secret key ─────────────────────────────────────────────

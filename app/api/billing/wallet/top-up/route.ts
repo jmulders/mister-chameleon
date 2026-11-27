@@ -39,6 +39,8 @@ import { guardTenantRoute } from "@/lib/admin-auth/route-guard";
 import { createClient }                from "@supabase/supabase-js";
 import { getOrCreateStripeCustomer }   from "@/billing/stripe";
 import { getStripeClient, getStripeMode, getStripeModeInfo } from "@/billing/stripe-config";
+import { getPaymentProvider }         from "@/billing/payment-provider";
+import { mollieCheckoutResponse }     from "../../_lib/mollie-checkout";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -100,6 +102,18 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   // based on STRIPE_MODE:
   //   live → subscriptions.stripe_customer_id  (sk_live_… customer)
   //   test → tenant_wallets.stripe_test_customer_id (sk_test_… customer)
+
+  // ── Mollie ────────────────────────────────────────────────────────────────
+
+  if (getPaymentProvider() === "mollie") {
+    return mollieCheckoutResponse(client, request, {
+      tenantId,
+      kind:        "wallet_top_up",
+      bundleId:    null,
+      amountCents,
+      description: `Mister Chameleon: wallet top-up €${(amountCents / 100).toFixed(2)}`,
+    });
+  }
 
   let stripeCustomerId: string;
   try {
