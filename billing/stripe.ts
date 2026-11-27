@@ -55,6 +55,7 @@ import {
   type StripeMode,
 } from "./stripe-config";
 import { creditCheckoutSessionOnce } from "./checkout-credit-claim";
+import { fulfilSessionBundleCheckout, SESSION_BUNDLE_KIND } from "./session-bundle-fulfil";
 import { PLATFORM_FROM } from "@/lib/platform-contact";
 import { resolveRequestBaseUrl } from "@/lib/base-url";
 
@@ -983,6 +984,26 @@ export async function handleStripeWebhook(
           }
         }
         return { handled: true, action: "credit_bundle_processed", tenantId: tenantId ?? null };
+      }
+
+      // ── Session bundle purchase ───────────────────────────────────────────
+      //
+      // The billing page credits the same Checkout session when the buyer's
+      // browser comes back. Both go through one delivery, claimed once per
+      // session, so a closed tab or a payment that arrives later still credits.
+      if (session.metadata?.type === SESSION_BUNDLE_KIND) {
+        const fulfilment = await fulfilSessionBundleCheckout(client, session, event.livemode);
+        if (fulfilment.outcome === "refused") {
+          console.error("[stripe-webhook] session_bundle: not credited", { sessionId: session.id, reason: fulfilment.reason });
+          return { handled: false, action: `session_bundle_${fulfilment.reason}`, tenantId: fulfilment.tenantId };
+        }
+        if (fulfilment.outcome === "awaiting-payment") {
+          return { handled: true, action: "session_bundle_awaiting_payment", tenantId: fulfilment.tenantId };
+        }
+        if (fulfilment.outcome === "already-credited") {
+          return { handled: true, action: "session_bundle_already_processed", tenantId: fulfilment.tenantId };
+        }
+        return { handled: true, action: "session_bundle_processed", tenantId: fulfilment.tenantId };
       }
 
       // ── New subscription ──────────────────────────────────────────────────

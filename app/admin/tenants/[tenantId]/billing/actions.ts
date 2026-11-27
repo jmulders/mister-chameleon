@@ -48,7 +48,7 @@ import type { CreditSettings }                 from "@/billing/credits";
 import { CREDIT_SETTINGS_DEFAULTS }            from "@/billing/credits";
 import type { FallbackMode }                   from "@/billing/credits";
 import { creditWallet, debitWallet, ensureWallet, updateWalletStatus } from "@/billing/wallet";
-import { CREDIT_BUNDLES, SESSION_CREDIT_BUNDLES, isValidPlanId } from "@/billing/plans";
+import { CREDIT_BUNDLES, isValidPlanId } from "@/billing/plans";
 import type { BillingPlanId }                    from "@/billing/types";
 import { addCredits }                          from "@/billing/usage";
 import { upsertSubscription, syncPackageKeyFromPlan, renewSubscriptionPeriod } from "@/billing/subscriptions";
@@ -1065,9 +1065,10 @@ export async function syncPaymentMethodFromStripeAction(
  * Called by the billing page when Stripe redirects back with
  *   ?session_bundle=success&session_id=cs_xxx
  *
- * Idempotent: the session_credit_ledger is checked for an existing row with
- * note containing the checkout session ID before crediting, so duplicate calls
- * (e.g. two tab loads after checkout) never double-credit.
+ * Idempotent, together with the webhook: both deliver through
+ * fulfilSessionBundleCheckout() (billing/session-bundle-fulfil.ts), which
+ * claims the Checkout session once. Whoever comes second, or a reload of the
+ * success page, is told the sessions were already credited.
  */
 export async function confirmSessionBundlePurchaseAction(
   tenantId:          string,
@@ -1087,21 +1088,7 @@ export async function confirmSessionBundlePurchaseAction(
 
     const client = getServiceClient();
 
-    // ── 1. Idempotency check ─────────────────────────────────────────────────
-    // We store the cs_xxx in the ledger note. Check if we've already credited it.
-    const { data: existingRow } = await client
-      .from("session_credit_ledger")
-      .select("id")
-      .eq("tenant_id", tenantId)
-      .eq("entry_type", "purchase")
-      .ilike("note", `%${checkoutSessionId}%`)
-      .maybeSingle();
-
-    if (existingRow) {
-      return { ok: true, alreadyCredited: true, sessions: 0, bundleLabel: "" };
-    }
-
-    // ── 2. Resolve Stripe secret key ─────────────────────────────────────────
+    // ── 1. Resolve Stripe secret key ─────────────────────────────────────────
 
     let stripeSecretKey: string | undefined =
       process.env["STRIPE_TEST_SECRET_KEY"] ??
@@ -1118,7 +1105,7 @@ export async function confirmSessionBundlePurchaseAction(
       return { ok: false, error: "Stripe secret key not configured." };
     }
 
-    // ── 3. Fetch and validate the Stripe Checkout session ────────────────────
+    // ── 2. Fetch and validate the Stripe Checkout session ────────────────────
 
     const stripe = new Stripe(stripeSecretKey, {
       apiVersion: STRIPE_API_VERSION,
@@ -1144,32 +1131,30 @@ export async function confirmSessionBundlePurchaseAction(
       return { ok: false, error: "Session tenant does not match." };
     }
 
-    const bundleId = session.metadata.bundle_id;
-    const bundle   = SESSION_CREDIT_BUNDLES.find((b) => b.id === bundleId);
-    if (!bundle) {
-      return { ok: false, error: `Unknown session bundle ID in metadata: ${bundleId}` };
+    // ── 3. Deliver, once ─────────────────────────────────────────────────────
+    //
+    // The webhook delivers the same session. The note in the ledger used to be
+    // the only guard here, read before the credit was written: the webhook and
+    // this page arriving together would both have passed it.
+
+    const fulfilment = await fulfilSessionBundleCheckout(client, session, session.livemode);
+
+    if (fulfilment.outcome === "refused") {
+      return { ok: false, error: `Unknown session bundle ID in metadata: ${session.metadata.bundle_id}` };
     }
-
-    // ── 4. Credit via add_session_credits() RPC ──────────────────────────────
-
-    const { error: rpcError } = await client.rpc("add_session_credits", {
-      p_tenant_id: tenantId,
-      p_amount:    bundle.sessions,
-      p_bundle_id: bundleId,
-      p_stripe_id: checkoutSessionId,
-      p_note:      `${bundle.label}, Stripe checkout ${checkoutSessionId}`,
-    });
-
-    if (rpcError) {
-      return { ok: false, error: `Failed to credit sessions: ${rpcError.message}` };
+    if (fulfilment.outcome === "awaiting-payment") {
+      return { ok: false, error: `Payment not completed (status: ${fulfilment.status}).` };
+    }
+    if (fulfilment.outcome === "already-credited") {
+      return { ok: true, alreadyCredited: true, sessions: fulfilment.sessions, bundleLabel: fulfilment.label };
     }
 
     console.info(
-      `[billing/actions] confirmSessionBundlePurchaseAction: credited ${bundle.sessions} sessions ` +
-      `to tenant ${tenantId} for bundle ${bundleId} via session ${checkoutSessionId}`,
+      `[billing/actions] confirmSessionBundlePurchaseAction: credited ${fulfilment.sessions} sessions ` +
+      `to tenant ${tenantId} for bundle ${fulfilment.bundleId} via session ${checkoutSessionId}`,
     );
 
-    return { ok: true, alreadyCredited: false, sessions: bundle.sessions, bundleLabel: bundle.label };
+    return { ok: true, alreadyCredited: false, sessions: fulfilment.sessions, bundleLabel: fulfilment.label };
 
   } catch (err) {
     console.error("[billing/actions] confirmSessionBundlePurchaseAction failed", err);
@@ -1592,6 +1577,7 @@ import {
 } from "@/billing/dunning";
 import { requireTenantAction } from "@/lib/admin-auth/action-guard";
 import { creditCheckoutSessionOnce } from "@/billing/checkout-credit-claim";
+import { fulfilSessionBundleCheckout } from "@/billing/session-bundle-fulfil";
 
 /**
  * Fetch the dunning settings for a tenant.
