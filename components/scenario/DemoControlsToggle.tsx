@@ -21,7 +21,7 @@ import {
 
 export function DemoControlsToggle() {
   const [mounted,  setMounted]  = useState(false);
-  const [enabled,  setEnabled]  = useState(true);
+  const [enabled,  setEnabled]  = useState(false);
 
   useEffect(() => {
     setMounted(true);

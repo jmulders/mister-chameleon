@@ -5,8 +5,13 @@
  *
  * A tenant decides whether its site has Scenario Control at all
  * (debug.showScenarioControl). On such a site a visitor can switch the console
- * off and on for themselves: off means no panel and no button in the corner,
+ * on and off for themselves: off means no panel and no button in the corner,
  * on any page. The choice is kept in the browser.
+ *
+ * It starts off. A visitor who never chose sees the site as it is, and finds
+ * the switch in the menu. The owner asked for that on 27 Nov 2026: until then
+ * every first visit had the button of the console in the corner. An address
+ * with ?scenario=true switches it on, so a link to a demo still opens it.
  *
  * Two switches set it: the one in the site menu (ScenarioControlSwitch) and
  * the one on /demo-controls (DemoControlsToggle). The panel listens. They talk
@@ -17,21 +22,31 @@
 export const DEMO_CONTROLS_STORAGE_KEY  = "mc_demo_controls_active";
 export const DEMO_CONTROLS_CHANGE_EVENT = "mc_demo_controls_changed";
 
-/** On unless the visitor switched it off: a browser that never chose has it on. */
+/** Off unless the visitor switched it on: a browser that never chose has it off. */
 export function demoControlsEnabledFrom(stored: string | null | undefined): boolean {
-  return stored !== "0";
+  return stored === "1";
+}
+
+/** True when the address asks for the console: ?scenario=true. */
+export function demoControlsAskedInAddress(search: string | null | undefined): boolean {
+  try {
+    return new URLSearchParams(search ?? "").get("scenario") === "true";
+  } catch {
+    // An unreadable query string is no request for the console.
+    return false;
+  }
 }
 
 export function demoControlsStoredValue(enabled: boolean): "1" | "0" {
   return enabled ? "1" : "0";
 }
 
-/** The choice of this browser. On when storage cannot be read. */
+/** The choice of this browser. Off when storage cannot be read. */
 export function readDemoControlsEnabled(): boolean {
   try {
     return demoControlsEnabledFrom(localStorage.getItem(DEMO_CONTROLS_STORAGE_KEY));
   } catch {
-    return true;
+    return false;
   }
 }
 
