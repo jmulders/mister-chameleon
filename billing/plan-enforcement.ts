@@ -69,6 +69,7 @@ import "server-only";
 import { noteFailedRead, rememberedRead } from "@/lib/cache/remembered-read";
 import { getDb }                  from "@/data/db";
 import { BILLING_PLANS }          from "./plans";
+import { noteSessionCounted }     from "./session-cap-notice";
 import type { BillingPlan }       from "./plans";
 import type { SupabaseClient }    from "@supabase/supabase-js";
 
@@ -319,6 +320,20 @@ export async function recordPersonalizedSession(
         p_tenant_id: tenantId,
         p_session_id: sessionId,
       }).then(() => null, () => null);
+    }
+
+    // ── Tell the tenant when the month runs out ───────────────────────────────
+    //
+    // Once at 80% of the plan and once when it is used up. Does nothing below
+    // three quarters of the plan, and never throws (session-cap-notice.ts).
+    if (isNewSession) {
+      await noteSessionCounted(db, {
+        tenantId,
+        monthKey:      key,
+        knownCount:    capResult.current,
+        planLimit:     capResult.planLimit,
+        bonusSessions: capResult.bonusSessions,
+      });
     }
   } catch {
     // Non-fatal — session tracking failure must never break personalisation.

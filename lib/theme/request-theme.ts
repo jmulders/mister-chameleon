@@ -25,6 +25,7 @@ import type { RuleEvaluationContext } from "@/decision/rules/field-registry";
 import { isThemePresetKey, type ThemePresetKey } from "@/design-system/theme/presets";
 import { parseScenarioCookie, applyScenarioToDecisionContext } from "@/lib/scenario/server-scenario";
 import { getTenantSiteSettings } from "@/cms/providers/tenant-site-settings";
+import { themeStoppedBySessionLimit } from "./theme-session-limit";
 
 export interface RequestThemeDecision {
   /** Contextual curated theme key (rule / scenario override), else null. */
@@ -66,6 +67,13 @@ export const getRequestThemeDecision = cache(async (): Promise<RequestThemeDecis
       const _devPathname = headersList.get("x-pathname") ?? "(unknown)";
       console.debug("[mc:theme] edit-mode — skipping personalisation pipeline", `route=${_devPathname}`);
       // contextualThemeKey stays null → caller falls back to the DB/CMS default.
+    } else if (await themeStoppedBySessionLimit(tenantConfig.tenantId)) {
+      // Over the month's session limit the content is the default one; so are
+      // the colours. No rule is evaluated and no theme is locked for the
+      // session, so the first visit of next month decides afresh.
+      if (process.env.NODE_ENV === "development") {
+        console.debug("[mc:theme] session limit reached — default theme", `route=${headersList.get("x-pathname") ?? "(unknown)"}`);
+      }
     } else {
       const ua       = headersList.get("user-agent") ?? "";
       const timezone = tenantSettings?.timezone ?? "UTC";

@@ -35,6 +35,7 @@ import { isThemePresetKey } from "@/design-system/theme/presets";
 import type { ThemePresetKey } from "@/design-system/theme/presets";
 import type { CuratedBlockTokens } from "@/design-system/theme/block-token-set";
 import type { RuleEvaluationContext } from "@/decision/rules/field-registry";
+import { themeStoppedBySessionLimit } from "./theme-session-limit";
 
 /**
  * Returns the site-wide block tokens for the contextually-selected gallery preset,
@@ -50,6 +51,8 @@ export const getContextualGalleryDefaultTokens = cache(async (): Promise<Curated
 
     const { tenantId } = await getActiveTenant();
     if (!tenantId) return null;
+    // Over the month's session limit: default colours, as in request-theme.ts.
+    if (await themeStoppedBySessionLimit(tenantId)) return null;
     const settings = await getTenantForRender(tenantId);
 
     const ua        = headersList.get("user-agent") ?? "";
