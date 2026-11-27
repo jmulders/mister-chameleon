@@ -136,6 +136,12 @@ export interface CreditBundle {
    * Undefined on the client (env vars are server-only).
    */
   stripePrice?: string;
+  /**
+   * Whether the buy button works. Set by the billing page: with Stripe a
+   * bundle needs a Price ID, with Mollie a configured key is enough. Left
+   * unset, the buttons fall back to "has a Stripe Price ID".
+   */
+  purchasable?: boolean;
 }
 
 /**
@@ -167,6 +173,8 @@ export interface SessionCreditBundle {
    * Undefined on the client (env vars are server-only).
    */
   stripePrice?:    string;
+  /** See CreditBundle.purchasable. */
+  purchasable?:    boolean;
 }
 
 // ── Calculator types ───────────────────────────────────────────────────────────

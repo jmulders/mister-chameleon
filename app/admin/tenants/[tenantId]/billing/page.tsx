@@ -44,7 +44,7 @@
  */
 
 import { createClient }             from "@supabase/supabase-js";
-import { notFound }                 from "next/navigation";
+import { notFound, redirect }       from "next/navigation";
 import { getTenantById }            from "@/tenant/server";
 import { AdvertiserBilling }        from "./_components/AdvertiserBilling";
 import { confirmAdTopUpAction }     from "../ads/actions";
@@ -62,7 +62,9 @@ import { serializeError }           from "@/billing/errors";
 import { CREDIT_SETTINGS_DEFAULTS } from "@/billing/credits";
 import type { CreditSettings }      from "@/billing/credits";
 import type { UsageSummary }        from "@/billing/types";
-import { getCreditSettingsAction, confirmBundlePurchaseAction, confirmSubscriptionCheckoutAction, syncPaymentMethodFromStripeAction, confirmSessionBundlePurchaseAction, confirmPlanChangeCheckoutAction } from "./actions";
+import { getCreditSettingsAction, confirmBundlePurchaseAction, confirmSubscriptionCheckoutAction, syncPaymentMethodFromStripeAction, confirmSessionBundlePurchaseAction, confirmPlanChangeCheckoutAction, confirmMollieReturnAction } from "./actions";
+import { bundlePurchasable, getPaymentProvider } from "@/billing/payment-provider";
+import { mollieConfigured }         from "@/billing/mollie";
 import { getDunningSettingsAction, getStripeInvoicesAction } from "./actions";
 import type { StripeInvoiceRow } from "./actions";
 import { BillingDashboard }         from "./_components/BillingDashboard";
@@ -224,6 +226,23 @@ export default async function TenantBillingPage({
   // Stripe Billing Portal return param — indicates the user just came back from
   // the portal and we should sync the payment method without waiting for a webhook.
   const portalReturn = String(sp["portal"] ?? "") === "return";
+
+  // ── Return from a Mollie checkout ──────────────────────────────────────────
+  //
+  // Mollie sends the customer back with ?mollie=return&ref=<uuid>, whether they
+  // paid, cancelled or gave up. The payment is read back from Mollie and
+  // delivered when it is paid, and the page continues at the address the
+  // result banners below already understand. The redirect also takes the
+  // reference out of the address bar, so a reload does not ask Mollie again.
+
+  const mollieParam = String(sp["mollie"] ?? "");
+  if (mollieParam === "return") {
+    const query = await confirmMollieReturnAction(tenantId, String(sp["ref"] ?? ""));
+    redirect(`/admin/tenants/${tenantId}/billing${query ? `?${query}` : ""}`);
+  }
+  const paymentNotice = mollieParam === "pending" ? "pending"
+                      : mollieParam === "problem" ? "problem"
+                      : undefined;
 
   // ── Confirm bundle purchase server-side ────────────────────────────────────
   //
@@ -618,7 +637,14 @@ export default async function TenantBillingPage({
   // Stripe Price IDs are resolved at runtime: env var first (same source as
   // keys during local dev), then platform_settings DB (admin-configured for prod).
 
-  const creditBundles = await getResolvedCreditBundles();
+  // With Mollie a bundle needs no Stripe Price ID: the platform names the
+  // amount itself. `purchasable` tells the buy buttons which of the two holds.
+  const paymentProvider = getPaymentProvider();
+  const mollieReady     = mollieConfigured();
+  const creditBundles = (await getResolvedCreditBundles())
+    .map((b) => ({ ...b, purchasable: bundlePurchasable(b, paymentProvider, mollieReady) }));
+  const sessionBundles = SESSION_CREDIT_BUNDLES
+    .map((b) => ({ ...b, purchasable: bundlePurchasable(b, paymentProvider, mollieReady) }));
 
   // ── 10. Dunning settings ───────────────────────────────────────────────────
 
@@ -722,7 +748,8 @@ export default async function TenantBillingPage({
         planChangeStatus={planChangeStatus}
         sessionCap={sessionCap}
         sessionLedger={sessionLedger}
-        sessionBundles={SESSION_CREDIT_BUNDLES}
+        sessionBundles={sessionBundles}
+        paymentNotice={paymentNotice}
         sessionBuyStatus={sessionBuyStatus}
         sessionBoughtBundleId={sessionBoughtBundleId}
         dunningSettings={dunningSettings}

@@ -1177,6 +1177,35 @@ export async function confirmSessionBundlePurchaseAction(
   }
 }
 
+// ── Return from a Mollie checkout ──────────────────────────────────────────────
+
+/**
+ * The customer is back from Mollie with ?mollie=return&ref=<uuid>.
+ *
+ * Finds the payment by the platform's own reference, reads it back from Mollie
+ * and delivers it when it is paid. The webhook does the same; whichever comes
+ * first credits, the other is told it was done (billing/mollie-fulfil.ts).
+ *
+ * Returns the query string the billing page continues with, so the existing
+ * result banners show, or null when the reference is not this tenant's.
+ */
+export async function confirmMollieReturnAction(
+  tenantId: string,
+  ref:      string,
+): Promise<string | null> {
+  await requireTenantAction(tenantId);
+
+  try {
+    await requireAdmin();
+    const { settleMollieReturn } = await import("@/billing/mollie-checkout");
+    return await settleMollieReturn(getServiceClient(), tenantId, ref);
+  } catch (err) {
+    console.error("[billing/actions] confirmMollieReturnAction failed", err);
+    // The payment may well be fine: the webhook delivers it. Say it is on its way.
+    return "mollie=pending";
+  }
+}
+
 // ── Subscription management actions (SUPER ADMIN ONLY) ─────────────────────────
 
 export type SubscriptionStatus =
