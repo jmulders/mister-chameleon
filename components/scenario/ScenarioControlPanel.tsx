@@ -71,6 +71,7 @@ import { DEMO_FLOW_LIST, runDemoFlow, type DemoFlowProgress } from "./demo-flows
 import { applyScenarioOverride } from "./apply-scenario-override";
 import { shouldPollJourneyState, consoleIsActive, shouldFetchBackendState } from "./journey-poll";
 import { startsMinimized } from "./panel-start";
+import { TOUCH_LAYOUT_QUERY, panelCloseSizes, panelWidthCss, escapeCloses } from "./panel-close";
 import { claimLauncherSide } from "@/lib/layout/floating-stack";
 import { getConsent } from "@/tracking/consent-store";
 import { ENRICHER_REGISTRY, type EnricherKey } from "@/lib/scenario/enricher-registry";
@@ -2139,6 +2140,42 @@ export function ScenarioControlPanel({ scenarioPanel, scenarioPresets, scenarioO
     }
   }, [pathname, demoControlsEnabled]);
 
+  // ── Opening and closing ───────────────────────────────────────────────────
+  //
+  // One place for both, so every control that opens or closes the console
+  // remembers the choice the same way. /demo-controls is not remembered as
+  // closed: that page exists to show the console.
+  const collapse = useCallback(() => {
+    try { if (pathname !== "/demo-controls") localStorage.setItem("mc_scenario_panel_minimized", "1"); } catch { /* ignore */ }
+    setMinimized(true);
+  }, [pathname]);
+  const expand = useCallback(() => {
+    try { localStorage.setItem("mc_scenario_panel_minimized", "0"); } catch { /* ignore */ }
+    setMinimized(false);
+  }, []);
+
+  // A finger needs larger targets than a mouse, and on a phone the panel
+  // gets a close button at its foot (see panel-close.ts).
+  const [touchLayout, setTouchLayout] = useState(false);
+  useEffect(() => {
+    const query = window.matchMedia(TOUCH_LAYOUT_QUERY);
+    const sync  = () => setTouchLayout(query.matches);
+    sync();
+    query.addEventListener("change", sync);
+    return () => query.removeEventListener("change", sync);
+  }, []);
+
+  // Escape closes the open console, except while typing in one of its fields.
+  useEffect(() => {
+    if (minimized || !visible || !demoControlsEnabled) return;
+    const onKey = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (escapeCloses(e.key, target?.tagName, target?.isContentEditable === true)) collapse();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [minimized, visible, demoControlsEnabled, collapse]);
+
   // The collapsed console is a button in the bottom-right corner. While it is
   // on screen it takes that side of the launcher row, so a corner toast sits
   // above it instead of under it.
@@ -2449,7 +2486,8 @@ export function ScenarioControlPanel({ scenarioPanel, scenarioPresets, scenarioO
   if (!visible) return null;
   if (!demoControlsEnabled) return null;
 
-  const panelWidth = 360;
+  const panelWidth = panelWidthCss(360, 16);
+  const closeSizes = panelCloseSizes(touchLayout);
 
   return (
     <>
@@ -2483,12 +2521,16 @@ export function ScenarioControlPanel({ scenarioPanel, scenarioPresets, scenarioO
 
       {/* Floating toggle button (shown when panel is minimized) */}
       {minimized && (
-        <button onClick={() => { localStorage.setItem("mc_scenario_panel_minimized", "0"); setMinimized(false); }}
+        <button onClick={expand}
+          data-part="scenario-open"
+          aria-expanded={false}
+          aria-label="Open Scenario Control"
           style={{
             position: "fixed", bottom: 20, right: 20, zIndex: 9999,
             background: scenario.active ? "#ef4444" : "#1e293b",
-            color: "#fff", border: "none", borderRadius: 20, padding: "6px 14px",
-            fontSize: 11, fontWeight: 700, cursor: "pointer",
+            color: "#fff", border: "none", borderRadius: 999,
+            minHeight: closeSizes.opener.minHeight, padding: closeSizes.opener.padding,
+            fontSize: closeSizes.opener.fontSize, fontWeight: 700, cursor: "pointer",
             boxShadow: "0 2px 8px rgba(0,0,0,0.3)",
           }}>
           {scenario.active ? "⚡ SCENARIO ACTIVE" : "🎭 Scenario Control"}
@@ -2513,21 +2555,36 @@ export function ScenarioControlPanel({ scenarioPanel, scenarioPresets, scenarioO
             display: "flex", alignItems: "center", justifyContent: "space-between",
             flexShrink: 0,
           }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
+            {/*
+              * The title is a button: the whole of it closes the console. It
+              * takes the room the links on the right leave, so on a phone it
+              * is a target half the width of the panel.
+              */}
+            <button
+              type="button"
+              data-part="scenario-title"
+              onClick={collapse}
+              aria-expanded={true}
+              aria-label="Close Scenario Control"
+              title="Close"
+              style={{ display: "flex", alignItems: "center", gap: 7, flex: 1, minWidth: 0,
+                alignSelf: "stretch", margin: "-9px 0 -9px -13px", padding: "9px 8px 9px 13px",
+                background: "transparent", border: "none", textAlign: "left",
+                font: "inherit", cursor: "pointer" }}>
               <span style={{ fontSize: 14 }}>🎭</span>
-              <div>
-                <div style={{ fontSize: 12, fontWeight: 700, color: "#111827" }}>
+              <span style={{ display: "block", minWidth: 0 }}>
+                <span style={{ display: "block", fontSize: 12, fontWeight: 700, color: "#111827" }}>
                   Scenario Control
-                </div>
+                </span>
                 {scenario.active ? (
-                  <div style={{ fontSize: 10, color: "#ef4444", fontWeight: 600 }}>
+                  <span style={{ display: "block", fontSize: 10, color: "#ef4444", fontWeight: 600 }}>
                     ⚡ {scenario.label ?? "SCENARIO MODE ACTIVE"}
-                  </div>
+                  </span>
                 ) : (
-                  <div style={{ fontSize: 10, color: "#9ca3af" }}>Real behavioral data</div>
+                  <span style={{ display: "block", fontSize: 10, color: "#9ca3af" }}>Real behavioral data</span>
                 )}
-              </div>
-            </div>
+              </span>
+            </button>
             <div style={{ display: "flex", gap: 5, alignItems: "center" }}>
               {/*
                 * The full list: every context variable of this visit with its
@@ -2556,10 +2613,16 @@ export function ScenarioControlPanel({ scenarioPanel, scenarioPresets, scenarioO
                   Exit
                 </button>
               )}
-              <button onClick={() => { if (pathname !== "/demo-controls") localStorage.setItem("mc_scenario_panel_minimized", "1"); setMinimized(true); }}
-                style={{ padding: "2px 7px", background: "#f1f5f9", color: "#6b7280",
-                  border: "none", borderRadius: 5, fontSize: 11, cursor: "pointer" }}>
-                ▾
+              <button
+                type="button"
+                data-part="scenario-close"
+                onClick={collapse}
+                aria-label="Close Scenario Control"
+                style={{ minHeight: closeSizes.headerClose.minHeight, padding: closeSizes.headerClose.padding,
+                  background: "#1e293b", color: "#fff", border: "none", borderRadius: 999,
+                  fontSize: closeSizes.headerClose.fontSize, fontWeight: 700, cursor: "pointer",
+                  whiteSpace: "nowrap" }}>
+                Close ▾
               </button>
             </div>
           </div>
@@ -2633,12 +2696,38 @@ export function ScenarioControlPanel({ scenarioPanel, scenarioPresets, scenarioO
           {/* Footer */}
           <div style={{ borderTop: "1px solid #e5e7eb", padding: "5px 13px",
             fontSize: 10, color: "#9ca3af", background: "#f8fafc",
-            display: "flex", justifyContent: "space-between", flexShrink: 0 }}>
-            <span>dev only · session-scoped · {autoApply ? "auto-apply ON" : "manual apply"}</span>
-            <span>
-              {journey?.funnelStage ?? NOT_KNOWN} ·{" "}
-              {journey ? pct(journey.confidence.overallConfidence) : NOT_KNOWN}
+            display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, flexShrink: 0 }}>
+            <span style={{ minWidth: 0 }}>
+              <span style={{ display: "block" }}>dev only · session-scoped · {autoApply ? "auto-apply ON" : "manual apply"}</span>
+              {closeSizes.footClose && (
+                <span style={{ display: "block" }}>
+                  {journey?.funnelStage ?? NOT_KNOWN} ·{" "}
+                  {journey ? pct(journey.confidence.overallConfidence) : NOT_KNOWN}
+                </span>
+              )}
             </span>
+            {closeSizes.footClose ? (
+              /*
+               * On a phone: a close button on the spot of the button that
+               * opened the console, so open and close are one thumb position.
+               */
+              <button
+                type="button"
+                data-part="scenario-close-foot"
+                onClick={collapse}
+                aria-label="Close Scenario Control"
+                style={{ minHeight: closeSizes.opener.minHeight, padding: closeSizes.opener.padding,
+                  background: "#1e293b", color: "#fff", border: "none", borderRadius: 999,
+                  fontSize: closeSizes.opener.fontSize, fontWeight: 700, cursor: "pointer",
+                  whiteSpace: "nowrap", flexShrink: 0 }}>
+                Close ▾
+              </button>
+            ) : (
+              <span>
+                {journey?.funnelStage ?? NOT_KNOWN} ·{" "}
+                {journey ? pct(journey.confidence.overallConfidence) : NOT_KNOWN}
+              </span>
+            )}
           </div>
         </div>
       )}
