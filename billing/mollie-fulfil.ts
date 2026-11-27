@@ -96,6 +96,8 @@ export type MollieFulfilment =
   | { outcome: "auto-reload"; state: "succeeded" | "failed" | "waiting"; status: string }
   /** A subscription period charged on a mandate, or paid by the tenant afterwards (mollie-renewal.ts). */
   | { outcome: "renewal"; state: "paid" | "failed" | "waiting" | "unknown"; status: string }
+  /** The one-cent payment that sets up or replaces the payment method (mollie-payment-method.ts). */
+  | { outcome: "payment-method"; state: "updated" | "no-mandate" | "waiting" | "not-paid"; status: string }
   /** The verification payment of a trial signup (mollie-trial.ts). */
   | { outcome: "trial-signup"; state: "created" | "already" | "waiting" | "not-paid" | "refused"; status: string; tenantId: string | null };
 

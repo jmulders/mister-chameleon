@@ -170,7 +170,7 @@ Dev-only toggles: `NEXT_PUBLIC_DEBUG_DIAGNOSTICS`, `NEXT_PUBLIC_SHOW_SCENARIO_PA
 
 ### Mollie (naast Stripe)
 
-Mollie neemt stap voor stap geldstromen over van Stripe. Live zijn de **losse aankopen** (sessie-bundels, AI-credits, tegoed opwaarderen), het **automatisch opwaarderen** via een machtiging, de **proefaanmelding** en het **maandelijks afschrijven van het abonnement**. Pakketwissels met verrekening, een eigen beheerpagina voor de betaalmethode en facturen zijn er voor Mollie nog niet.
+Mollie neemt stap voor stap geldstromen over van Stripe. Live zijn de **losse aankopen** (sessie-bundels, AI-credits, tegoed opwaarderen), het **automatisch opwaarderen** via een machtiging, de **proefaanmelding** en het **maandelijks afschrijven van het abonnement**. Ook **pakket wisselen** en **de betaalmethode wijzigen** werken via Mollie. Facturen zijn er voor Mollie nog niet.
 
 | Variabele | Verplicht | Uitleg |
 |---|---|---|
@@ -190,6 +190,11 @@ Mollie neemt stap voor stap geldstromen over van Stripe. Live zijn de **losse aa
   - Weigert de bank de incasso later, of boekt de klant hem terug, dan gaat de klant op "betaling te laat" met dezelfde herinneringsmail en dezelfde quarantaine als bij Stripe.
   - Er is geen automatische nieuwe poging. De klant betaalt het openstaande bedrag zelf in het dashboard ("Pay now"). Daarmee is het abonnement weer actief en ligt er een verse machtiging.
   - Per periode wordt één keer afgeschreven, ook als de taak twee keer draait.
+- **Pakket wisselen via Mollie** (`billing/mollie-plan-change.ts`), alleen bij maandelijks betalen:
+  - Op proef: het pakket wisselt direct, er wordt niets afgeschreven.
+  - Hoger pakket: wisselt direct. Het verschil voor de rest van de periode wordt van de machtiging afgeschreven. Lukt dat niet, dan wisselt het pakket niet en blijft er geen schuld staan.
+  - Lager pakket: gaat in bij de volgende periode. Er wordt niets terugbetaald.
+- **Betaalmethode wijzigen via Mollie:** in het dashboard betaalt de klant € 0,01 met de nieuwe rekening of kaart. De machtiging van die betaling vervangt de oude in het platform. De oude machtiging blijft bij Mollie bestaan maar wordt niet meer gebruikt.
 - **Machtiging voor automatisch opwaarderen:** de klant betaalt in het dashboard de eerste opwaardering en geeft daarmee toestemming voor de volgende (tabel `mollie_customers`, migratie 193). Een eerste betaling met iDEAL levert een incassomachtiging op, en dat kan alleen als **SEPA-incasso** in het Mollie-profiel aanstaat.
 - **Incasso is niet direct betaald.** Een automatische opwaardering via incasso staat enkele werkdagen op "pending". Het tegoed komt erbij zodra Mollie "paid" meldt, niet eerder, en in de tussentijd start er geen tweede. Een machtiging via creditcard wordt direct afgeschreven.
 - **Migratie 194** repareert zes wallet-functies die niet konden draaien, ook voor Stripe: een geslaagde automatische opwaardering werd niet bijgeschreven en een mislukte kon niet als mislukt worden vastgelegd.

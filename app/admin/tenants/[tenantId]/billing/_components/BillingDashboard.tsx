@@ -230,7 +230,7 @@ export interface BillingDashboardProps {
    *             on its way by webhook. The balance updates by itself.
    * "problem" — paid, but the platform could not match it to a purchase.
    */
-  paymentNotice?: "pending" | "problem" | "restored";
+  paymentNotice?: "pending" | "problem" | "restored" | "method";
   /**
    * Set when Mollie is the provider and a subscription charge failed or was
    * reversed: what the tenant can pay to restore the subscription.
@@ -1157,6 +1157,102 @@ function AutoReloadCard({
 }
 
 // ── PART 8: Stripe / payment status ──────────────────────────────────────────
+
+// ── Mollie: payment method and subscription state ────────────────────────────
+//
+// The Stripe card next to this one leads to Stripe's customer portal. Mollie
+// has none. What a tenant needs from it is here: which payment method is on
+// file, and a way to set one up or replace it. That goes through a payment of
+// one cent, because at Mollie a payment method is a mandate and a mandate
+// comes from a payment that is really paid.
+
+function MolliePaymentCard({ tenantId, subscription, mollieMandate }: {
+  tenantId:      string;
+  subscription:  Subscription | null;
+  mollieMandate: MollieMandateInfo;
+}) {
+  const [busy,  setBusy]  = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function verify() {
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/billing/mollie/payment-method", {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({ tenantId }),
+      });
+      const json = await res.json() as { url?: string; error?: string };
+      if (!res.ok || !json.url) {
+        setError(json.error ?? "Could not start the verification. Please try again.");
+        setBusy(false);
+        return;
+      }
+      window.location.href = json.url;
+    } catch {
+      setError("Network error. Please try again.");
+      setBusy(false);
+    }
+  }
+
+  const status = subscription?.status ?? null;
+  const rows: { label: string; value: React.ReactNode; warn?: boolean }[] = [
+    { label: "Payment provider", value: <span className="text-sm text-neutral-700">Mollie</span> },
+    {
+      label: "Subscription",
+      value: status
+        ? <Badge
+            label={status}
+            bg={status === "active" ? "bg-emerald-100" : status === "trialing" ? "bg-blue-100" : status === "past_due" ? "bg-amber-100" : status === "unpaid" ? "bg-red-100" : "bg-neutral-100"}
+            text={status === "active" ? "text-emerald-700" : status === "trialing" ? "text-blue-700" : status === "past_due" ? "text-amber-700" : status === "unpaid" ? "text-red-700" : "text-neutral-600"}
+          />
+        : <span className="text-neutral-400 text-sm">No subscription</span>,
+    },
+    {
+      label: "Payment method",
+      value: mollieMandate.authorised
+        ? <span className="text-sm text-neutral-700">{mandateMethodLabel(mollieMandate.method)}</span>
+        : <span className="text-neutral-400 text-sm">None</span>,
+      warn: !mollieMandate.authorised && (status === "active" || status === "trialing"),
+    },
+  ];
+
+  return (
+    <Card>
+      <SectionTitle sub="The payment method your subscription and top-ups are collected from.">
+        {LABELS.SECTION_PAYMENT}
+      </SectionTitle>
+      <dl className="space-y-2">
+        {rows.map((row) => (
+          <div key={row.label} className={`flex items-center justify-between rounded-lg px-3 py-2 ${row.warn ? "bg-amber-50" : "bg-neutral-50"}`}>
+            <dt className="text-xs font-medium text-neutral-500">{row.label}</dt>
+            <dd>{row.value}</dd>
+          </div>
+        ))}
+      </dl>
+
+      <div className="mt-4 space-y-2">
+        <p className="text-xs text-neutral-500">
+          {mollieMandate.authorised
+            ? "To use another account or card, verify it with a payment of €0.01. "
+            : "Set up a payment method with a payment of €0.01. "}
+          By paying it you authorise Mister Chameleon to collect your subscription and automatic top-ups from that
+          account. It replaces the payment method on file.
+        </p>
+        <button
+          type="button"
+          onClick={verify}
+          disabled={busy}
+          className="inline-flex items-center gap-1.5 rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 transition-colors disabled:opacity-50"
+        >
+          {busy ? "Opening…" : mollieMandate.authorised ? "Change payment method →" : "Set up payment method →"}
+        </button>
+        {error && <p className="text-xs text-red-600">{error}</p>}
+      </div>
+    </Card>
+  );
+}
 
 function StripeStatusCard({ tenantId, stripeModeInfo, subscription, wallet, onNavigateToSubscription }: {
   tenantId:                  string;
@@ -3204,6 +3300,17 @@ export function BillingDashboard({
       {mollieOverdue && paymentNotice !== "restored" && (
         <PayOverdueBanner tenantId={tenantId} amountCents={mollieOverdue.amountCents} />
       )}
+      {paymentNotice === "method" && (
+        <div className="mb-4 flex items-start gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3">
+          <span className="mt-0.5 text-emerald-500">✓</span>
+          <div>
+            <p className="text-sm font-semibold text-emerald-800">Payment method saved</p>
+            <p className="text-xs text-emerald-700 mt-0.5">
+              Your subscription and automatic top-ups are collected from this account from now on.
+            </p>
+          </div>
+        </div>
+      )}
       {paymentNotice === "restored" && (
         <div className="mb-4 flex items-start gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3">
           <span className="mt-0.5 text-emerald-500">✓</span>
@@ -3349,14 +3456,18 @@ export function BillingDashboard({
             <NoWalletState />
           ) : (
             <>
-              {/* PART 8: Stripe status */}
-              <StripeStatusCard
-                tenantId={tenantId}
-                stripeModeInfo={stripeModeInfo}
-                subscription={subscription}
-                wallet={wallet}
-                onNavigateToSubscription={() => setTab("subscription")}
-              />
+              {/* PART 8: payment status. Mollie has no portal: its own card. */}
+              {mollieMandate ? (
+                <MolliePaymentCard tenantId={tenantId} subscription={subscription} mollieMandate={mollieMandate} />
+              ) : (
+                <StripeStatusCard
+                  tenantId={tenantId}
+                  stripeModeInfo={stripeModeInfo}
+                  subscription={subscription}
+                  wallet={wallet}
+                  onNavigateToSubscription={() => setTab("subscription")}
+                />
+              )}
               {/* PART 6: Auto-reload */}
               <AutoReloadCard tenantId={tenantId} wallet={wallet} reloadAttempts={reloadAttempts} mollieMandate={mollieMandate} />
               {/* Notifications */}

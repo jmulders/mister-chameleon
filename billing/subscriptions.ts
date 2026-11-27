@@ -25,6 +25,11 @@ import type { BillingPlanId, BillingCycle, SubscriptionStatus } from "./types";
 
 // ── Package key sync ───────────────────────────────────────────────────────────
 
+/** The package a plan id stands for: an unknown or empty plan is Starter. Pure. */
+export function packageKeyForPlan(planId: string | null): "starter" | "growth" | "pro" {
+  return (planId === "growth" || planId === "pro") ? planId : "starter";
+}
+
 /**
  * Sync tenant_settings.packageKey to match the active subscription plan.
  *
@@ -41,11 +46,37 @@ export async function syncPackageKeyFromPlan(
   tenantId: string,
   planId:   string | null,
 ): Promise<void> {
-  const packageKey = (planId === "growth" || planId === "pro") ? planId : "starter";
+  const packageKey = packageKeyForPlan(planId);
+
+  // The package lives in the settings JSON, as `packageKey`: that is what the
+  // plan lookup and the tenant config read. This used to update a column
+  // `package_key`, which tenant_settings does not have. The update was refused,
+  // the refusal was logged as a warning and nothing else happened: after a plan
+  // change or a cancellation the tenant kept the package it had.
+  //
+  // PostgREST cannot set one key of a JSON column, so the settings are read,
+  // changed and written back. Nothing is written when the key is already
+  // right, which keeps this out of the way of someone saving the settings page.
+  const { data: row, error: readError } = await client
+    .from("tenant_settings")
+    .select("settings")
+    .eq("tenant_id", tenantId)
+    .maybeSingle();
+
+  if (readError || !row) {
+    console.warn(
+      `[billing/subscriptions] syncPackageKeyFromPlan: could not read settings ` +
+      `for tenant "${tenantId}": ${readError?.message ?? "no such tenant"}`,
+    );
+    return;
+  }
+
+  const settings = (row.settings as Record<string, unknown> | null) ?? {};
+  if (settings["packageKey"] === packageKey) return;
 
   const { error } = await client
     .from("tenant_settings")
-    .update({ package_key: packageKey, updated_at: new Date().toISOString() })
+    .update({ settings: { ...settings, packageKey }, updated_at: new Date().toISOString() })
     .eq("tenant_id", tenantId);
 
   if (error) {

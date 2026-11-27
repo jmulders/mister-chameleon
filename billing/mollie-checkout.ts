@@ -36,6 +36,7 @@ import {
   type OverdueSettleDeps,
   type RenewalSettleDeps,
 } from "./mollie-renewal";
+import { PAYMENT_METHOD_PAYMENT_TYPE, paymentMethodOutcome } from "./mollie-payment-method";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -59,6 +60,13 @@ export function mollieResultQuery(result: MollieFulfilment, kind: MolliePurchase
   if (result.outcome === "auto-reload") return "mollie=pending";
   // A trial signup returns to /checkout/success, not to the billing page.
   if (result.outcome === "trial-signup") return "mollie=pending";
+  // The tenant verified a new payment method.
+  if (result.outcome === "payment-method") {
+    if (result.state === "updated")    return "mollie=method";
+    if (result.state === "waiting")    return "mollie=pending";
+    if (result.state === "no-mandate") return "mollie=problem";
+    return "bundle=cancelled";
+  }
   // The tenant paid an open subscription amount and came back to the billing page.
   if (result.outcome === "renewal") {
     if (result.state === "paid")    return "mollie=restored";
@@ -79,8 +87,8 @@ export function mollieResultQuery(result: MollieFulfilment, kind: MolliePurchase
 
 export interface StartMollieCheckoutInput {
   tenantId:    string;
-  /** A purchase kind, or the payment of an open subscription amount. */
-  kind:        MolliePurchaseKind | typeof OVERDUE_PAYMENT_TYPE;
+  /** A purchase kind, the payment of an open subscription amount, or the verification of a payment method. */
+  kind:        MolliePurchaseKind | typeof OVERDUE_PAYMENT_TYPE | typeof PAYMENT_METHOD_PAYMENT_TYPE;
   /** Bundle id for the two bundle kinds, null for a wallet top-up. */
   bundleId:    string | null;
   amountCents: number;
@@ -213,6 +221,14 @@ export async function settleMolliePayment(
     const result = await settleMollieOverduePayment(client, payment, deps?.overdue);
     // Paying it was a first payment: it also gave a fresh mandate.
     await rememberMollieMandate(client, payment);
+    await noteMolliePayment(client, payment, result);
+    return { payment, result };
+  }
+
+  // A new payment method: nothing is delivered, the mandate is the point.
+  if (type === PAYMENT_METHOD_PAYMENT_TYPE) {
+    const stored = await rememberMollieMandate(client, payment);
+    const result = paymentMethodOutcome(payment, stored);
     await noteMolliePayment(client, payment, result);
     return { payment, result };
   }
