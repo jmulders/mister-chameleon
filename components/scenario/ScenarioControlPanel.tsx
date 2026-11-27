@@ -2154,8 +2154,7 @@ export function ScenarioControlPanel({ scenarioPanel, scenarioPresets, scenarioO
     setMinimized(false);
   }, []);
 
-  // A finger needs larger targets than a mouse, and on a phone the panel
-  // gets a close button at its foot (see panel-close.ts).
+  // A finger needs larger targets than a mouse (see panel-close.ts).
   const [touchLayout, setTouchLayout] = useState(false);
   useEffect(() => {
     const query = window.matchMedia(TOUCH_LAYOUT_QUERY);
@@ -2711,38 +2710,12 @@ export function ScenarioControlPanel({ scenarioPanel, scenarioPresets, scenarioO
           {/* Footer */}
           <div style={{ borderTop: "1px solid #e5e7eb", padding: "5px 13px",
             fontSize: 10, color: "#9ca3af", background: "#f8fafc",
-            display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, flexShrink: 0 }}>
-            <span style={{ minWidth: 0 }}>
-              <span style={{ display: "block" }}>dev only · session-scoped · {autoApply ? "auto-apply ON" : "manual apply"}</span>
-              {closeSizes.footClose && (
-                <span style={{ display: "block" }}>
-                  {journey?.funnelStage ?? NOT_KNOWN} ·{" "}
-                  {journey ? pct(journey.confidence.overallConfidence) : NOT_KNOWN}
-                </span>
-              )}
+            display: "flex", justifyContent: "space-between", flexShrink: 0 }}>
+            <span>dev only · session-scoped · {autoApply ? "auto-apply ON" : "manual apply"}</span>
+            <span>
+              {journey?.funnelStage ?? NOT_KNOWN} ·{" "}
+              {journey ? pct(journey.confidence.overallConfidence) : NOT_KNOWN}
             </span>
-            {closeSizes.footClose ? (
-              /*
-               * On a phone: a close button on the spot of the button that
-               * opened the console, so open and close are one thumb position.
-               */
-              <button
-                type="button"
-                data-part="scenario-close-foot"
-                onClick={collapse}
-                aria-label="Close Scenario Control"
-                style={{ minHeight: closeSizes.opener.minHeight, padding: closeSizes.opener.padding,
-                  background: "#1e293b", color: "#fff", border: "none", borderRadius: 999,
-                  fontSize: closeSizes.opener.fontSize, fontWeight: 700, cursor: "pointer",
-                  whiteSpace: "nowrap", flexShrink: 0 }}>
-                Close ▾
-              </button>
-            ) : (
-              <span>
-                {journey?.funnelStage ?? NOT_KNOWN} ·{" "}
-                {journey ? pct(journey.confidence.overallConfidence) : NOT_KNOWN}
-              </span>
-            )}
           </div>
         </div>
       )}

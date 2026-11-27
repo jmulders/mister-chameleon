@@ -8,13 +8,15 @@
  * as far from the thumb as it could be, and nowhere near the button that had
  * opened the console. The owner asked for an easier way on 27 Nov 2026.
  *
- * Three ways to close now, and the sizes for them:
+ * Two ways to close now, and the sizes for them:
  *   - the title in the header is a button, the whole of it
  *   - the close button in the header has a word on it and a real size
- *   - on a phone a second close button stands in the foot of the panel, on the
- *     spot of the button that opened it, so open and close are one thumb
- *     position
  * Escape closes as well, except while typing in a field.
+ *
+ * For a few hours there was a third: on a phone a second close button in the
+ * foot of the panel, on the spot of the button that opened it. With the one
+ * in the header that was a close button above and one below, and the owner
+ * found it too much (27 Nov 2026). The foot has none.
  */
 
 /** The viewport or pointer for which the phone layout applies. */
@@ -52,8 +54,6 @@ export interface PanelCloseSizes {
     /** Lets the row scroll sideways on the narrowest phones instead of wrapping. */
     scroll: boolean;
   };
-  /** Whether the foot of the panel carries a close button of its own. */
-  footClose:   boolean;
   /**
    * A header with less in it, so the title stays on one line on a phone. With
    * a scenario active the header also holds "Exit", and on a screen of 360 to
@@ -72,7 +72,6 @@ export function panelCloseSizes(touch: boolean): PanelCloseSizes {
       headerExit:  { minHeight: TOUCH_TARGET, padding: "0 10px", fontSize: 13 },
       headerLinkMinHeight: TOUCH_TARGET,
       tabs: { minHeight: TOUCH_TARGET, padding: "0 4px", fontSize: 12, flex: "1 0 auto", weight: 600, activeWeight: 600, scroll: true },
-      footClose:   true,
       compactHeader: true,
     };
   }
@@ -82,7 +81,6 @@ export function panelCloseSizes(touch: boolean): PanelCloseSizes {
     headerExit:  { minHeight: 19, padding: "2px 7px", fontSize: 10 },
     headerLinkMinHeight: 19,
     tabs: { minHeight: 0, padding: "6px 3px", fontSize: 10, flex: "1", weight: 500, activeWeight: 700, scroll: false },
-    footClose:   false,
     compactHeader: false,
   };
 }

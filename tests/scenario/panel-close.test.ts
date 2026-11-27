@@ -26,16 +26,14 @@ describe("Scenario Control: sizes of the open and close controls", () => {
     assert.ok(TOUCH_TARGET >= 44);
     assert.ok(sizes.opener.minHeight >= TOUCH_TARGET);
     assert.ok(sizes.headerClose.minHeight >= TOUCH_TARGET);
-    assert.equal(sizes.footClose, true);
   });
 
-  it("keeps the panel compact for a mouse, without the second close button", () => {
+  it("keeps the panel compact for a mouse", () => {
     const sizes = panelCloseSizes(false);
     assert.ok(sizes.opener.minHeight < TOUCH_TARGET);
     assert.ok(sizes.headerClose.minHeight < TOUCH_TARGET);
     // Still larger than the old 18 pixel "▾".
     assert.ok(sizes.headerClose.minHeight >= 24);
-    assert.equal(sizes.footClose, false);
   });
 
   it("applies the phone layout to a coarse pointer and to a narrow screen", () => {
@@ -178,13 +176,13 @@ describe("Scenario Control: the controls in the panel", () => {
     assert.match(close, /Close ▾/);
   });
 
-  it("has a second close button at the foot, on a phone only", () => {
-    const foot = part(footer, "scenario-close-foot");
-    assert.ok(foot.length > 0, "the close button at the foot is gone");
-    assert.match(foot, /onClick=\{collapse\}/);
-    assert.match(footer, /closeSizes\.footClose \? \(/);
-    // The size of the opener: it stands on the opener's spot.
-    assert.match(foot, /minHeight: closeSizes\.opener\.minHeight/);
+  it("has one close button, in the header, and none at the foot", () => {
+    // A second one at the foot stood there for a few hours. A close button
+    // above and one below was too much (the owner, 27 Nov 2026).
+    assert.equal(footer.includes("<button"), false, "the foot of the panel holds no button");
+    assert.equal(panel.includes("scenario-close-foot"), false);
+    assert.equal("footClose" in panelCloseSizes(true), false);
+    assert.equal((panel.match(/data-part="scenario-close"/g) ?? []).length, 1);
   });
 
   it("listens for Escape only while the console is open", () => {
