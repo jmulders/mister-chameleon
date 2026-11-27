@@ -38,6 +38,20 @@ export interface PanelCloseSizes {
    * a finger: wider would take the room the title needs.
    */
   headerLinkMinHeight: number;
+  /**
+   * The tabs under the header (Demo, Context, Why This?, Live State, Demo
+   * Flows). For a mouse five equal columns of small text, as they were. For
+   * a finger a full-height row of larger text, each tab as wide as its word
+   * needs: in five equal columns "Demo Flows" does not fit at that size. The
+   * weight is the same for every tab there, so the row does not shift when
+   * another tab is chosen; the colour and the line under it mark the choice.
+   */
+  tabs: {
+    minHeight: number; padding: string; fontSize: number; flex: string;
+    weight: number; activeWeight: number;
+    /** Lets the row scroll sideways on the narrowest phones instead of wrapping. */
+    scroll: boolean;
+  };
   /** Whether the foot of the panel carries a close button of its own. */
   footClose:   boolean;
   /**
@@ -57,6 +71,7 @@ export function panelCloseSizes(touch: boolean): PanelCloseSizes {
       headerClose: { minHeight: TOUCH_TARGET, padding: "0 12px", fontSize: 13 },
       headerExit:  { minHeight: TOUCH_TARGET, padding: "0 10px", fontSize: 13 },
       headerLinkMinHeight: TOUCH_TARGET,
+      tabs: { minHeight: TOUCH_TARGET, padding: "0 4px", fontSize: 12, flex: "1 0 auto", weight: 600, activeWeight: 600, scroll: true },
       footClose:   true,
       compactHeader: true,
     };
@@ -66,6 +81,7 @@ export function panelCloseSizes(touch: boolean): PanelCloseSizes {
     headerClose: { minHeight: 26, padding: "0 10px", fontSize: 11 },
     headerExit:  { minHeight: 19, padding: "2px 7px", fontSize: 10 },
     headerLinkMinHeight: 19,
+    tabs: { minHeight: 0, padding: "6px 3px", fontSize: 10, flex: "1", weight: 500, activeWeight: 700, scroll: false },
     footClose:   false,
     compactHeader: false,
   };
