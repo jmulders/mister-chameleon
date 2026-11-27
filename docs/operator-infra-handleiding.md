@@ -170,7 +170,7 @@ Dev-only toggles: `NEXT_PUBLIC_DEBUG_DIAGNOSTICS`, `NEXT_PUBLIC_SHOW_SCENARIO_PA
 
 ### Mollie (naast Stripe)
 
-Mollie neemt stap voor stap geldstromen over van Stripe. Stap 1 is live: de **losse aankopen** (sessie-bundels, AI-credits, tegoed opwaarderen). Abonnementen, de proefperiode, pakketwissels en het klantportaal lopen nog via Stripe.
+Mollie neemt stap voor stap geldstromen over van Stripe. Live zijn de **losse aankopen** (sessie-bundels, AI-credits, tegoed opwaarderen) en het **automatisch opwaarderen** via een machtiging. Abonnementen, de proefperiode, pakketwissels en het klantportaal lopen nog via Stripe.
 
 | Variabele | Verplicht | Uitleg |
 |---|---|---|
@@ -182,6 +182,9 @@ Mollie neemt stap voor stap geldstromen over van Stripe. Stap 1 is live: de **lo
 - **Tabel:** `mollie_payments` (migratie 191) moet bestaan voordat `PAYMENT_PROVIDER=mollie` aangaat.
 - **Migratie 192** hoort erbij en geldt ook voor Stripe: de functie `credit_wallet` weigerde elke bijschrijving van AI-credits omdat de statuskolom tekst is en de functie naar een enum castte.
 - **Btw:** het platform rekent het bedrag uit de code af en telt er niets bij op, net als bij Stripe.
+- **Machtiging voor automatisch opwaarderen:** de klant betaalt in het dashboard de eerste opwaardering en geeft daarmee toestemming voor de volgende (tabel `mollie_customers`, migratie 193). Een eerste betaling met iDEAL levert een incassomachtiging op, en dat kan alleen als **SEPA-incasso** in het Mollie-profiel aanstaat.
+- **Incasso is niet direct betaald.** Een automatische opwaardering via incasso staat enkele werkdagen op "pending". Het tegoed komt erbij zodra Mollie "paid" meldt, niet eerder, en in de tussentijd start er geen tweede. Een machtiging via creditcard wordt direct afgeschreven.
+- **Migratie 194** repareert zes wallet-functies die niet konden draaien, ook voor Stripe: een geslaagde automatische opwaardering werd niet bijgeschreven en een mislukte kon niet als mislukt worden vastgelegd.
 - **Terugboekingen** worden nog niet verwerkt: een teruggeboekte betaling haalt het tegoed niet vanzelf weer weg.
 
 ### Email

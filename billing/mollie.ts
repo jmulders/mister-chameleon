@@ -1,9 +1,17 @@
 /**
  * A thin client for the Mollie Payments API (v2).
  *
- * Two calls are all step 1 needs: create a payment and read one back. They
- * go over fetch, so there is no extra dependency, and both take their fetch
+ * Three calls: create a payment, read one back, and create a customer. They
+ * go over fetch, so there is no extra dependency, and all take their fetch
  * and key as arguments so the tests run without a network.
+ *
+ * A payment comes in three kinds (`sequenceType`):
+ *
+ *   oneoff     the default: the customer pays once, nothing is kept.
+ *   first      the customer pays once and thereby authorises later charges.
+ *              Mollie keeps that authorisation as a mandate on the customer.
+ *   recurring  the platform charges an existing mandate. The customer is not
+ *              there, so there is no checkout and no return address.
  *
  * How Mollie differs from Stripe, as far as this file is concerned:
  *
@@ -30,11 +38,20 @@ export interface MollieAmount {
   value:    string;
 }
 
+export type MollieSequenceType = "oneoff" | "first" | "recurring";
+
 export interface MolliePayment {
   id:                 string;
   status:             MolliePaymentStatus | string;
   mode?:              MollieMode | string;
   amount:             MollieAmount;
+  /** The Mollie customer the payment belongs to (first and recurring payments). */
+  customerId?:        string | null;
+  /** The mandate a paid first payment created, or the one a recurring payment charged. */
+  mandateId?:         string | null;
+  sequenceType?:      MollieSequenceType | string;
+  /** The method the customer chose: "ideal", "creditcard", "directdebit", … */
+  method?:            string | null;
   amountRefunded?:    MollieAmount;
   amountChargedBack?: MollieAmount;
   metadata?:          Record<string, unknown> | null;
@@ -93,6 +110,14 @@ export function isMolliePaymentId(id: unknown): id is string {
   return typeof id === "string" && /^tr_[A-Za-z0-9]{4,60}$/.test(id);
 }
 
+export function isMollieCustomerId(id: unknown): id is string {
+  return typeof id === "string" && /^cst_[A-Za-z0-9]{4,60}$/.test(id);
+}
+
+export function isMollieMandateId(id: unknown): id is string {
+  return typeof id === "string" && /^mdt_[A-Za-z0-9]{4,60}$/.test(id);
+}
+
 /**
  * The webhook address for a site, or undefined when Mollie could not reach it.
  *
@@ -133,13 +158,13 @@ function resolveApiBase(deps?: MollieDeps): string {
   return MOLLIE_API_BASE;
 }
 
-async function mollieRequest(
+async function mollieRequest<T extends { id: string } = MolliePayment>(
   method: "GET" | "POST",
   path:   string,
   body:   unknown,
   deps:   MollieDeps | undefined,
   extraHeaders: Record<string, string> = {},
-): Promise<MolliePayment> {
+): Promise<T> {
   const apiKey = deps?.apiKey ?? getMollieApiKey();
   if (!apiKey) throw new MollieError(0, "Mollie is not configured. Set MOLLIE_API_KEY.");
   const doFetch = deps?.fetch ?? fetch;
@@ -172,18 +197,29 @@ async function mollieRequest(
                  : "request failed";
     throw new MollieError(res.status, `Mollie ${res.status}: ${text}`);
   }
-  if (!json || typeof json !== "object" || typeof (json as MolliePayment).id !== "string") {
-    throw new MollieError(res.status, "Mollie answered without a payment");
+  if (!json || typeof json !== "object" || typeof (json as { id?: unknown }).id !== "string") {
+    throw new MollieError(res.status, "Mollie answered without an object id");
   }
-  return json as MolliePayment;
+  return json as T;
 }
 
 export interface CreateMolliePaymentInput {
   amountCents: number;
   /** Shown to the customer on the bank statement and the checkout page. */
   description: string;
-  /** Where the customer lands after paying, cancelling or giving up. */
-  redirectUrl: string;
+  /**
+   * Where the customer lands after paying, cancelling or giving up. Required
+   * unless the payment is recurring: nobody is there to send anywhere.
+   */
+  redirectUrl?: string;
+  /**
+   * "first" makes this payment also an authorisation for later charges,
+   * "recurring" charges such an authorisation. Both need the customer.
+   */
+  sequenceType?: MollieSequenceType;
+  customerId?:   string;
+  /** For a recurring payment: the mandate to charge. Mollie picks one when left out. */
+  mandateId?:    string;
   /** Left out when Mollie could not reach the site (localhost). */
   webhookUrl?: string;
   metadata:    Record<string, string>;
@@ -198,15 +234,28 @@ export async function createMolliePayment(
   input: CreateMolliePaymentInput,
   deps?: MollieDeps,
 ): Promise<MolliePayment> {
+  const sequenceType = input.sequenceType ?? "oneoff";
+  if (sequenceType !== "oneoff" && !isMollieCustomerId(input.customerId)) {
+    throw new MollieError(400, `A ${sequenceType} payment needs a Mollie customer`);
+  }
+  if (sequenceType !== "recurring" && !input.redirectUrl) {
+    throw new MollieError(400, "A payment the customer makes needs a return address");
+  }
+  if (input.mandateId !== undefined && !isMollieMandateId(input.mandateId)) {
+    throw new MollieError(400, "Not a Mollie mandate id");
+  }
   return mollieRequest(
     "POST",
     "/payments",
     {
       amount:      { currency: "EUR", value: mollieAmountValue(input.amountCents) },
       description: input.description.slice(0, 255),
-      redirectUrl: input.redirectUrl,
+      ...(input.redirectUrl ? { redirectUrl: input.redirectUrl } : {}),
       ...(input.webhookUrl ? { webhookUrl: input.webhookUrl } : {}),
       metadata:    input.metadata,
+      // Left out for a plain payment, so step 1's request is unchanged.
+      ...(sequenceType !== "oneoff" ? { sequenceType, customerId: input.customerId } : {}),
+      ...(sequenceType === "recurring" && input.mandateId ? { mandateId: input.mandateId } : {}),
     },
     deps,
     input.idempotencyKey ? { "Idempotency-Key": input.idempotencyKey } : {},
@@ -216,4 +265,31 @@ export async function createMolliePayment(
 export async function getMolliePayment(id: string, deps?: MollieDeps): Promise<MolliePayment> {
   if (!isMolliePaymentId(id)) throw new MollieError(400, "Not a Mollie payment id");
   return mollieRequest("GET", `/payments/${id}`, undefined, deps);
+}
+
+export interface MollieCustomer {
+  id:    string;
+  mode?: MollieMode | string;
+}
+
+/**
+ * Create a customer at Mollie: the object a mandate hangs on. Name and email
+ * are what the tenant sees on their bank statement and in Mollie's mails.
+ */
+export async function createMollieCustomer(
+  input: { name?: string | null; email?: string | null; metadata?: Record<string, string> },
+  deps?: MollieDeps,
+): Promise<MollieCustomer> {
+  const customer = await mollieRequest<MollieCustomer>(
+    "POST",
+    "/customers",
+    {
+      ...(input.name  ? { name:  input.name.slice(0, 255) } : {}),
+      ...(input.email ? { email: input.email } : {}),
+      ...(input.metadata ? { metadata: input.metadata } : {}),
+    },
+    deps,
+  );
+  if (!isMollieCustomerId(customer.id)) throw new MollieError(502, "Mollie answered without a customer");
+  return customer;
 }

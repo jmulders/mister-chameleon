@@ -25,6 +25,8 @@ import {
   type MollieFulfilment,
   type MolliePurchaseKind,
 } from "./mollie-fulfil";
+import { rememberMollieMandate } from "./mollie-customer";
+import { AUTO_RELOAD_PAYMENT_TYPE, settleMollieAutoReload, type AutoReloadSettleDeps } from "./mollie-auto-reload";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -44,6 +46,8 @@ export function mollieReturnUrl(origin: string, tenantId: string, ref: string): 
 export function mollieResultQuery(result: MollieFulfilment, kind: MolliePurchaseKind | null, bundleId: string | null): string {
   if (result.outcome === "waiting") return "mollie=pending";
   if (result.outcome === "refused") return "mollie=problem";
+  // A charge on a mandate has no return: the tenant was never at a checkout.
+  if (result.outcome === "auto-reload") return "mollie=pending";
   const done  = result.outcome === "credited" || result.outcome === "already-credited";
   const k     = done ? result.kind : kind;
   const id    = done ? result.bundleId : bundleId;
@@ -69,6 +73,12 @@ export interface StartMollieCheckoutInput {
    * is used when this is not set.
    */
   publicBaseUrl?: string | null;
+  /**
+   * Makes this a "first" payment for the given Mollie customer: the tenant
+   * pays now and thereby authorises later charges (the automatic top-up).
+   * The checkout must have told the tenant so before it gets here.
+   */
+  firstForCustomerId?: string;
 }
 
 export interface StartMollieCheckoutDeps {
@@ -90,6 +100,9 @@ export async function startMollieCheckout(
       redirectUrl:    mollieReturnUrl(input.origin, input.tenantId, ref),
       webhookUrl:     mollieWebhookUrl(input.publicBaseUrl || input.origin),
       idempotencyKey: ref,
+      ...(input.firstForCustomerId
+        ? { sequenceType: "first" as const, customerId: input.firstForCustomerId }
+        : {}),
       metadata: {
         type:         input.kind,
         tenant_id:    input.tenantId,
@@ -146,8 +159,9 @@ export async function noteMolliePayment(
 }
 
 export interface SettleDeps {
-  mollie?: MollieDeps;
-  fulfil?: MollieFulfilDeps;
+  mollie?:     MollieDeps;
+  fulfil?:     MollieFulfilDeps;
+  autoReload?: AutoReloadSettleDeps;
 }
 
 /**
@@ -160,7 +174,19 @@ export async function settleMolliePayment(
   deps?:     SettleDeps,
 ): Promise<{ payment: MolliePayment; result: MollieFulfilment }> {
   const payment = await getMolliePayment(paymentId, deps?.mollie);
-  const result  = await fulfilMolliePayment(client, payment, deps?.fulfil);
+
+  // A charge on a mandate (the automatic top-up) has its own bookkeeping: the
+  // reload attempt, credited in one transaction with its status.
+  if (payment.metadata?.["type"] === AUTO_RELOAD_PAYMENT_TYPE) {
+    const result = await settleMollieAutoReload(client, payment, deps?.autoReload);
+    await noteMolliePayment(client, payment, result);
+    return { payment, result };
+  }
+
+  const result = await fulfilMolliePayment(client, payment, deps?.fulfil);
+  // A paid first payment also gave a mandate. Kept after the delivery, and
+  // on every road here: the webhook and the return both may be the first.
+  await rememberMollieMandate(client, payment);
   await noteMolliePayment(client, payment, result);
   return { payment, result };
 }
