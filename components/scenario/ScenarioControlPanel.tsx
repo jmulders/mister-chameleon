@@ -72,6 +72,7 @@ import { applyScenarioOverride } from "./apply-scenario-override";
 import { shouldPollJourneyState, consoleIsActive, shouldFetchBackendState } from "./journey-poll";
 import { startsMinimized } from "./panel-start";
 import { TOUCH_LAYOUT_QUERY, HEADER_LINE, panelCloseSizes, panelWidthCss, escapeCloses } from "./panel-close";
+import { readDemoControlsEnabled, subscribeToDemoControls } from "./demo-controls-state";
 import { claimLauncherSide } from "@/lib/layout/floating-stack";
 import { getConsent } from "@/tracking/consent-store";
 import { ENRICHER_REGISTRY, type EnricherKey } from "@/lib/scenario/enricher-registry";
@@ -2112,23 +2113,16 @@ export function ScenarioControlPanel({ scenarioPanel, scenarioPresets, scenarioO
   useEffect(() => {
     setMounted(true);
     setVisible(shouldShowPanel());
-    // Read the demo-controls toggle state set by DemoControlsToggle.
-    try {
-      setDemoControlsEnabled(localStorage.getItem("mc_demo_controls_active") !== "0");
-    } catch { /* localStorage unavailable */ }
+    // Whether the visitor has the console switched on: the switch in the site
+    // menu and the one on /demo-controls set it (demo-controls-state.ts).
+    setDemoControlsEnabled(readDemoControlsEnabled());
   }, []);
 
-  // Listen for toggle changes dispatched by DemoControlsToggle (same tab).
-  useEffect(() => {
-    function handleToggle(e: Event) {
-      const detail = (e as CustomEvent<{ enabled: boolean }>).detail;
-      setDemoControlsEnabled(detail.enabled);
-      // Re-open when re-enabled; collapse to minimized when disabled.
-      if (detail.enabled) setMinimized(false);
-    }
-    window.addEventListener("mc_demo_controls_changed", handleToggle);
-    return () => window.removeEventListener("mc_demo_controls_changed", handleToggle);
-  }, []);
+  // Follow the two switches (same tab). Switched on, the console opens.
+  useEffect(() => subscribeToDemoControls((enabled) => {
+    setDemoControlsEnabled(enabled);
+    if (enabled) setMinimized(false);
+  }), []);
 
   // Force the panel open whenever the visitor is on /demo-controls
   // AND the toggle is enabled.

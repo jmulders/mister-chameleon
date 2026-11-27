@@ -26,6 +26,11 @@ export interface MobileMenuExtras {
   links?:             MobileMenuLink[];
   /** The header's call to action. */
   cta?:               HeaderCtaData | null;
+  /**
+   * The switch that turns Scenario Control on and off for this browser. Only
+   * on a site whose tenant has Scenario Control.
+   */
+  scenarioSwitch?:    boolean;
 }
 
 type LinkLike = { label?: string | null; href?: string | null; openInNewTab?: boolean };
@@ -58,5 +63,5 @@ export function mobileMenuLinks(
 
 /** True when there is anything to show besides the main navigation. */
 export function hasMobileMenuExtras(extras: MobileMenuExtras | null | undefined): boolean {
-  return Boolean(extras && (extras.searchHref || extras.cta || (extras.links && extras.links.length > 0)));
+  return Boolean(extras && (extras.searchHref || extras.cta || extras.scenarioSwitch || (extras.links && extras.links.length > 0)));
 }

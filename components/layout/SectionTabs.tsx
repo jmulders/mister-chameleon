@@ -24,9 +24,11 @@ import { LAYOUT_TEXTS } from "@/lib/site-texts/layout";
 interface SectionTabsProps {
   tabs:        SectionTabData[];
   quickLinks?: NavigationItemData[];
+  /** Shown after the quick links, at the right end of the band. */
+  trailing?:   React.ReactNode;
 }
 
-export function SectionTabs({ tabs, quickLinks = [] }: SectionTabsProps) {
+export function SectionTabs({ tabs, quickLinks = [], trailing = null }: SectionTabsProps) {
   const pathname = usePathname();
   const t = LAYOUT_TEXTS[useSiteLocale()];
 
@@ -74,30 +76,33 @@ export function SectionTabs({ tabs, quickLinks = [] }: SectionTabsProps) {
       </nav>
 
       {/* ── Quick links — right ─────────────────────────────────────── */}
-      {quickLinks.length > 0 && (
-        <nav aria-label={t.quickLinks} className="flex items-center gap-0.5">
-          {quickLinks.map((link) => (
-            <Link
-              key={link.id}
-              href={link.href}
-              target={link.openInNewTab ? "_blank" : undefined}
-              rel={link.openInNewTab ? "noopener noreferrer" : undefined}
-              className={cn(
-                "rounded px-2.5 py-1 transition-colors duration-150",
-                "text-[var(--nav-link,var(--header-fg,var(--text)))] hover:text-[var(--nav-link-hover,var(--text-brand))]",
-                // Preset-driven subtle hover pill. --nav-dropdown-link-hover-bg is
-                // pinned dark by the base theme (Layer A), so use --primary-subtle
-                // directly, which follows the preset primary (light tint on light
-                // presets, dark tint on dark presets).
-                "hover:bg-[var(--primary-subtle)]",
-                "focus-visible:outline-2 focus-visible:outline-[var(--ring)] focus-visible:outline-offset-2",
-              )}
-            >
-              {link.label}
-            </Link>
-          ))}
-        </nav>
-      )}
+      <div className="flex items-center gap-0.5">
+        {quickLinks.length > 0 && (
+          <nav aria-label={t.quickLinks} className="flex items-center gap-0.5">
+            {quickLinks.map((link) => (
+              <Link
+                key={link.id}
+                href={link.href}
+                target={link.openInNewTab ? "_blank" : undefined}
+                rel={link.openInNewTab ? "noopener noreferrer" : undefined}
+                className={cn(
+                  "rounded px-2.5 py-1 transition-colors duration-150",
+                  "text-[var(--nav-link,var(--header-fg,var(--text)))] hover:text-[var(--nav-link-hover,var(--text-brand))]",
+                  // Preset-driven subtle hover pill. --nav-dropdown-link-hover-bg is
+                  // pinned dark by the base theme (Layer A), so use --primary-subtle
+                  // directly, which follows the preset primary (light tint on light
+                  // presets, dark tint on dark presets).
+                  "hover:bg-[var(--primary-subtle)]",
+                  "focus-visible:outline-2 focus-visible:outline-[var(--ring)] focus-visible:outline-offset-2",
+                )}
+              >
+                {link.label}
+              </Link>
+            ))}
+          </nav>
+        )}
+        {trailing}
+      </div>
     </div>
   );
 }

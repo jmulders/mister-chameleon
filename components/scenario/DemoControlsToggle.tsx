@@ -15,18 +15,9 @@
  */
 
 import { useState, useEffect } from "react";
-
-const STORAGE_KEY = "mc_demo_controls_active";
-const CHANGE_EVENT = "mc_demo_controls_changed";
-
-function readEnabled(): boolean {
-  try {
-    // Default: enabled (key absent or set to "1").
-    return localStorage.getItem(STORAGE_KEY) !== "0";
-  } catch {
-    return true;
-  }
-}
+import {
+  readDemoControlsEnabled, subscribeToDemoControls, writeDemoControlsEnabled,
+} from "./demo-controls-state";
 
 export function DemoControlsToggle() {
   const [mounted,  setMounted]  = useState(false);
@@ -34,19 +25,16 @@ export function DemoControlsToggle() {
 
   useEffect(() => {
     setMounted(true);
-    setEnabled(readEnabled());
+    setEnabled(readDemoControlsEnabled());
+    // The switch in the site menu sets the same choice; follow it.
+    return subscribeToDemoControls(setEnabled);
   }, []);
 
   function toggle() {
     const next = !enabled;
     setEnabled(next);
-    try {
-      localStorage.setItem(STORAGE_KEY, next ? "1" : "0");
-      // Notify the ScenarioControlPanel (same tab; storage event won't fire).
-      window.dispatchEvent(new CustomEvent(CHANGE_EVENT, { detail: { enabled: next } }));
-    } catch {
-      // localStorage unavailable — state stays in React memory only.
-    }
+    // Keeps the choice and tells the panel and the switch in the menu.
+    writeDemoControlsEnabled(next);
   }
 
   // Don't render during SSR — localStorage is client-only.
