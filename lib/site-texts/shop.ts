@@ -172,19 +172,19 @@ export const SHOP_TEXTS: SiteTexts<ShopTexts> = {
     // Same content as the price list on /prijzen, which follows billing/plans.ts.
     planFeatures: {
       starter: [
-        "25,000 personalised sessions/month",
+        "1,500 personalised sessions/month",
         "Unlimited rules, segments and A/B tests",
         "Measured against a control group",
       ],
       growth: [
-        "150,000 personalised sessions/month",
+        "7,500 personalised sessions/month",
         "Everything in Starter",
         "Full analytics dashboard",
         "AI-assisted variant decisions",
         "Company recognition and CRM link",
       ],
       pro: [
-        "500,000 personalised sessions/month",
+        "40,000 personalised sessions/month",
         "Everything in Growth",
         "Several sites in one environment",
         "Priority support",
@@ -313,19 +313,19 @@ export const SHOP_TEXTS: SiteTexts<ShopTexts> = {
     backToPricing:     "Verder winkelen",
     planFeatures: {
       starter: [
-        "25.000 gepersonaliseerde bezoeken per maand",
+        "1.500 gepersonaliseerde bezoeken per maand",
         "Onbeperkt regels, doelgroepen en A/B-tests",
         "Meten met een controlegroep",
       ],
       growth: [
-        "150.000 gepersonaliseerde bezoeken per maand",
+        "7.500 gepersonaliseerde bezoeken per maand",
         "Alles uit Starter",
         "Het volledige dashboard",
         "AI die meedenkt",
         "Bedrijven herkennen en je CRM koppelen",
       ],
       pro: [
-        "500.000 gepersonaliseerde bezoeken per maand",
+        "40.000 gepersonaliseerde bezoeken per maand",
         "Alles uit Growth",
         "Meerdere sites in één omgeving",
         "Voorrang bij support",

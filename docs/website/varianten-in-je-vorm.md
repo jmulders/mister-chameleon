@@ -226,9 +226,9 @@ De oude teksten bevatten beweringen die niet kloppen met het product of die niem
 - Label: Pakketten
 - Kop: Kies het pakket dat bij je groei past
 - Tekst: Drie pakketten naast elkaar. De prijzen staan gewoon op de site.
-- Kaart: **Starter**. 25.000 gepersonaliseerde bezoeken per maand. Onbeperkt regels, doelgroepen en A/B-tests. Om mee te beginnen.
-- Kaart: **Growth**. 150.000 bezoeken per maand. Met AI, bedrijven herkennen en het volledige dashboard.
-- Kaart: **Pro**. 500.000 bezoeken per maand. Meerdere sites in één omgeving en voorrang bij support.
+- Kaart: **Starter**. 1.500 gepersonaliseerde bezoeken per maand. Onbeperkt regels, doelgroepen en A/B-tests. Om mee te beginnen.
+- Kaart: **Growth**. 7.500 bezoeken per maand. Met AI, bedrijven herkennen en het volledige dashboard.
+- Kaart: **Pro**. 40.000 bezoeken per maand. Meerdere sites in één omgeving en voorrang bij support.
 
 **`feature_grid_primary`**
 

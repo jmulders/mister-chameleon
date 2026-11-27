@@ -178,9 +178,9 @@ Tenant-admins toewijzen/verwijderen; super-admins hebben impliciet toegang.
 
 | Plan | Prijs | Sessies/mnd | Extra |
 |---|---|---|---|
-| Starter | €149/mnd (€124 jaarlijks, −17%) | 25.000 | — |
-| Growth | €349/mnd (€279 jaarlijks, −20%) | 150.000 | AI-personalisatie, CRM/ABM-enrichment, custom decay, analytics |
-| Pro | €749/mnd (€599 jaarlijks, −20%) | 500.000 | + multi-tenant, priority support |
+| Starter | €149/mnd (€124 jaarlijks, −17%) | 1.500 | — |
+| Growth | €349/mnd (€279 jaarlijks, −20%) | 7.500 | AI-personalisatie, CRM/ABM-enrichment, custom decay, analytics |
+| Pro | €749/mnd (€599 jaarlijks, −20%) | 40.000 | + multi-tenant, priority support |
 
 Sessies zijn de **enige** numerieke limiet; rules, experimenten, segmenten en pagina's zijn ongelimiteerd.
 
