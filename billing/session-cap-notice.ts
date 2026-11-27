@@ -70,7 +70,17 @@ export interface SessionCountedInput {
   knownCount:    number;
   planLimit:     number;
   bonusSessions: number;
+  /**
+   * Set while the tenant is on trial: the ISO timestamp its sessions are
+   * counted from. `planLimit` is then the trial's limit, the count runs from
+   * this moment instead of over the month, and the notice is claimed once for
+   * the whole trial, so a trial that crosses the 1st does not mail twice.
+   */
+  trialSince?:   string | null;
 }
+
+/** The claim key of a trial's notices, in place of a month ("YYYY-MM"). */
+export const TRIAL_NOTICE_KEY = "trial";
 
 /**
  * Called after a session was newly counted. Sends the tenant a mail when the
@@ -78,15 +88,19 @@ export interface SessionCountedInput {
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function noteSessionCounted(db: SupabaseClient<any>, input: SessionCountedInput): Promise<void> {
-  const { tenantId, monthKey, knownCount, planLimit, bonusSessions } = input;
+  const { tenantId, knownCount, planLimit, bonusSessions } = input;
+  const onTrial  = typeof input.trialSince === "string" && input.trialSince !== "";
+  const monthKey = onTrial ? TRIAL_NOTICE_KEY : input.monthKey;
   try {
     if (!nearSessionCapNotice(knownCount, planLimit)) return;
 
-    const { count, error: countError } = await db
+    const counting = db
       .from("personalization_sessions")
       .select("*", { count: "exact", head: true })
-      .eq("tenant_id", tenantId)
-      .eq("month_key", monthKey);
+      .eq("tenant_id", tenantId);
+    const { count, error: countError } = onTrial
+      ? await counting.gte("created_at", input.trialSince as string)
+      : await counting.eq("month_key", monthKey);
     if (countError || typeof count !== "number") return;
 
     const due = sessionCapNoticeDue(count, planLimit);
@@ -114,7 +128,7 @@ export async function noteSessionCounted(db: SupabaseClient<any>, input: Session
     // Loaded here and not at the top: this module sits on the path of every
     // page, the mail transport is needed twice a month per tenant.
     const { notifySessionCap } = await import("./notifications");
-    await notifySessionCap(db, tenantId, { threshold: due, count, planLimit, bonusSessions, monthKey });
+    await notifySessionCap(db, tenantId, { threshold: due, count, planLimit, bonusSessions, monthKey, onTrial });
   } catch (err) {
     logger.warn("[billing/session-cap-notice] failed", {
       tenantId, monthKey, error: err instanceof Error ? err.message : String(err),

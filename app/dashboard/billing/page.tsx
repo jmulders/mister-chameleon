@@ -161,16 +161,25 @@ export default async function BillingPage({ searchParams }: PageProps) {
             </div>
           )}
 
+          {cap.onTrial && (
+            <p className="mt-3 text-xs text-neutral-500">
+              You are on trial: up to {fmtNumber(cap.planLimit)} personalised sessions, counted from the start
+              of your trial. The monthly sessions of your plan apply once your subscription starts.
+            </p>
+          )}
           {cap.overLimit && (
             <p className="mt-3 text-xs text-red-600 font-medium">
               Personalisation cap reached. Visitors are receiving the default experience.{" "}
-              Purchase a top-up below to restore personalisation for the rest of this month.
+              {cap.onTrial
+                ? "Purchase a top-up below to restore personalisation before your subscription starts."
+                : "Purchase a top-up below to restore personalisation for the rest of this month."}
             </p>
           )}
           {!cap.overLimit && cap.limit > 0 && usagePct >= 80 && (
             <p className="mt-3 text-xs text-amber-700 font-medium">
-              {usagePct}% of this month&apos;s sessions are used. When they run out, visitors get the
-              default experience until the first day of next month.
+              {cap.onTrial
+                ? `${usagePct}% of your trial sessions are used. When they run out, visitors get the default experience until your subscription starts.`
+                : `${usagePct}% of this month's sessions are used. When they run out, visitors get the default experience until the first day of next month.`}
             </p>
           )}
         </div>
