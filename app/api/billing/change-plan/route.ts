@@ -38,6 +38,9 @@ import { createCheckoutSession, createPlanChangeCheckout } from "@/billing/strip
 import { syncPackageKeyFromPlan }                            from "@/billing/subscriptions";
 import { getStripeClient }                                   from "@/billing/stripe-config";
 import { rethrowNextInternal } from "@/lib/server-action-guard";
+import { getPaymentProvider }    from "@/billing/payment-provider";
+import { mollieConfigured }      from "@/billing/mollie";
+import { changePlanViaMollie }   from "@/billing/mollie-plan-change";
 import {
   getRequiredAdminSession,
   canAccessTenant,
@@ -65,6 +68,7 @@ interface SubRow {
   status:                 string;
   plan:                   string | null;
   billing_cycle:          string | null;
+  current_period_start?:  string | null;
   current_period_end:     string | null;
   pending_plan:           string | null;
   pending_plan_billing_cycle: string | null;
@@ -137,11 +141,26 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
   const { data: existingSub } = await client
     .from("subscriptions")
-    .select("stripe_subscription_id, stripe_customer_id, status, plan, billing_cycle, current_period_end, pending_plan, pending_plan_billing_cycle, pending_plan_effective_date")
+    .select("stripe_subscription_id, stripe_customer_id, status, plan, billing_cycle, current_period_start, current_period_end, pending_plan, pending_plan_billing_cycle, pending_plan_effective_date")
     .eq("tenant_id", tenantId)
     .maybeSingle();
 
   const sub = existingSub as SubRow | null;
+
+  // ── 3b. Mollie: a subscription charged on the tenant's mandate ───────────────
+  //
+  // Before anything about Stripe prices: with Mollie there are none. What a
+  // change means there (on trial, upgrade with the difference collected,
+  // downgrade at the next period) is decided in billing/mollie-plan-change.ts.
+
+  if (getPaymentProvider() === "mollie" && mollieConfigured()
+      && sub && !sub.stripe_subscription_id && ["active", "trialing"].includes(sub.status)) {
+    const change = await changePlanViaMollie(client, { tenantId, newPlanId, billingCycle, sub });
+    if (!change.ok) {
+      return NextResponse.json({ error: change.error, restriction: change.restriction }, { status: change.status });
+    }
+    return NextResponse.json(change);
+  }
 
   // ── 4. Resolve new price ID (env → DB fallback) ──────────────────────────────
 

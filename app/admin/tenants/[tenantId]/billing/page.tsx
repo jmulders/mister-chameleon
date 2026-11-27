@@ -245,6 +245,7 @@ export default async function TenantBillingPage({
   const paymentNotice = mollieParam === "pending"  ? "pending"
                       : mollieParam === "problem"  ? "problem"
                       : mollieParam === "restored" ? "restored"
+                      : mollieParam === "method"   ? "method"
                       : undefined;
 
   // ── Confirm bundle purchase server-side ────────────────────────────────────
