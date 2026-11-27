@@ -15,6 +15,7 @@
  */
 
 import type { SiteTexts } from "./locale";
+import { TRIAL_SESSION_LIMIT } from "@/billing/trial-session-cap";
 
 export type ShopTexts = {
   // ── Amounts ────────────────────────────────────────────────────────────────
@@ -221,7 +222,7 @@ export const SHOP_TEXTS: SiteTexts<ShopTexts> = {
     createAccount:       "Create your account",
     startingTrial:       (planName) => `Starting your ${planName} trial`,
     accountDetails:      "Account details",
-    trialCardNote:       "14-day free trial. You'll add a card now but won't be charged until the trial ends.",
+    trialCardNote:       `14-day free trial, up to ${TRIAL_SESSION_LIMIT} personalised sessions. You'll add a card now but won't be charged until the trial ends.`,
     fullName:            "Full name",
     fullNamePlaceholder: "Jane Smith",
     companyName:         "Company name",
@@ -258,7 +259,7 @@ export const SHOP_TEXTS: SiteTexts<ShopTexts> = {
     accountReady:          "Your account is ready",
     confirmationSentTo:    "We sent a confirmation email to",
     confirmationSentAfter: ".",
-    trialStartedNote:      "Your 14-day free trial has started. You can cancel any time, and nothing is charged before it ends.",
+    trialStartedNote:      `Your 14-day free trial has started, with up to ${TRIAL_SESSION_LIMIT} personalised sessions. You can cancel any time, and nothing is charged before it ends.`,
     creatingAccount:       "Creating your account…",
     submitStartYourTrial:  "Start your free trial",
     checkoutBlockTrust: ["🔒 256-bit SSL", "💳 No charge for 14 days", "✓ 14-day free trial"],
@@ -364,7 +365,7 @@ export const SHOP_TEXTS: SiteTexts<ShopTexts> = {
     createAccount:       "Maak je account aan",
     startingTrial:       (planName) => `Start je proefperiode met ${planName}`,
     accountDetails:      "Je gegevens",
-    trialCardNote:       "14 dagen gratis proberen. Je vult nu je kaart in, maar je betaalt pas als de proefperiode voorbij is.",
+    trialCardNote:       `14 dagen gratis proberen, tot ${TRIAL_SESSION_LIMIT} gepersonaliseerde bezoeken. Je vult nu je kaart in, maar je betaalt pas als de proefperiode voorbij is.`,
     fullName:            "Volledige naam",
     fullNamePlaceholder: "Jan Jansen",
     companyName:         "Bedrijfsnaam",
@@ -401,7 +402,7 @@ export const SHOP_TEXTS: SiteTexts<ShopTexts> = {
     accountReady:          "Je account staat klaar",
     confirmationSentTo:    "We hebben een bevestiging gemaild naar",
     confirmationSentAfter: ".",
-    trialStartedNote:      "Je gratis proefperiode van 14 dagen is begonnen. Je kunt altijd stoppen en je betaalt pas na die 14 dagen.",
+    trialStartedNote:      `Je gratis proefperiode van 14 dagen is begonnen, met tot ${TRIAL_SESSION_LIMIT} gepersonaliseerde bezoeken. Je kunt altijd stoppen en je betaalt pas na die 14 dagen.`,
     creatingAccount:       "Je account wordt aangemaakt…",
     submitStartYourTrial:  "Start je gratis proefperiode",
     checkoutBlockTrust: ["🔒 256-bit SSL", "💳 Je betaalt pas na 14 dagen", "✓ 14 dagen gratis proberen"],

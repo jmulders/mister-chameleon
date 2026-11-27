@@ -235,8 +235,37 @@ export function sessionCapNoticeText(info: {
   planLimit:     number;
   bonusSessions: number;
   monthKey:      string;
+  /** The tenant is on trial: `planLimit` is the trial's session limit. */
+  onTrial?:      boolean;
 }): { subject: string; body: string } {
   const n = (value: number) => value.toLocaleString("en-GB");
+
+  // A trial has no "next month": it ends when the subscription starts.
+  if (info.onTrial) {
+    const usedTrial = `${n(info.count)} of the ${n(info.planLimit)} personalised sessions in your trial`;
+    const next =
+      `Your trial itself goes on: nothing is charged before it ends. When your subscription starts, ` +
+      `the monthly sessions of your plan apply and personalisation continues. ` +
+      `To personalise again before that, buy extra sessions in your dashboard, under Billing.`;
+    if (info.threshold >= 100) {
+      const bonus = Math.max(0, info.bonusSessions);
+      return {
+        subject: "[Mister Chameleon] Trial session limit reached",
+        body:
+          `You have used ${usedTrial}.\n\n` +
+          (bonus > 0
+            ? `You have ${n(bonus)} extra sessions left from a bundle you bought. Personalisation continues until those are used, and stops after that.\n\n`
+            : `From now on visitors get the default version of your pages: no personalised content and no personalised colours. Nothing breaks, and nothing is charged.\n\n`) +
+          next,
+      };
+    }
+    return {
+      subject: `[Mister Chameleon] ${info.threshold}% of your trial sessions used`,
+      body:
+        `You have used ${usedTrial}.\n\n` +
+        `When they are used up, visitors get the default version of your pages. ` + next,
+    };
+  }
   const used = `${n(info.count)} of the ${n(info.planLimit)} personalised sessions in your plan`;
 
   if (info.threshold >= 100) {
@@ -268,7 +297,7 @@ export function sessionCapNoticeText(info: {
 export async function notifySessionCap(
   client:   SupabaseClient,
   tenantId: string,
-  info:     { threshold: number; count: number; planLimit: number; bonusSessions: number; monthKey: string },
+  info:     { threshold: number; count: number; planLimit: number; bonusSessions: number; monthKey: string; onTrial?: boolean },
 ): Promise<void> {
   try {
     const prefs = await getWalletPrefs(client, tenantId);

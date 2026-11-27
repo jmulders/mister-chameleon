@@ -3428,9 +3428,17 @@ function SessionsTab({
             </div>
           )}
 
+          {cap.onTrial && (
+            <p className="mt-3 text-xs text-neutral-500">
+              On trial: up to {fmtN(cap.planLimit ?? 0)} personalised sessions, counted from the start of the trial.
+              The monthly sessions of the plan apply once the subscription starts.
+            </p>
+          )}
           {cap.overLimit && (
             <p className="mt-3 text-xs text-red-600 font-medium">
-              Cap reached. Visitors are receiving the default experience until the month resets or credits are purchased.
+              {cap.onTrial
+                ? "Trial limit reached. Visitors are receiving the default experience until the subscription starts or credits are purchased."
+                : "Cap reached. Visitors are receiving the default experience until the month resets or credits are purchased."}
             </p>
           )}
         </div>

@@ -311,7 +311,9 @@ describe("the stores say when a read failed", () => {
     ["platform/platform-store.ts", "platform settings", 2],
     ["lib/design-effect-sets/effect-sets-store.ts", "effect sets", 2],
     ["lib/adaptive-blocks/adaptive-blocks-store.ts", "block by key and block list", 4],
-    ["billing/plan-enforcement.ts", "plan, session count and credits", 6],
+    // 8 since the trial session cap: the count since the start of a trial marks
+    // a failed read too, in both of its failure paths.
+    ["billing/plan-enforcement.ts", "plan, session counts (month and trial) and credits", 8],
     ["interest-profiles/repository.ts", "the tenant's interest profile overrides", 2],
   ];
   for (const [file, what, expected] of cases) {

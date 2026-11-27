@@ -70,6 +70,7 @@ import { noteFailedRead, rememberedRead } from "@/lib/cache/remembered-read";
 import { getDb }                  from "@/data/db";
 import { BILLING_PLANS }          from "./plans";
 import { noteSessionCounted }     from "./session-cap-notice";
+import { trialSessionLimit, trialWindow, type TrialWindow } from "./trial-session-cap";
 import type { BillingPlan }       from "./plans";
 import type { SupabaseClient }    from "@supabase/supabase-js";
 
@@ -108,6 +109,14 @@ export interface SessionCapResult {
   // here so the compiler catches a producer that forgets one.
   /** The calendar month key checked ("YYYY-MM"). */
   monthKey:     string;
+  /**
+   * True while the subscription is on trial. `planLimit` is then the trial's
+   * session limit and `current` counts from the start of the trial, not from
+   * the 1st of the month (billing/trial-session-cap.ts). Absent means false.
+   */
+  onTrial?:        boolean;
+  /** ISO timestamp the trial's sessions are counted from. Null when not on trial. */
+  trialStartedAt?: string | null;
 }
 
 // ── Internal DB helper ────────────────────────────────────────────────────────
@@ -141,10 +150,22 @@ export function currentMonthKey(): string {
  * Never throws — returns the starter plan on any DB error.
  */
 export async function getEffectivePlan(tenantId: string): Promise<BillingPlan> {
+  return (await getPlanAndTrial(tenantId)).plan;
+}
+
+/**
+ * The effective plan, and the trial the tenant is in when it is in one.
+ *
+ * One read of the subscription row answers both, so the cap verdict does not
+ * ask for the same row twice.
+ */
+export async function getPlanAndTrial(
+  tenantId: string,
+): Promise<{ plan: BillingPlan; trial: TrialWindow | null }> {
   const db = getAnyDb();
 
   const [subResult, settingsResult] = await Promise.all([
-    db.from("subscriptions").select("plan, status").eq("tenant_id", tenantId).maybeSingle(),
+    db.from("subscriptions").select("plan, status, created_at").eq("tenant_id", tenantId).maybeSingle(),
     db.from("tenant_settings").select("settings").eq("tenant_id", tenantId).maybeSingle(),
   ]);
 
@@ -172,14 +193,21 @@ export async function getEffectivePlan(tenantId: string): Promise<BillingPlan> {
     .eq("plan_id", planId)
     .maybeSingle();
 
+  // On trial or not is the subscription's own status. A tenant with only a
+  // packageKey has no subscription, so it is never on trial.
+  const trial = trialWindow(subResult.data as { status?: string | null; created_at?: string | null } | null);
+
   if (planError) noteFailedRead();
-  if (!dbRow) return staticPlan;
+  if (!dbRow) return { plan: staticPlan, trial };
 
   return {
-    ...staticPlan,
-    name:     (dbRow.label    as string | null) ?? staticPlan.name,
-    features: { ...staticPlan.features, ...(dbRow.features as Partial<BillingPlan["features"]> ?? {}) },
-    limits:   { ...staticPlan.limits,   ...(dbRow.limits   as Partial<BillingPlan["limits"]>   ?? {}) },
+    trial,
+    plan: {
+      ...staticPlan,
+      name:     (dbRow.label    as string | null) ?? staticPlan.name,
+      features: { ...staticPlan.features, ...(dbRow.features as Partial<BillingPlan["features"]> ?? {}) },
+      limits:   { ...staticPlan.limits,   ...(dbRow.limits   as Partial<BillingPlan["limits"]>   ?? {}) },
+    },
   };
 }
 
@@ -333,6 +361,7 @@ export async function recordPersonalizedSession(
         knownCount:    capResult.current,
         planLimit:     capResult.planLimit,
         bonusSessions: capResult.bonusSessions,
+        trialSince:    capResult.onTrial ? (capResult.trialStartedAt ?? null) : null,
       });
     }
   } catch {
@@ -361,6 +390,37 @@ export async function getMonthlySessionCount(
       .select("*", { count: "exact", head: true })
       .eq("tenant_id", tenantId)
       .eq("month_key",  key);
+
+    if (error) {
+      noteFailedRead();
+      return 0;
+    }
+    return count ?? 0;
+  } catch {
+    noteFailedRead();
+    return 0;
+  }
+}
+
+/**
+ * Count the tenant's personalised sessions since a moment in time.
+ *
+ * Used for a trial, whose sessions are counted from its start and not per
+ * calendar month. Returns 0 on any error, like getMonthlySessionCount.
+ */
+export async function getSessionCountSince(
+  tenantId: string,
+  sinceIso: string,
+): Promise<number> {
+  if (!tenantId) return 0;
+  const db = getAnyDb();
+
+  try {
+    const { count, error } = await db
+      .from("personalization_sessions")
+      .select("*", { count: "exact", head: true })
+      .eq("tenant_id", tenantId)
+      .gte("created_at", sinceIso);
 
     if (error) {
       noteFailedRead();
@@ -485,13 +545,27 @@ export function isOverCap(input: {
 export async function checkSessionSoftCap(tenantId: string): Promise<SessionCapResult> {
   const monthKey = currentMonthKey();
 
-  const [plan, current, bonusSessions] = await Promise.all([
-    getEffectivePlan(tenantId),
+  const [{ plan, trial }, monthCount, bonusSessions] = await Promise.all([
+    getPlanAndTrial(tenantId),
     getMonthlySessionCount(tenantId, monthKey),
     getSessionCreditBalance(tenantId),
   ]);
 
-  const planLimit = plan.limits.personalizedSessionsPerMonth;
+  // ── Trial ───────────────────────────────────────────────────────────────────
+  //
+  // A trial is capped by sessions as well as by days (trial-session-cap.ts).
+  // Its sessions are counted from the day it started, so a trial that runs
+  // over the 1st does not start again at zero. The trial limit goes on as
+  // `planLimit`: purchased credits lift it and the tenant is told at 80% and
+  // at 100%, exactly as with a paid plan. Only a trial pays for the extra
+  // count: every other tenant keeps the month's count read above.
+  const current = trial
+    ? await getSessionCountSince(tenantId, trial.startedAt)
+    : monthCount;
+
+  const planLimit = trial
+    ? trialSessionLimit(plan.limits.personalizedSessionsPerMonth)
+    : plan.limits.personalizedSessionsPerMonth;
   // Reported as plan + remaining credits so the dashboard shows headroom. Not
   // used for the decision itself — see isOverCap for why that formula is unsafe.
   const limit = planLimit === 0 ? 0 : planLimit + bonusSessions;
@@ -503,6 +577,8 @@ export async function checkSessionSoftCap(tenantId: string): Promise<SessionCapR
     planLimit,
     bonusSessions,
     monthKey,
+    onTrial:        trial !== null,
+    trialStartedAt: trial?.startedAt ?? null,
   };
 }
 
