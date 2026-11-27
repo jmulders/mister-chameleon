@@ -232,6 +232,12 @@ export interface BillingDashboardProps {
    */
   paymentNotice?: "pending" | "problem";
   /**
+   * Set when Mollie is the payment provider: whether this tenant has given a
+   * mandate for automatic top-ups, and through which method. Absent means
+   * Stripe, and the Stripe payment method decides as before.
+   */
+  mollieMandate?: MollieMandateInfo | null;
+  /**
    * Dunning (payment-due) settings for this tenant.
    * When present, the Payment Due Notifications panel is shown in the Plan tab.
    */
@@ -497,16 +503,43 @@ function BalanceHero({
 
 // ── Alert banners ─────────────────────────────────────────────────────────────
 
+// ── Mollie mandate (automatic top-ups) ────────────────────────────────────────
+
+export interface MollieMandateInfo {
+  /** True when a paid first payment gave the platform a mandate. */
+  authorised: boolean;
+  /** The method of that first payment: "ideal", "creditcard", … */
+  method:     string | null;
+}
+
+/** How a mandate's method reads to the tenant. */
+function mandateMethodLabel(method: string | null): string {
+  if (method === "creditcard") return "card";
+  if (method === "ideal")      return "direct debit, set up with iDEAL";
+  if (method === "directdebit") return "direct debit";
+  return method ?? "payment method on file";
+}
+
+/**
+ * Whether an automatic top-up can be charged at all. With Mollie that is the
+ * mandate, with Stripe the saved payment method.
+ */
+function canAutoReload(wallet: TenantWallet, mollieMandate?: MollieMandateInfo | null): boolean {
+  return mollieMandate ? mollieMandate.authorised : Boolean(wallet.stripe_payment_method_id);
+}
+
 function AlertBanners({
   wallet,
   reloadAttempts,
   statusKey,
   spendThisMonth,
+  mollieMandate,
 }: {
   wallet:         TenantWallet | null;
   reloadAttempts: WalletReloadAttempt[];
   statusKey:      keyof typeof WALLET_STATUS;
   spendThisMonth: number;
+  mollieMandate?: MollieMandateInfo | null;
 }) {
   const alerts: { icon: string; msg: string; level: "red" | "amber" }[] = [];
 
@@ -528,7 +561,7 @@ function AlertBanners({
   if (statusKey === "cap_reached") alerts.push({ icon: "◎", msg: ANOMALY_LABELS.MONTHLY_CAP_REACHED, level: "amber" });
   if (reloadAttempts[0]?.status === "failed")
     alerts.push({ icon: "↺", msg: ANOMALY_LABELS.AUTO_RELOAD_FAILED, level: "red" });
-  if (wallet?.auto_reload_enabled && !wallet.stripe_payment_method_id)
+  if (wallet?.auto_reload_enabled && !canAutoReload(wallet, mollieMandate))
     alerts.push({ icon: "💳", msg: ANOMALY_LABELS.AUTO_RELOAD_NO_METHOD, level: "amber" });
 
   if (alerts.length === 0) return null;
@@ -909,13 +942,17 @@ function AutoReloadCard({
   tenantId,
   wallet,
   reloadAttempts,
+  mollieMandate,
 }: {
   tenantId:       string;
   wallet:         TenantWallet | null;
   reloadAttempts: WalletReloadAttempt[];
+  mollieMandate?: MollieMandateInfo | null;
 }) {
   const [pending, startTransition] = useTransition();
   const [saved,   setSaved]        = useState(false);
+  const [authorising,    setAuthorising]    = useState(false);
+  const [authoriseError, setAuthoriseError] = useState<string | null>(null);
   const [autoEnabled, setAutoEnabled] = useState(wallet?.auto_reload_enabled ?? false);
   const [triggerVal,  setTriggerVal]  = useState(String(wallet?.auto_reload_trigger_cents ?? 500));
   const [amountVal,   setAmountVal]   = useState(String(wallet?.auto_reload_amount_cents  ?? 5000));
@@ -935,6 +972,29 @@ function AutoReloadCard({
       if (r.ok) setSaved(true);
       setTimeout(() => setSaved(false), 3000);
     });
+  }
+
+  async function handleAuthorise() {
+    setAuthorising(true);
+    setAuthoriseError(null);
+    try {
+      const res = await fetch("/api/billing/mollie/authorise", {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({ tenantId, amountCents: parseInt(amountVal, 10) || 0 }),
+      });
+      const json = await res.json() as { url?: string; error?: string };
+      if (!res.ok || !json.url) {
+        setAuthoriseError(json.error ?? "Could not start the payment. Please try again.");
+        setAuthorising(false);
+        return;
+      }
+      // Off to the Mollie checkout. The page unmounts, no state to reset.
+      window.location.href = json.url;
+    } catch {
+      setAuthoriseError("Network error. Please try again.");
+      setAuthorising(false);
+    }
   }
 
   return (
@@ -979,15 +1039,47 @@ function AutoReloadCard({
             </div>
           </div>
 
-          <div className={`rounded-lg border px-3 py-2 text-xs ${
-            wallet.stripe_payment_method_id
-              ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-              : "border-amber-200 bg-amber-50 text-amber-700"
-          }`}>
-            {wallet.stripe_payment_method_id
-              ? `✓ Payment method linked`
-              : `⚠ No payment method. Auto-reload will not fire`}
-          </div>
+          {mollieMandate ? (
+            // Mollie: the tenant authorises automatic top-ups by paying the first one.
+            mollieMandate.authorised ? (
+              <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-700">
+                ✓ Automatic top-ups authorised ({mandateMethodLabel(mollieMandate.method)})
+                {mollieMandate.method !== "creditcard" && (
+                  <span className="block mt-0.5 text-emerald-600">
+                    A direct debit takes a few working days. The balance is added when the bank confirms it.
+                  </span>
+                )}
+              </div>
+            ) : (
+              <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700 space-y-2">
+                <p>⚠ Not authorised yet. Auto-reload will not fire.</p>
+                <p className="text-amber-800">
+                  Pay the first top-up of €{((parseInt(amountVal, 10) || 0) / 100).toFixed(2)} now. By paying it you
+                  authorise Mister Chameleon to collect later automatic top-ups of the amount set above from the same
+                  account, within the monthly cap. You can switch auto-reload off at any time.
+                </p>
+                <button
+                  type="button"
+                  onClick={handleAuthorise}
+                  disabled={authorising}
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-brand-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-brand-700 transition-colors disabled:opacity-50"
+                >
+                  {authorising ? "Opening…" : "Pay first top-up and authorise →"}
+                </button>
+                {authoriseError && <p className="text-red-600">{authoriseError}</p>}
+              </div>
+            )
+          ) : (
+            <div className={`rounded-lg border px-3 py-2 text-xs ${
+              wallet.stripe_payment_method_id
+                ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                : "border-amber-200 bg-amber-50 text-amber-700"
+            }`}>
+              {wallet.stripe_payment_method_id
+                ? `✓ Payment method linked`
+                : `⚠ No payment method. Auto-reload will not fire`}
+            </div>
+          )}
 
           {lastAttempt && (
             <div className={`rounded-lg border px-3 py-2 text-xs ${
@@ -3026,6 +3118,7 @@ export function BillingDashboard({
   sessionBuyStatus,
   sessionBoughtBundleId,
   paymentNotice,
+  mollieMandate,
   dunningSettings,
   stripeInvoices = [],
   stripeInvoicesError,
@@ -3049,7 +3142,7 @@ export function BillingDashboard({
       <BalanceHero wallet={wallet} spendToday={spendToday} spendThisMonth={spendThisMonth} statusKey={statusKey} tenantId={tenantId} isSuperAdmin={isSuperAdmin} />
 
       {/* Alert banners */}
-      <AlertBanners wallet={wallet} reloadAttempts={reloadAttempts} statusKey={statusKey} spendThisMonth={spendThisMonth} />
+      <AlertBanners wallet={wallet} reloadAttempts={reloadAttempts} statusKey={statusKey} spendThisMonth={spendThisMonth} mollieMandate={mollieMandate} />
 
       {/* A payment without a final answer yet, or one that needs a look */}
       {paymentNotice === "pending" && (
@@ -3193,7 +3286,7 @@ export function BillingDashboard({
                 onNavigateToSubscription={() => setTab("subscription")}
               />
               {/* PART 6: Auto-reload */}
-              <AutoReloadCard tenantId={tenantId} wallet={wallet} reloadAttempts={reloadAttempts} />
+              <AutoReloadCard tenantId={tenantId} wallet={wallet} reloadAttempts={reloadAttempts} mollieMandate={mollieMandate} />
               {/* Notifications */}
               <NotificationCard tenantId={tenantId} wallet={wallet} />
             </>

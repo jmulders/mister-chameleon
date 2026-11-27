@@ -73,6 +73,8 @@ import {
   assertNotSimulated,
 } from "./stripe-config";
 import { serializeError } from "./errors";
+import { getPaymentProvider } from "./payment-provider";
+import { chargeMollieReload, mollieReloadSource, type MollieReloadSource } from "./mollie-auto-reload";
 
 // ── Monthly cap helpers ────────────────────────────────────────────────────────
 
@@ -147,22 +149,45 @@ export async function checkAndTriggerAutoReload(
     return;
   }
 
-  // Resolve payment method for the current Stripe mode (live vs test)
-  const paymentMethodId = resolvePaymentMethodId(wallet);
-  if (!paymentMethodId) {
-    const mode = getStripeMode();
-    console.warn("[billing/auto-reload] auto-reload enabled but no payment method saved", {
-      tenantId: wallet.tenant_id,
-      stripeMode: mode,
-      field: mode === "test" ? "stripe_test_payment_method_id" : "stripe_payment_method_id",
-    });
-    return;
+  // ── What to charge ────────────────────────────────────────────────────────
+  //
+  // With Mollie the tenant's mandate, with Stripe the saved payment method.
+  // The provider setting decides, never the presence of one or the other: a
+  // tenant with a card at Stripe is not charged there once Mollie is on.
+  let mollieSource: MollieReloadSource | null = null;
+
+  if (getPaymentProvider() === "mollie") {
+    if (wallet.currency.toUpperCase() !== "EUR") {
+      console.warn("[billing/auto-reload] Mollie charges in EUR only — no reload", {
+        tenantId: wallet.tenant_id, currency: wallet.currency,
+      });
+      return;
+    }
+    mollieSource = await mollieReloadSource(client, wallet.tenant_id);
+    if (!mollieSource) {
+      console.warn("[billing/auto-reload] auto-reload enabled but no Mollie mandate given", {
+        tenantId: wallet.tenant_id,
+      });
+      return;
+    }
+  } else {
+    // Resolve payment method for the current Stripe mode (live vs test)
+    const paymentMethodId = resolvePaymentMethodId(wallet);
+    if (!paymentMethodId) {
+      const mode = getStripeMode();
+      console.warn("[billing/auto-reload] auto-reload enabled but no payment method saved", {
+        tenantId: wallet.tenant_id,
+        stripeMode: mode,
+        field: mode === "test" ? "stripe_test_payment_method_id" : "stripe_payment_method_id",
+      });
+      return;
+    }
   }
 
   // ── Execute (wrapped so no error propagates to the caller) ────────────────
 
   try {
-    await triggerAutoReload(client, wallet, balanceAfterCents);
+    await triggerAutoReload(client, wallet, balanceAfterCents, mollieSource);
   } catch (err) {
     console.error("[billing/auto-reload] triggerAutoReload threw unexpectedly", {
       tenantId: wallet.tenant_id,
@@ -182,6 +207,8 @@ async function triggerAutoReload(
   client:            SupabaseClient,
   wallet:            TenantWallet,
   balanceAfterCents: number,
+  /** Set when Mollie takes the money: the mandate to charge. */
+  mollieSource:      MollieReloadSource | null = null,
 ): Promise<void> {
   const { tenant_id, auto_reload_amount_cents, auto_reload_monthly_limit_cents, currency } = wallet;
 
@@ -237,6 +264,64 @@ async function triggerAutoReload(
 
   if (!attempt) {
     // null = a concurrent attempt already exists; exit silently.
+    return;
+  }
+
+  // ── Mollie: charge the mandate ────────────────────────────────────────────
+  //
+  // Everything above (the cap, the one open attempt) and everything after the
+  // charge (the credit in one transaction with the attempt's status) is the
+  // same road as Stripe's. Only the charge differs. A direct debit is not paid
+  // at once: the attempt then stays "processing" until Mollie's webhook says
+  // paid or failed, which can take working days (mollie-auto-reload.ts).
+  if (mollieSource) {
+    let charge;
+    try {
+      charge = await chargeMollieReload(client, {
+        tenantId:       tenant_id,
+        attemptId:      attempt.id,
+        amountCents:    auto_reload_amount_cents,
+        idempotencyKey,
+        source:         mollieSource,
+      });
+    } catch (err) {
+      // No payment exists: free the attempt slot and tell the tenant.
+      const errDetail = serializeError(err);
+      const reason = errDetail.message ?? String(err);
+      console.error("[billing/auto-reload] Mollie charge failed", {
+        tenantId:  tenant_id,
+        attemptId: attempt.id,
+        ...errDetail,
+      });
+      await cancelAttempt(client, attempt.id, `Mollie error: ${reason}`);
+
+      const { notifyAutoReloadFailure } = await import("./notifications");
+      await notifyAutoReloadFailure(client, tenant_id, String(reason));
+      return;
+    }
+
+    // From here a payment exists, so the attempt is never cancelled: that
+    // would leave money taken and nothing to credit it to. The payment id
+    // goes where Stripe's intent id goes, the webhook finds the attempt by
+    // it. If this write fails the webhook adopts the attempt through the id
+    // in the payment's metadata (settleMollieAutoReload).
+    try {
+      await markAttemptProcessing(client, attempt.id, charge.id);
+    } catch (err) {
+      console.error("[billing/auto-reload] could not store the Mollie payment on the attempt", {
+        tenantId: tenant_id, attemptId: attempt.id, paymentId: charge.id, ...serializeError(err),
+      });
+    }
+
+    console.info("[billing/auto-reload] Mollie payment created", {
+      tenantId:    tenant_id,
+      attemptId:   attempt.id,
+      paymentId:   charge.id,
+      status:      charge.status,
+      amountCents: auto_reload_amount_cents,
+    });
+
+    if (charge.succeeded) await handleAutoReloadSuccess(client, charge.id);
     return;
   }
 

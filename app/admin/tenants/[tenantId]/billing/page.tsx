@@ -65,6 +65,7 @@ import type { UsageSummary }        from "@/billing/types";
 import { getCreditSettingsAction, confirmBundlePurchaseAction, confirmSubscriptionCheckoutAction, syncPaymentMethodFromStripeAction, confirmSessionBundlePurchaseAction, confirmPlanChangeCheckoutAction, confirmMollieReturnAction } from "./actions";
 import { bundlePurchasable, getPaymentProvider } from "@/billing/payment-provider";
 import { mollieConfigured }         from "@/billing/mollie";
+import { currentMollieMode, getMollieCustomerRow, usableMandate } from "@/billing/mollie-customer";
 import { getDunningSettingsAction, getStripeInvoicesAction } from "./actions";
 import type { StripeInvoiceRow } from "./actions";
 import { BillingDashboard }         from "./_components/BillingDashboard";
@@ -646,6 +647,21 @@ export default async function TenantBillingPage({
   const sessionBundles = SESSION_CREDIT_BUNDLES
     .map((b) => ({ ...b, purchasable: bundlePurchasable(b, paymentProvider, mollieReady) }));
 
+  // With Mollie the automatic top-up needs a mandate instead of a saved card.
+  // Null means Stripe: the dashboard then looks at the Stripe payment method.
+  let mollieMandate: { authorised: boolean; method: string | null } | null = null;
+  if (paymentProvider === "mollie") {
+    mollieMandate = { authorised: false, method: null };
+    try {
+      const mode = currentMollieMode();
+      const row  = mode ? await getMollieCustomerRow(client, tenantId, mode) : null;
+      mollieMandate = { authorised: usableMandate(row) !== null, method: row?.mandate_method ?? null };
+    } catch (err) {
+      rethrowNextInternal(err);
+      console.warn("[billing/page] mollie mandate read failed:", err);
+    }
+  }
+
   // ── 10. Dunning settings ───────────────────────────────────────────────────
 
   const dunningResult  = await getDunningSettingsAction(tenantId).catch(() => null);
@@ -750,6 +766,7 @@ export default async function TenantBillingPage({
         sessionLedger={sessionLedger}
         sessionBundles={sessionBundles}
         paymentNotice={paymentNotice}
+        mollieMandate={mollieMandate}
         sessionBuyStatus={sessionBuyStatus}
         sessionBoughtBundleId={sessionBoughtBundleId}
         dunningSettings={dunningSettings}
