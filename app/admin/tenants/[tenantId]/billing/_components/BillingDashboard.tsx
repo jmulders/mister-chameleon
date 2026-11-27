@@ -242,6 +242,8 @@ export interface BillingDashboardProps {
    * when Mollie is the provider: there the platform adds the VAT itself.
    */
   billingDetails?: BillingDetailsView | null;
+  /** The invoices the platform issued for this tenant, newest first. */
+  platformInvoices?: PlatformInvoiceView[];
   /**
    * Set when Mollie is the payment provider: whether this tenant has given a
    * mandate for automatic top-ups, and through which method. Absent means
@@ -1163,6 +1165,69 @@ function AutoReloadCard({
 }
 
 // ── PART 8: Stripe / payment status ──────────────────────────────────────────
+
+// ── Invoices issued by the platform ───────────────────────────────────────────
+
+export interface PlatformInvoiceView {
+  number:      string;
+  issuedAt:    string;
+  description: string;
+  grossCents:  number;
+  paid:        boolean;
+}
+
+function PlatformInvoicesCard({ tenantId, invoices }: { tenantId: string; invoices: PlatformInvoiceView[] }) {
+  return (
+    <Card>
+      <SectionTitle sub="Every charge gets an invoice. It is also mailed to the address in your billing details.">
+        Invoices
+      </SectionTitle>
+      {invoices.length === 0 ? (
+        <p className="text-sm text-neutral-400">No invoices yet.</p>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-left text-xs font-medium text-neutral-500">
+                <th className="py-2 pr-3">Number</th>
+                <th className="py-2 pr-3">Date</th>
+                <th className="py-2 pr-3">For</th>
+                <th className="py-2 pr-3 text-right">Total</th>
+                <th className="py-2 pr-3">Status</th>
+                <th className="py-2" />
+              </tr>
+            </thead>
+            <tbody>
+              {invoices.map((inv) => (
+                <tr key={inv.number} className="border-t border-neutral-100">
+                  <td className="py-2 pr-3 font-mono text-xs text-neutral-700">{inv.number}</td>
+                  <td className="py-2 pr-3 text-neutral-600">{fmtDateTime(inv.issuedAt).split(",")[0]}</td>
+                  <td className="py-2 pr-3 text-neutral-700">{inv.description}</td>
+                  <td className="py-2 pr-3 text-right text-neutral-900">€{(inv.grossCents / 100).toFixed(2)}</td>
+                  <td className="py-2 pr-3">
+                    <Badge
+                      label={inv.paid ? "Paid" : "Open"}
+                      bg={inv.paid ? "bg-emerald-100" : "bg-amber-100"}
+                      text={inv.paid ? "text-emerald-700" : "text-amber-700"}
+                    />
+                  </td>
+                  <td className="py-2 text-right">
+                    <a
+                      href={`/api/billing/invoices/${inv.number}/pdf?tenantId=${encodeURIComponent(tenantId)}`}
+                      className="text-xs font-medium text-brand-600 hover:underline"
+                    >
+                      PDF
+                    </a>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </Card>
+  );
+}
 
 // ── Billing details ───────────────────────────────────────────────────────────
 
@@ -3385,6 +3450,7 @@ export function BillingDashboard({
   mollieMandate,
   mollieOverdue,
   billingDetails,
+  platformInvoices,
   dunningSettings,
   stripeInvoices = [],
   stripeInvoicesError,
@@ -3575,6 +3641,7 @@ export function BillingDashboard({
                 <>
                   <MolliePaymentCard tenantId={tenantId} subscription={subscription} mollieMandate={mollieMandate} />
                   {billingDetails && <BillingDetailsCard tenantId={tenantId} details={billingDetails} />}
+                  <PlatformInvoicesCard tenantId={tenantId} invoices={platformInvoices ?? []} />
                 </>
               ) : (
                 <StripeStatusCard

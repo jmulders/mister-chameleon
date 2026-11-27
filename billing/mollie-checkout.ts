@@ -37,6 +37,7 @@ import {
   type RenewalSettleDeps,
 } from "./mollie-renewal";
 import { PAYMENT_METHOD_PAYMENT_TYPE, paymentMethodOutcome } from "./mollie-payment-method";
+import { invoicePurchase } from "./mollie-invoicing";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -253,6 +254,11 @@ export async function settleMolliePayment(
   // A paid first payment also gave a mandate. Kept after the delivery, and
   // on every road here: the webhook and the return both may be the first.
   await rememberMollieMandate(client, payment);
+  // What was delivered gets its invoice. Asked on both roads as well: the
+  // invoice is issued once per payment, so the second road only finds it.
+  if (result.outcome === "credited" || result.outcome === "already-credited") {
+    await invoicePurchase(client, payment, { kind: result.kind, tenantId: result.tenantId, bundleId: result.bundleId });
+  }
   await noteMolliePayment(client, payment, result);
   return { payment, result };
 }

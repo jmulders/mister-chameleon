@@ -170,7 +170,7 @@ Dev-only toggles: `NEXT_PUBLIC_DEBUG_DIAGNOSTICS`, `NEXT_PUBLIC_SHOW_SCENARIO_PA
 
 ### Mollie (naast Stripe)
 
-Mollie neemt stap voor stap geldstromen over van Stripe. Live zijn de **losse aankopen** (sessie-bundels, AI-credits, tegoed opwaarderen), het **automatisch opwaarderen** via een machtiging, de **proefaanmelding** en het **maandelijks afschrijven van het abonnement**. Ook **pakket wisselen** en **de betaalmethode wijzigen** werken via Mollie. Facturen zijn er voor Mollie nog niet.
+Mollie neemt stap voor stap geldstromen over van Stripe. Live zijn de **losse aankopen** (sessie-bundels, AI-credits, tegoed opwaarderen), het **automatisch opwaarderen** via een machtiging, de **proefaanmelding** en het **maandelijks afschrijven van het abonnement**. Ook **pakket wisselen** en **de betaalmethode wijzigen** werken via Mollie. Op alles wat via Mollie loopt komt **btw**, en het platform schrijft er zelf de **facturen** voor.
 
 | Variabele | Verplicht | Uitleg |
 |---|---|---|
@@ -182,7 +182,25 @@ Mollie neemt stap voor stap geldstromen over van Stripe. Live zijn de **losse aa
 - **Webhook:** `/api/webhooks/mollie`. Het adres gaat per betaling mee, je stelt het niet in het Mollie-dashboard in. Het wordt afgeleid van `NEXT_PUBLIC_APP_URL`, anders van het adres waar de klant op zit. Op localhost gaat er geen webhook mee, daar bevestigt de terugkeerpagina de betaling.
 - **Tabel:** `mollie_payments` (migratie 191) moet bestaan voordat `PAYMENT_PROVIDER=mollie` aangaat.
 - **Migratie 192** hoort erbij en geldt ook voor Stripe: de functie `credit_wallet` weigerde elke bijschrijving van AI-credits omdat de statuskolom tekst is en de functie naar een enum castte.
-- **Btw:** het platform rekent het bedrag uit de code af en telt er niets bij op, net als bij Stripe.
+- **Btw via Mollie** (`billing/vat.ts`, tabel `billing_details`, migratie 196). De prijzen in de code zijn exclusief btw. Bij elke afschrijving via Mollie telt het platform de btw erbij op:
+  - Nederland: 21%.
+  - Ander EU-land met een btw-nummer van dat land: 0%, btw verlegd.
+  - Ander EU-land zonder btw-nummer: 21%.
+  - Buiten de EU: 0%.
+  - Het land en het btw-nummer komen uit het aanmeldformulier en zijn daarna te wijzigen op de billing-pagina ("Billing details"). Een klant zonder gegevens telt als Nederlandse klant.
+  - Het btw-nummer wordt gecontroleerd op vorm en op land, niet tegen VIES.
+  - Tegoed wordt bijgeschreven voor het bedrag zonder btw: wie € 50 opwaardeert betaalt € 60,50 en krijgt € 50 tegoed.
+  - **Bij Stripe komt er geen btw bij.** Dat is niet veranderd.
+- **Facturen via Mollie** (`billing/invoices.ts`, tabellen `invoices` en `invoice_counter`, migratie 197):
+  - Het nummer is de datum en een teller: `20261127-0001`. De teller loopt door over de dagen heen, begint nooit opnieuw en slaat geen nummer over. De databasefunctie `issue_invoice` geeft het nummer uit in dezelfde transactie die de factuur schrijft.
+  - Per betaling komt er één factuur, ook als de webhook en de terugkeerpagina de betaling allebei melden.
+  - Een losse aankoop of opwaardering krijgt de factuur zodra hij betaald is. Het abonnement krijgt de factuur zodra Mollie de afschrijving aanneemt. Die staat open tot de incasso betaald is en gaat weer open bij een weigering of terugboeking.
+  - Een afschrijving die Mollie direct weigert krijgt geen factuur. Die komt er zodra de klant het openstaande bedrag zelf betaalt.
+  - De betaling van € 0,01 (proefaanmelding, betaalmethode wijzigen) krijgt geen factuur.
+  - De factuur is een momentopname: een klant die later verhuist verandert een bestaande factuur niet.
+  - De klant krijgt de factuur als pdf per mail op het factuuradres uit "Billing details" en kan hem downloaden op de billing-pagina (`/api/billing/invoices/<nummer>/pdf`). Zonder mailadres gaat er geen mail uit, de factuur bestaat dan wel.
+  - De gegevens van de verkoper staan in `billing/seller.ts`. De factuur is in het Nederlands.
+  - **Volgorde bij uitrollen:** migratie 196 en 197 moeten gedraaid zijn vóór deze code live gaat. Het aanmeldformulier schrijft het land en het btw-nummer weg, ook bij Stripe.
 - **Proefaanmelding via Mollie** (alleen met `MOLLIE_TRIAL_SIGNUP=on`): de bezoeker betaalt € 0,01 om de betaalmethode te controleren. Die betaling legt de machtiging vast waarop het pakket na de proef wordt afgeschreven. Het account wordt aangemaakt zodra die betaling betaald is.
 - **Abonnement via Mollie** (tabel `mollie_renewals`, migratie 195): de dagelijkse taak `/api/cron/billing-renewal` schrijft het pakket af van de machtiging. Zo loopt het:
   - Een proef die afloopt schuift eerst naar de 1e van de volgende maand (een paar gratis dagen, zoals bij Stripe). Op of na de 1e wordt het pakket afgeschreven en loopt de periode van de 1e tot de 1e.

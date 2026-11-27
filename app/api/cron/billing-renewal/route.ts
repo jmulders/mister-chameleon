@@ -55,6 +55,7 @@ import { attemptSubscriptionCharge } from "@/billing/subscription-charge";
 import { renewalCharge, renewalIdempotencyKey } from "@/billing/renewal-charge";
 import { getPaymentProvider }        from "@/billing/payment-provider";
 import { chargeMollieRenewal, noteRenewalAdvanced, trialRealign } from "@/billing/mollie-renewal";
+import { renewalDescription }        from "@/billing/mollie-invoicing";
 import {
   markTenantPastDue,
   markTenantUnpaid,
@@ -224,6 +225,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
             plan:           activePlan,
             cycle:          charge.cycle,
             description:    `Mister Chameleon: ${planLabel} subscription`,
+            invoiceDescription: renewalDescription(activePlan, renewedFrom, charge.cycle),
             idempotencyKey: renewalIdempotencyKey(tenant_id, sub.current_period_end),
           })
         : await attemptSubscriptionCharge(

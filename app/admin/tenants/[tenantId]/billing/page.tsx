@@ -68,6 +68,7 @@ import { mollieConfigured }         from "@/billing/mollie";
 import { currentMollieMode, getMollieCustomerRow, usableMandate } from "@/billing/mollie-customer";
 import { overdueAmount }            from "@/billing/mollie-renewal";
 import { getBillingDetails }        from "@/billing/billing-details";
+import { listInvoices }             from "@/billing/invoices";
 import { vatDecision, vatNote, vatRateLabel } from "@/billing/vat";
 import { getDunningSettingsAction, getStripeInvoicesAction } from "./actions";
 import type { StripeInvoiceRow } from "./actions";
@@ -675,6 +676,19 @@ export default async function TenantBillingPage({
     };
   }
 
+  // The invoices the platform issued itself, for what it charged through Mollie.
+  let platformInvoices: { number: string; issuedAt: string; description: string; grossCents: number; paid: boolean }[] = [];
+  if (paymentProvider === "mollie") {
+    try {
+      platformInvoices = (await listInvoices(client, tenantId)).map((inv) => ({
+        number: inv.number, issuedAt: inv.issued_at, description: inv.description, grossCents: inv.gross_cents, paid: inv.paid_at !== null,
+      }));
+    } catch (err) {
+      rethrowNextInternal(err);
+      console.warn("[billing/page] invoices read failed:", err);
+    }
+  }
+
   // A subscription charge on the mandate that failed or was reversed: the
   // tenant can pay it here. Only asked for a tenant that is behind.
   let mollieOverdue: { amountCents: number } | null = null;
@@ -810,6 +824,7 @@ export default async function TenantBillingPage({
         mollieMandate={mollieMandate}
         mollieOverdue={mollieOverdue}
         billingDetails={billingDetails}
+        platformInvoices={platformInvoices}
         sessionBuyStatus={sessionBuyStatus}
         sessionBoughtBundleId={sessionBoughtBundleId}
         dunningSettings={dunningSettings}

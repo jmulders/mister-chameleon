@@ -26,6 +26,7 @@ import { currentMollieMode, getMollieCustomerRow, usableMandate } from "./mollie
 import type { MollieFulfilment } from "./mollie-fulfil";
 import { chargeAmounts, vatMetadata } from "./billing-details";
 import { vatRateLabel } from "./vat";
+import { invoiceAutoReload } from "./mollie-invoicing";
 
 /** `metadata.type` of a charge made for the automatic top-up. */
 export const AUTO_RELOAD_PAYMENT_TYPE = "wallet_auto_reload";
@@ -123,6 +124,10 @@ export async function chargeMollieReload(
     console.error("[billing/mollie-auto-reload] could not record the payment", { paymentId: payment.id, error: error.message });
   }
 
+  // A card mandate can be paid at once. The caller credits the wallet then,
+  // without waiting for the webhook, so the invoice is issued here too.
+  if (payment.status === "paid") await invoiceAutoReload(client, payment);
+
   return { id: payment.id, status: String(payment.status), succeeded: payment.status === "paid" };
 }
 
@@ -184,8 +189,12 @@ export async function settleMollieAutoReload(
       };
     }
     if (!deps) await adoptReloadAttempt(client, payment);
-    if (state === "succeeded") await handlers.onSuccess(client, payment.id);
-    else                       await handlers.onFailure(client, payment.id, `Mollie payment ${status}`);
+    if (state === "succeeded") {
+      await handlers.onSuccess(client, payment.id);
+      // The top-up is in the wallet: it gets its invoice, once per payment.
+      if (!deps) await invoiceAutoReload(client, payment);
+    }
+    else await handlers.onFailure(client, payment.id, `Mollie payment ${status}`);
   }
   return { outcome: "auto-reload", state, status };
 }

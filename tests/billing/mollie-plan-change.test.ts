@@ -157,7 +157,7 @@ describe("the wiring", () => {
 
   it("the dashboard shows Mollie's own card instead of the Stripe portal", () => {
     const src = read("app/admin/tenants/[tenantId]/billing/_components/BillingDashboard.tsx");
-    assert.match(src, /\{mollieMandate \? \(\s+<MolliePaymentCard tenantId=\{tenantId\} subscription=\{subscription\} mollieMandate=\{mollieMandate\} \/>/);
+    assert.match(src, /\{mollieMandate \? \(\s+<>\s+<MolliePaymentCard tenantId=\{tenantId\} subscription=\{subscription\} mollieMandate=\{mollieMandate\} \/>/);
     assert.match(src, /It replaces the payment method on file\./);
   });
 });

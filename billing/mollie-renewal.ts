@@ -42,7 +42,8 @@ import {
 import { mollieReloadSource } from "./mollie-auto-reload";
 import type { MollieFulfilment } from "./mollie-fulfil";
 import { chargeAmounts, vatMetadata } from "./billing-details";
-import { vatRateLabel } from "./vat";
+import { vatRateLabel, type VatTreatment } from "./vat";
+import { issueInvoice, renewalReference, setInvoicePaid } from "./invoices";
 
 /** `metadata.type` of a charge the renewal job made on a mandate. */
 export const RENEWAL_PAYMENT_TYPE = "subscription_renewal";
@@ -96,6 +97,8 @@ export interface MollieRenewalInput {
   plan:        string;
   cycle:       "monthly" | "annual";
   description: string;
+  /** What the charge is called on its invoice, in Dutch. */
+  invoiceDescription: string;
   /** renewalIdempotencyKey(): a retried request returns the first payment. */
   idempotencyKey: string;
 }
@@ -129,7 +132,13 @@ export async function chargeMollieRenewal(
   const { data: claimed, error: claimErr } = await client
     .from("mollie_renewals")
     .upsert(
-      { ...key, amount_cents: amountCents, plan: input.plan, cycle: input.cycle, status: "creating" },
+      {
+        ...key, amount_cents: amountCents, plan: input.plan, cycle: input.cycle, status: "creating",
+        // Kept for the invoice: issued below when the charge is accepted, or
+        // later when the tenant pays the open amount themselves.
+        net_cents: amounts.netCents, vat_cents: amounts.vatCents, vat_rate_bp: amounts.rateBp,
+        vat_treatment: amounts.treatment, invoice_description: input.invoiceDescription,
+      },
       { onConflict: "tenant_id,period_end", ignoreDuplicates: true },
     )
     .select("status");
@@ -200,6 +209,17 @@ export async function chargeMollieRenewal(
     .update({ payment_id: payment.id, status: settled ? "paid" : "pending", updated_at: new Date().toISOString(), ...(settled ? { settled_at: new Date().toISOString() } : {}) })
     .match(key);
 
+  // Mollie accepted the charge: the period is delivered, so it is invoiced.
+  await issueInvoice(client, {
+    tenantId,
+    reference:   renewalReference(tenantId, periodEnd),
+    kind:        "subscription",
+    description: input.invoiceDescription,
+    amounts,
+    paymentId:   payment.id,
+    paid:        settled,
+  });
+
   return { ok: true, paymentIntentId: payment.id, settled, chargedCents: amountCents };
 }
 
@@ -268,11 +288,14 @@ export async function settleMollieRenewal(
   const now = new Date().toISOString();
 
   if (state === "paid") {
-    await client
+    const { data: settledRows } = await client
       .from("mollie_renewals")
       .update({ status: "paid", settled_at: now, updated_at: now })
       .eq("payment_id", payment.id)
-      .eq("status", "pending");
+      .eq("status", "pending")
+      .select("tenant_id, period_end");
+    const settledRow = Array.isArray(settledRows) ? settledRows[0] as { tenant_id: string; period_end: string } | undefined : undefined;
+    if (settledRow) await setInvoicePaid(client, renewalReference(settledRow.tenant_id, new Date(settledRow.period_end).toISOString()), true);
     return done("paid");
   }
 
@@ -282,11 +305,14 @@ export async function settleMollieRenewal(
     .update({ status: "failed", problem: state === "reversed" ? "reversed by the payer" : `payment ${payment.status}`, updated_at: now })
     .eq("payment_id", payment.id)
     .in("status", ["pending", "paid"])
-    .select("tenant_id, plan, amount_cents");
+    .select("tenant_id, plan, amount_cents, period_end");
   if (error) throw new Error(`mollie_renewals update failed: ${error.message}`);
 
-  const row = Array.isArray(turned) ? turned[0] as { tenant_id: string; plan: string; amount_cents: number } | undefined : undefined;
+  const row = Array.isArray(turned) ? turned[0] as { tenant_id: string; plan: string; amount_cents: number; period_end: string } | undefined : undefined;
   if (!row) return done("unknown");
+
+  // The invoice stands, the money did not come: it is open again.
+  await setInvoicePaid(client, renewalReference(row.tenant_id, new Date(row.period_end).toISOString()), false);
 
   await (deps?.startDunning ?? defaultStartDunning)(client, row.tenant_id, { plan: row.plan, amountCents: row.amount_cents });
   return done("failed");
@@ -354,11 +380,30 @@ export async function settleMollieOverduePayment(
     .update({ status: "paid", payment_id: payment.id, problem: null, settled_at: now, updated_at: now })
     .match({ tenant_id: tenantId, period_end: periodEnd })
     .eq("status", "failed")
-    .select("period_advanced");
+    .select("period_advanced, plan, net_cents, vat_cents, vat_rate_bp, vat_treatment, invoice_description");
   if (error) throw new Error(`mollie_renewals update failed: ${error.message}`);
 
-  const row = Array.isArray(turned) ? turned[0] as { period_advanced: boolean | null } | undefined : undefined;
+  const row = Array.isArray(turned) ? turned[0] as {
+    period_advanced: boolean | null; plan: string;
+    net_cents: number | null; vat_cents: number | null; vat_rate_bp: number | null; vat_treatment: string | null; invoice_description: string | null;
+  } | undefined : undefined;
   if (!row) return done("unknown");   // already settled by the other road
+
+  // The invoice of this period: it exists when the charge had been accepted
+  // before it failed, and is issued now when the charge never got that far.
+  const reference = renewalReference(tenantId, new Date(periodEnd).toISOString());
+  if (row.net_cents !== null && row.vat_cents !== null && row.vat_rate_bp !== null && row.vat_treatment && row.invoice_description) {
+    await issueInvoice(client, {
+      tenantId,
+      reference,
+      kind:        "subscription",
+      description: row.invoice_description,
+      amounts:     { netCents: row.net_cents, vatCents: row.vat_cents, grossCents: row.net_cents + row.vat_cents, rateBp: row.vat_rate_bp, treatment: row.vat_treatment as VatTreatment },
+      paymentId:   payment.id,
+      paid:        true,
+    });
+  }
+  await setInvoicePaid(client, reference, true);
 
   let d = deps;
   if (!d) {

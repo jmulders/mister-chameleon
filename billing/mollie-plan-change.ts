@@ -22,6 +22,7 @@ import { syncPackageKeyFromPlan } from "./subscriptions";
 import { mollieReloadSource } from "./mollie-auto-reload";
 import { chargeMollieRenewal, noteRenewalAdvanced, type MollieRenewalResult } from "./mollie-renewal";
 import { upgradeProrationCents } from "./plan-change-proration";
+import { upgradeDescription } from "./mollie-invoicing";
 import type { MollieDeps } from "./mollie";
 
 const PLAN_TIER: Record<string, number> = { starter: 0, growth: 1, pro: 2 };
@@ -140,6 +141,7 @@ export async function changePlanViaMollie(
       plan:           newPlanId,
       cycle:          "monthly",
       description:    `Mister Chameleon: upgrade to ${planLabel}, rest of the period`,
+      invoiceDescription: upgradeDescription(newPlanId),
       idempotencyKey: `upgrade:${tenantId}:${currentPlanId}:${newPlanId}:${sub.current_period_end ?? "none"}`,
     }, deps?.mollie);
     if (!charge.ok) {
