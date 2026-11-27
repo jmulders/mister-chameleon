@@ -352,9 +352,9 @@ export const MISTER_CHAMELEON_TENANT_FROM_TEMPLATE = createTenantConfig(
 //
 //   ── Session top-up price IDs ─────────────────────────────────────────────
 //
-//   [optional] STRIPE_PRICE_SESSIONS_10K      10k additional sessions
-//   [optional] STRIPE_PRICE_SESSIONS_50K      50k additional sessions
-//   [optional] STRIPE_PRICE_SESSIONS_200K     200k additional sessions
+//   [optional] STRIPE_PRICE_SESSIONS_1K       1,000 additional sessions (€29)
+//   [optional] STRIPE_PRICE_SESSIONS_5K       5,000 additional sessions (€119)
+//   [optional] STRIPE_PRICE_SESSIONS_20K      20,000 additional sessions (€399)
 //
 // ── Email ─────────────────────────────────────────────────────────────────────
 //

@@ -164,7 +164,7 @@ Dev-only toggles: `NEXT_PUBLIC_DEBUG_DIAGNOSTICS`, `NEXT_PUBLIC_SHOW_SCENARIO_PA
 | `STRIPE_TEST_SECRET_KEY` / `_WEBHOOK_SECRET` / `_PUBLISHABLE_KEY` | nee | Test-mode |
 | `STRIPE_PRICE_{STARTER,GROWTH,PRO}_{MONTHLY,ANNUAL}` | nee | Plan-price-ID's. Kan ook via admin-UI |
 | `STRIPE_PRICE_CREDITS_{250,1000,5000}` | nee | Credit-bundles. Kan ook via admin-UI |
-| `STRIPE_PRICE_SESSIONS_{10K,50K,200K}` | nee | Sessie-bundles |
+| `STRIPE_PRICE_SESSIONS_{1K,5K,20K}` | nee | Sessie-bundels: eenmalige prijzen in Stripe van € 29, € 119 en € 399 voor 1.000, 5.000 en 20.000 extra sessies. Het bedrag dat wordt afgeschreven is de prijs in Stripe, niet het bedrag in de code. De oude variabelen `_10K`, `_50K` en `_200K` worden niet meer gelezen en kunnen weg |
 | `ENABLE_DIRECT_CHECKOUT` / `STARTER_DIRECT_CHECKOUT` | nee | Self-service checkout |
 | `CHAMELEON_DEMO_MODE` / `ENABLE_BILLING_TEST_MODE` / `BILLING_DEBUG` | nee | Demo/test/logging |
 
