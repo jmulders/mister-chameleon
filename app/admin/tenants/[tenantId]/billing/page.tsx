@@ -66,6 +66,7 @@ import { getCreditSettingsAction, confirmBundlePurchaseAction, confirmSubscripti
 import { bundlePurchasable, getPaymentProvider } from "@/billing/payment-provider";
 import { mollieConfigured }         from "@/billing/mollie";
 import { currentMollieMode, getMollieCustomerRow, usableMandate } from "@/billing/mollie-customer";
+import { overdueAmount }            from "@/billing/mollie-renewal";
 import { getDunningSettingsAction, getStripeInvoicesAction } from "./actions";
 import type { StripeInvoiceRow } from "./actions";
 import { BillingDashboard }         from "./_components/BillingDashboard";
@@ -241,8 +242,9 @@ export default async function TenantBillingPage({
     const query = await confirmMollieReturnAction(tenantId, String(sp["ref"] ?? ""));
     redirect(`/admin/tenants/${tenantId}/billing${query ? `?${query}` : ""}`);
   }
-  const paymentNotice = mollieParam === "pending" ? "pending"
-                      : mollieParam === "problem" ? "problem"
+  const paymentNotice = mollieParam === "pending"  ? "pending"
+                      : mollieParam === "problem"  ? "problem"
+                      : mollieParam === "restored" ? "restored"
                       : undefined;
 
   // ── Confirm bundle purchase server-side ────────────────────────────────────
@@ -647,6 +649,19 @@ export default async function TenantBillingPage({
   const sessionBundles = SESSION_CREDIT_BUNDLES
     .map((b) => ({ ...b, purchasable: bundlePurchasable(b, paymentProvider, mollieReady) }));
 
+  // A subscription charge on the mandate that failed or was reversed: the
+  // tenant can pay it here. Only asked for a tenant that is behind.
+  let mollieOverdue: { amountCents: number } | null = null;
+  if (paymentProvider === "mollie" && (subscription?.status === "past_due" || subscription?.status === "unpaid")) {
+    try {
+      const owed = await overdueAmount(client, tenantId);
+      mollieOverdue = owed ? { amountCents: owed.amountCents } : null;
+    } catch (err) {
+      rethrowNextInternal(err);
+      console.warn("[billing/page] mollie overdue read failed:", err);
+    }
+  }
+
   // With Mollie the automatic top-up needs a mandate instead of a saved card.
   // Null means Stripe: the dashboard then looks at the Stripe payment method.
   let mollieMandate: { authorised: boolean; method: string | null } | null = null;
@@ -767,6 +782,7 @@ export default async function TenantBillingPage({
         sessionBundles={sessionBundles}
         paymentNotice={paymentNotice}
         mollieMandate={mollieMandate}
+        mollieOverdue={mollieOverdue}
         sessionBuyStatus={sessionBuyStatus}
         sessionBoughtBundleId={sessionBoughtBundleId}
         dunningSettings={dunningSettings}

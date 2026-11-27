@@ -303,7 +303,9 @@ describe("the wiring", () => {
     const src = read("billing/mollie-checkout.ts");
     const auto = src.indexOf('if (payment.metadata?.["type"] === AUTO_RELOAD_PAYMENT_TYPE) {');
     const fulfil = src.indexOf("const result = await fulfilMolliePayment(client, payment, deps?.fulfil);");
-    const remember = src.indexOf("await rememberMollieMandate(client, payment);");
+    // The last one: the payment of an open subscription amount keeps its mandate
+    // too, earlier in the function (mollie-renewal.test.ts).
+    const remember = src.lastIndexOf("await rememberMollieMandate(client, payment);");
     assert.ok(auto > 0 && fulfil > auto && remember > fulfil);
   });
 

@@ -230,7 +230,12 @@ export interface BillingDashboardProps {
    *             on its way by webhook. The balance updates by itself.
    * "problem" — paid, but the platform could not match it to a purchase.
    */
-  paymentNotice?: "pending" | "problem";
+  paymentNotice?: "pending" | "problem" | "restored";
+  /**
+   * Set when Mollie is the provider and a subscription charge failed or was
+   * reversed: what the tenant can pay to restore the subscription.
+   */
+  mollieOverdue?: { amountCents: number } | null;
   /**
    * Set when Mollie is the payment provider: whether this tenant has given a
    * mandate for automatic top-ups, and through which method. Absent means
@@ -502,6 +507,56 @@ function BalanceHero({
 }
 
 // ── Alert banners ─────────────────────────────────────────────────────────────
+
+// ── Mollie: pay an open subscription amount ──────────────────────────────────
+
+function PayOverdueBanner({ tenantId, amountCents }: { tenantId: string; amountCents: number }) {
+  const [busy,  setBusy]  = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function pay() {
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/billing/mollie/pay-overdue", {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({ tenantId }),
+      });
+      const json = await res.json() as { url?: string; error?: string };
+      if (!res.ok || !json.url) {
+        setError(json.error ?? "Could not start the payment. Please try again.");
+        setBusy(false);
+        return;
+      }
+      window.location.href = json.url;
+    } catch {
+      setError("Network error. Please try again.");
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3">
+      <p className="text-sm font-semibold text-red-800">
+        A subscription payment of €{(amountCents / 100).toFixed(2)} did not come through
+      </p>
+      <p className="text-xs text-red-700 mt-0.5">
+        Pay it now to keep your subscription running. By paying you also authorise Mister Chameleon to collect the
+        following months from the same account.
+      </p>
+      <button
+        type="button"
+        onClick={pay}
+        disabled={busy}
+        className="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-red-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-red-700 transition-colors disabled:opacity-50"
+      >
+        {busy ? "Opening…" : "Pay now →"}
+      </button>
+      {error && <p className="mt-2 text-xs text-red-700">{error}</p>}
+    </div>
+  );
+}
 
 // ── Mollie mandate (automatic top-ups) ────────────────────────────────────────
 
@@ -3119,6 +3174,7 @@ export function BillingDashboard({
   sessionBoughtBundleId,
   paymentNotice,
   mollieMandate,
+  mollieOverdue,
   dunningSettings,
   stripeInvoices = [],
   stripeInvoicesError,
@@ -3143,6 +3199,22 @@ export function BillingDashboard({
 
       {/* Alert banners */}
       <AlertBanners wallet={wallet} reloadAttempts={reloadAttempts} statusKey={statusKey} spendThisMonth={spendThisMonth} mollieMandate={mollieMandate} />
+
+      {/* An open subscription payment the tenant can settle themselves (Mollie) */}
+      {mollieOverdue && paymentNotice !== "restored" && (
+        <PayOverdueBanner tenantId={tenantId} amountCents={mollieOverdue.amountCents} />
+      )}
+      {paymentNotice === "restored" && (
+        <div className="mb-4 flex items-start gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3">
+          <span className="mt-0.5 text-emerald-500">✓</span>
+          <div>
+            <p className="text-sm font-semibold text-emerald-800">Payment received</p>
+            <p className="text-xs text-emerald-700 mt-0.5">
+              Your subscription is active again. Later months are collected from the account you just paid with.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* A payment without a final answer yet, or one that needs a look */}
       {paymentNotice === "pending" && (

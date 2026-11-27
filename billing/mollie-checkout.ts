@@ -28,6 +28,14 @@ import {
 import { rememberMollieMandate } from "./mollie-customer";
 import { AUTO_RELOAD_PAYMENT_TYPE, settleMollieAutoReload, type AutoReloadSettleDeps } from "./mollie-auto-reload";
 import { TRIAL_SIGNUP_PAYMENT_TYPE, settleMollieTrialSignup, type TrialSettleDeps } from "./mollie-trial";
+import {
+  OVERDUE_PAYMENT_TYPE,
+  RENEWAL_PAYMENT_TYPE,
+  settleMollieOverduePayment,
+  settleMollieRenewal,
+  type OverdueSettleDeps,
+  type RenewalSettleDeps,
+} from "./mollie-renewal";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -51,6 +59,13 @@ export function mollieResultQuery(result: MollieFulfilment, kind: MolliePurchase
   if (result.outcome === "auto-reload") return "mollie=pending";
   // A trial signup returns to /checkout/success, not to the billing page.
   if (result.outcome === "trial-signup") return "mollie=pending";
+  // The tenant paid an open subscription amount and came back to the billing page.
+  if (result.outcome === "renewal") {
+    if (result.state === "paid")    return "mollie=restored";
+    if (result.state === "waiting") return "mollie=pending";
+    // "unknown" is the other road having settled it already: also restored.
+    return result.state === "unknown" ? "mollie=restored" : "bundle=cancelled";
+  }
   const done  = result.outcome === "credited" || result.outcome === "already-credited";
   const k     = done ? result.kind : kind;
   const id    = done ? result.bundleId : bundleId;
@@ -64,7 +79,8 @@ export function mollieResultQuery(result: MollieFulfilment, kind: MolliePurchase
 
 export interface StartMollieCheckoutInput {
   tenantId:    string;
-  kind:        MolliePurchaseKind;
+  /** A purchase kind, or the payment of an open subscription amount. */
+  kind:        MolliePurchaseKind | typeof OVERDUE_PAYMENT_TYPE;
   /** Bundle id for the two bundle kinds, null for a wallet top-up. */
   bundleId:    string | null;
   amountCents: number;
@@ -82,6 +98,8 @@ export interface StartMollieCheckoutInput {
    * The checkout must have told the tenant so before it gets here.
    */
   firstForCustomerId?: string;
+  /** More for the payment's metadata, for the kind that needs it. */
+  extraMetadata?: Record<string, string>;
 }
 
 export interface StartMollieCheckoutDeps {
@@ -112,6 +130,7 @@ export async function startMollieCheckout(
         amount_cents: String(input.amountCents),
         ref,
         ...(input.bundleId ? { bundle_id: input.bundleId } : {}),
+        ...(input.extraMetadata ?? {}),
       },
     },
     deps?.mollie,
@@ -166,6 +185,8 @@ export interface SettleDeps {
   fulfil?:     MollieFulfilDeps;
   autoReload?: AutoReloadSettleDeps;
   trial?:      TrialSettleDeps;
+  renewal?:    RenewalSettleDeps;
+  overdue?:    OverdueSettleDeps;
 }
 
 /**
@@ -178,6 +199,23 @@ export async function settleMolliePayment(
   deps?:     SettleDeps,
 ): Promise<{ payment: MolliePayment; result: MollieFulfilment }> {
   const payment = await getMolliePayment(paymentId, deps?.mollie);
+  const type    = payment.metadata?.["type"];
+
+  // The subscription: a period the renewal job charged on the mandate, or an
+  // open amount the tenant paid themselves. Neither credits anything, both
+  // move the subscription (mollie-renewal.ts).
+  if (type === RENEWAL_PAYMENT_TYPE) {
+    const result = await settleMollieRenewal(client, payment, deps?.renewal);
+    await noteMolliePayment(client, payment, result);
+    return { payment, result };
+  }
+  if (type === OVERDUE_PAYMENT_TYPE) {
+    const result = await settleMollieOverduePayment(client, payment, deps?.overdue);
+    // Paying it was a first payment: it also gave a fresh mandate.
+    await rememberMollieMandate(client, payment);
+    await noteMolliePayment(client, payment, result);
+    return { payment, result };
+  }
 
   // A charge on a mandate (the automatic top-up) has its own bookkeeping: the
   // reload attempt, credited in one transaction with its status.
