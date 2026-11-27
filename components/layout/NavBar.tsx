@@ -49,6 +49,7 @@ import { useSiteLocale } from "@/components/site/SiteLocale";
 import { LAYOUT_TEXTS } from "@/lib/site-texts/layout";
 import { SearchBar } from "./SearchBar";
 import { hasMobileMenuExtras, type MobileMenuExtras } from "./mobile-menu";
+import { ScenarioControlSwitch } from "@/components/scenario/ScenarioControlSwitch";
 
 // ── Icons ─────────────────────────────────────────────────────────────────────
 // Inline SVGs keep the bundle lean — no icon library dependency.
@@ -593,6 +594,17 @@ function MobileNav({ items, extras = null }: { items: NavigationItemData[]; extr
                 </Link>
               ))}
             </nav>
+          )}
+
+          {/* Scenario Control on or off, on a site that has it. Switching closes
+              the menu: switched on, the console opens where the menu was. */}
+          {extras?.scenarioSwitch && (
+            <div
+              data-part="mobile-menu-scenario-switch"
+              className="mx-4 border-t border-[var(--nav-dropdown-border,var(--border))] py-2"
+            >
+              <ScenarioControlSwitch variant="menu" onSwitched={() => setMenuOpen(false)} />
+            </div>
           )}
 
           {/* The header's call to action, over the full width. */}

@@ -67,6 +67,7 @@ import { SearchBar } from "./SearchBar";
 import { SectionTabs } from "./SectionTabs";
 import { TriBandNav } from "./TriBandNav";
 import { mobileMenuLinks, type MobileMenuExtras } from "./mobile-menu";
+import { ScenarioControlSwitch } from "@/components/scenario/ScenarioControlSwitch";
 import { resolveContextBlockVariant } from "@/page-config/block-variants";
 import type { HeaderLayoutVariant } from "@/page-config/block-variants";
 import {
@@ -498,11 +499,17 @@ export async function Header({ variant: rawVariant, resolvedChrome }: HeaderProp
     // A phone shows the logo and the menu button only. Everything else the
     // three bands hold goes into its menu: the search of band 2, the section
     // tabs and quick links of band 1, and the call to action.
+    // On a site whose tenant has Scenario Control, the menu holds a switch
+    // that turns it on and off for this browser: at the right end of band 1 on
+    // a wide screen, in the menu on a phone.
+    const scenarioSwitch = tenantSettings?.debug?.showScenarioControl === true;
+
     const mobileExtras: MobileMenuExtras = {
       searchHref,
       searchPlaceholder: t.searchPlaceholder,
       links:             mobileMenuLinks(sectionTabs, quickLinks, mainNavigation),
       cta:               headerCta,
+      scenarioSwitch,
     };
 
     return (
@@ -518,7 +525,11 @@ export async function Header({ variant: rawVariant, resolvedChrome }: HeaderProp
             style={{ backgroundColor: "var(--header-topband-bg, var(--header-bg, var(--bg-subtle, var(--bg))))" }}
           >
             <Container>
-              <SectionTabs tabs={sectionTabs} quickLinks={quickLinks} />
+              <SectionTabs
+                tabs={sectionTabs}
+                quickLinks={quickLinks}
+                trailing={scenarioSwitch ? <ScenarioControlSwitch variant="band" /> : null}
+              />
             </Container>
           </div>
         )}
