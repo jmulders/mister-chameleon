@@ -72,7 +72,9 @@ import { applyScenarioOverride } from "./apply-scenario-override";
 import { shouldPollJourneyState, consoleIsActive, shouldFetchBackendState } from "./journey-poll";
 import { startsMinimized } from "./panel-start";
 import { TOUCH_LAYOUT_QUERY, HEADER_LINE, panelCloseSizes, panelWidthCss, escapeCloses } from "./panel-close";
-import { readDemoControlsEnabled, subscribeToDemoControls } from "./demo-controls-state";
+import {
+  demoControlsAskedInAddress, readDemoControlsEnabled, subscribeToDemoControls, writeDemoControlsEnabled,
+} from "./demo-controls-state";
 import { claimLauncherSide } from "@/lib/layout/floating-stack";
 import { getConsent } from "@/tracking/consent-store";
 import { ENRICHER_REGISTRY, type EnricherKey } from "@/lib/scenario/enricher-registry";
@@ -2071,9 +2073,9 @@ export function ScenarioControlPanel({ scenarioPanel, scenarioPresets, scenarioO
       stored,
     });
   });
-  // Whether the DemoControlsToggle on /demo-controls has enabled the panel.
-  // Default true — absence of the key means "enabled".
-  const [demoControlsEnabled, setDemoControlsEnabled] = useState(true);
+  // Whether the visitor switched the console on, in the site menu or on
+  // /demo-controls. Off until they did: absence of the key means "off".
+  const [demoControlsEnabled, setDemoControlsEnabled] = useState(false);
 
   const [tab, setTabRaw] = useState<TabKey>(() => {
     // Restore the last-active tab from localStorage so it survives remounts
@@ -2113,6 +2115,9 @@ export function ScenarioControlPanel({ scenarioPanel, scenarioPresets, scenarioO
   useEffect(() => {
     setMounted(true);
     setVisible(shouldShowPanel());
+    // An address with ?scenario=true is a request for the console: it switches
+    // it on for this browser, and the switch in the menu follows.
+    if (demoControlsAskedInAddress(window.location.search)) writeDemoControlsEnabled(true);
     // Whether the visitor has the console switched on: the switch in the site
     // menu and the one on /demo-controls set it (demo-controls-state.ts).
     setDemoControlsEnabled(readDemoControlsEnabled());

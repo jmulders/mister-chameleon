@@ -11,8 +11,8 @@
  * the menu on a phone ("menu"). The header only renders it on a site whose
  * tenant has Scenario Control (debug.showScenarioControl).
  *
- * Rendered on the server as "on", which is what a browser that never chose
- * has, and corrected after mount for one that switched it off. It keeps its
+ * Rendered on the server as "off", which is what a browser that never chose
+ * has, and corrected after mount for one that switched it on. It keeps its
  * width either way, so the links beside it do not move.
  */
 
@@ -29,7 +29,7 @@ interface ScenarioControlSwitchProps {
 }
 
 export function ScenarioControlSwitch({ variant = "band", onSwitched }: ScenarioControlSwitchProps) {
-  const [enabled, setEnabled] = useState(true);
+  const [enabled, setEnabled] = useState(false);
 
   useEffect(() => {
     setEnabled(readDemoControlsEnabled());

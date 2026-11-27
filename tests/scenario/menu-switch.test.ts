@@ -13,19 +13,30 @@ import { readFileSync } from "node:fs";
 
 import {
   DEMO_CONTROLS_STORAGE_KEY, DEMO_CONTROLS_CHANGE_EVENT,
-  demoControlsEnabledFrom, demoControlsStoredValue,
+  demoControlsAskedInAddress, demoControlsEnabledFrom, demoControlsStoredValue,
 } from "../../components/scenario/demo-controls-state.ts";
 import { hasMobileMenuExtras } from "../../components/layout/mobile-menu.ts";
 
 const read = (path: string) => readFileSync(path, "utf8");
 
 describe("Scenario Control on or off: the state", () => {
-  it("is on in a browser that never chose, and off only when switched off", () => {
-    assert.equal(demoControlsEnabledFrom(null), true);
-    assert.equal(demoControlsEnabledFrom(undefined), true);
+  it("is off in a browser that never chose, and on only when switched on", () => {
+    // The owner asked for off as the start on 27 Nov 2026. Until then a first
+    // visit had the button of the console in the corner.
+    assert.equal(demoControlsEnabledFrom(null), false);
+    assert.equal(demoControlsEnabledFrom(undefined), false);
     assert.equal(demoControlsEnabledFrom("1"), true);
     assert.equal(demoControlsEnabledFrom("0"), false);
-    assert.equal(demoControlsEnabledFrom("anything else"), true);
+    assert.equal(demoControlsEnabledFrom("anything else"), false);
+  });
+
+  it("is asked for by ?scenario=true in the address, and by nothing else", () => {
+    assert.equal(demoControlsAskedInAddress("?scenario=true"), true);
+    assert.equal(demoControlsAskedInAddress("?utm_source=mail&scenario=true"), true);
+    assert.equal(demoControlsAskedInAddress("?scenario=false"), false);
+    assert.equal(demoControlsAskedInAddress("?scenario"), false);
+    assert.equal(demoControlsAskedInAddress(""), false);
+    assert.equal(demoControlsAskedInAddress(null), false);
   });
 
   it("is stored as 1 or 0, which reads back as the same choice", () => {
@@ -35,7 +46,7 @@ describe("Scenario Control on or off: the state", () => {
   });
 
   it("keeps the key and the event the panel has always used", () => {
-    // A browser that switched the console off before this change stays off.
+    // A browser that chose before this change keeps its choice.
     assert.equal(DEMO_CONTROLS_STORAGE_KEY, "mc_demo_controls_active");
     assert.equal(DEMO_CONTROLS_CHANGE_EVENT, "mc_demo_controls_changed");
   });
@@ -71,11 +82,21 @@ describe("Scenario Control on or off: the three places follow each other", () =>
     assert.match(panel, /subscribeToDemoControls\(\(enabled\) => \{\s*setDemoControlsEnabled\(enabled\);\s*if \(enabled\) setMinimized\(false\);/);
     // Switched off there is no panel and no button in the corner.
     assert.match(panel, /if \(!demoControlsEnabled\) return null;/);
+    // And off is where it starts, in the panel and on /demo-controls too.
+    assert.match(panel, /const \[demoControlsEnabled, setDemoControlsEnabled\] = useState\(false\);/);
+    assert.match(toggle, /const \[enabled,\s+setEnabled\]\s+= useState\(false\);/);
   });
 
-  it("renders as on before the browser's choice is known, at a fixed width", () => {
+  it("an address with ?scenario=true switches it on before the panel reads the choice", () => {
+    const ask  = panel.indexOf("if (demoControlsAskedInAddress(window.location.search)) writeDemoControlsEnabled(true);");
+    const readAt = panel.indexOf("setDemoControlsEnabled(readDemoControlsEnabled());");
+    assert.ok(ask > 0 && readAt > ask, "the address is looked at first");
+  });
+
+  it("renders as off before the browser's choice is known, at a fixed width", () => {
     // What a browser that never chose has; and the links beside it do not move.
-    assert.match(menu, /useState\(true\)/);
+    assert.match(menu, /useState\(false\)/);
+    assert.doesNotMatch(menu, /useState\(true\)/);
     assert.doesNotMatch(menu, /return null/);
     assert.match(menu, /width: track\.width/);
   });

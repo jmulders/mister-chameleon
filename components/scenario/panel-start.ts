@@ -7,6 +7,10 @@
  * "statamic"), a first-time visitor used to get it open, on top of the page.
  * It now starts collapsed: the button is there for whoever wants it, and the
  * page is not covered for everyone else.
+ *
+ * Since 27 Nov 2026 the console is also off until the visitor switches it on
+ * in the site menu (see ./demo-controls-state.ts). What this file decides
+ * only shows once it is on.
  */
 
 export interface PanelStartInput {

@@ -182,7 +182,7 @@ export function TenantDebugClient({
             onChange={handleShowScenarioChange}
             disabled={isDisabled}
             label="Show scenario control"
-            description="Mounts the operator / demo console (bottom-right) site-wide for this tenant, for switching personas and simulating context on the live pages. Off by default; it still self-guards to dev / an active scenario once mounted."
+            description="Gives this tenant's site the operator / demo console, for switching personas and simulating context on the live pages. Off by default. Once on, a visitor still has to switch it on in the site menu: it starts off in every browser."
           />
         </div>
       </div>
