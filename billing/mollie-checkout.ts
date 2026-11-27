@@ -27,6 +27,7 @@ import {
 } from "./mollie-fulfil";
 import { rememberMollieMandate } from "./mollie-customer";
 import { AUTO_RELOAD_PAYMENT_TYPE, settleMollieAutoReload, type AutoReloadSettleDeps } from "./mollie-auto-reload";
+import { TRIAL_SIGNUP_PAYMENT_TYPE, settleMollieTrialSignup, type TrialSettleDeps } from "./mollie-trial";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -48,6 +49,8 @@ export function mollieResultQuery(result: MollieFulfilment, kind: MolliePurchase
   if (result.outcome === "refused") return "mollie=problem";
   // A charge on a mandate has no return: the tenant was never at a checkout.
   if (result.outcome === "auto-reload") return "mollie=pending";
+  // A trial signup returns to /checkout/success, not to the billing page.
+  if (result.outcome === "trial-signup") return "mollie=pending";
   const done  = result.outcome === "credited" || result.outcome === "already-credited";
   const k     = done ? result.kind : kind;
   const id    = done ? result.bundleId : bundleId;
@@ -162,6 +165,7 @@ export interface SettleDeps {
   mollie?:     MollieDeps;
   fulfil?:     MollieFulfilDeps;
   autoReload?: AutoReloadSettleDeps;
+  trial?:      TrialSettleDeps;
 }
 
 /**
@@ -179,6 +183,14 @@ export async function settleMolliePayment(
   // reload attempt, credited in one transaction with its status.
   if (payment.metadata?.["type"] === AUTO_RELOAD_PAYMENT_TYPE) {
     const result = await settleMollieAutoReload(client, payment, deps?.autoReload);
+    await noteMolliePayment(client, payment, result);
+    return { payment, result };
+  }
+
+  // The verification payment of a trial signup makes a tenant, not a credit.
+  // It stores its own mandate, under the tenant it has just created.
+  if (payment.metadata?.["type"] === TRIAL_SIGNUP_PAYMENT_TYPE) {
+    const result = await settleMollieTrialSignup(client, payment, deps?.trial);
     await noteMolliePayment(client, payment, result);
     return { payment, result };
   }

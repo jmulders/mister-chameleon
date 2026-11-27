@@ -113,7 +113,18 @@ export async function processSignupAction(
   }
 
   // 4. Bind user to tenant
-  await client.from("admin_user_tenants").insert({ user_id: userId, tenant_id: tenantId, created_at: now });
+  //
+  // The timestamp column is `assigned_at`, filled by its default. A
+  // `created_at` that does not exist made this insert fail every time, and
+  // the answer was not read: the approved user could not open the tenant.
+  const { error: bindErr } = await client
+    .from("admin_user_tenants")
+    .insert({ user_id: userId, tenant_id: tenantId });
+  if (bindErr) {
+    await client.from("tenant_settings").delete().eq("tenant_id", tenantId);
+    await client.from("admin_users").delete().eq("id", userId);
+    return { ok: false, error: `Failed to bind the user to the tenant: ${bindErr.message}` };
+  }
 
   // 5. Create subscription row
   await client.from("subscriptions").upsert({

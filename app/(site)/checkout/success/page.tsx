@@ -14,6 +14,9 @@ import type { Metadata } from "next";
 import CheckoutSuccessClient from "./_components/CheckoutSuccessClient";
 import { getSiteLocale }     from "@/lib/site-texts/server";
 import { SHOP_TEXTS }        from "@/lib/site-texts/shop";
+import { getDb }             from "@/data/db";
+import { settleMolliePayment } from "@/billing/mollie-checkout";
+import { settleMollieTrialReturn } from "@/billing/mollie-trial";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = SHOP_TEXTS[await getSiteLocale()];
@@ -23,6 +26,31 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-export default function CheckoutSuccessPage() {
-  return <CheckoutSuccessClient />;
+/**
+ * Mollie sends the visitor back with ?ref=<uuid>, whether they paid or not.
+ * The payment is read back from Mollie here and, when it is paid, the account
+ * is created at once (the webhook does the same, whichever is first). The
+ * page then shows what really happened instead of always "payment confirmed".
+ */
+export default async function CheckoutSuccessPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const ref = (await searchParams)["ref"];
+  let outcome: "ok" | "pending" | "not-completed" = "ok";
+
+  if (typeof ref === "string" && ref !== "") {
+    try {
+      const state = await settleMollieTrialReturn(getDb(), ref, settleMolliePayment);
+      if (state === "not-paid" || state === "refused" || state === null) outcome = "not-completed";
+      else if (state === "waiting") outcome = "pending";
+    } catch (err) {
+      // The payment may well be fine: the webhook completes the signup.
+      console.error("[checkout/success] could not settle the Mollie return", err);
+      outcome = "pending";
+    }
+  }
+
+  return <CheckoutSuccessClient outcome={outcome} />;
 }

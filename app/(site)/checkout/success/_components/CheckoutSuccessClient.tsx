@@ -78,7 +78,14 @@ function Steps() {
 
 // ── Main ──────────────────────────────────────────────────────────────────────
 
-export default function CheckoutSuccessClient() {
+export default function CheckoutSuccessClient({ outcome = "ok" }: {
+  /**
+   * What the server found. "ok" is the Stripe flow and a paid Mollie signup,
+   * "pending" a payment the bank has not confirmed yet, "not-completed" a
+   * visitor who came back without paying.
+   */
+  outcome?: "ok" | "pending" | "not-completed";
+}) {
   // Give the webhook more time — account creation happens asynchronously
   // after Stripe fires checkout.session.completed. 30s is generous but avoids
   // landing on the login page before the admin_user row exists.
@@ -86,18 +93,56 @@ export default function CheckoutSuccessClient() {
   const [countdown, setCountdown] = useState(30);
   const { clearCart } = useCart();
 
-  // Clear the cart once — payment is confirmed, no need to keep it.
-  useEffect(() => { clearCart(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  // Clear the cart once — payment is confirmed, no need to keep it. Not when
+  // the payment was not completed: the visitor may want to try again.
+  useEffect(() => { if (outcome !== "not-completed") clearCart(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Auto-redirect to admin after 30 seconds
+  // Auto-redirect to admin after 30 seconds, only when there is an account to go to.
   useEffect(() => {
+    if (outcome !== "ok") return;
     if (countdown <= 0) {
       window.location.href = "/admin";
       return;
     }
     const t = setTimeout(() => setCountdown((c) => c - 1), 1_000);
     return () => clearTimeout(t);
-  }, [countdown]);
+  }, [countdown, outcome]);
+
+  if (outcome === "not-completed") {
+    return (
+      <div style={{ minHeight: "60vh", display: "flex", alignItems: "center", justifyContent: "center", padding: "3rem 1.5rem" }}>
+        <div style={{ maxWidth: 520, width: "100%", textAlign: "center" }}>
+          <h1 style={{ fontWeight: 800, fontSize: "clamp(1.5rem, 4vw, 2rem)", color: "#111827", marginBottom: "0.75rem", lineHeight: 1.2 }}>
+            {t.paymentNotCompletedTitle}
+          </h1>
+          <p style={{ color: "#6b7280", fontSize: "1rem", lineHeight: 1.6, marginBottom: "1.5rem" }}>
+            {t.paymentNotCompletedBody}
+          </p>
+          <Link
+            href="/checkout"
+            style={{ display: "inline-block", background: "#111827", color: "white", padding: "0.9375rem 1.5rem", borderRadius: "0.75rem", fontWeight: 700, fontSize: "1rem", textDecoration: "none" }}
+          >
+            {t.backToCheckout}
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  if (outcome === "pending") {
+    return (
+      <div style={{ minHeight: "60vh", display: "flex", alignItems: "center", justifyContent: "center", padding: "3rem 1.5rem" }}>
+        <div style={{ maxWidth: 520, width: "100%", textAlign: "center" }}>
+          <h1 style={{ fontWeight: 800, fontSize: "clamp(1.5rem, 4vw, 2rem)", color: "#111827", marginBottom: "0.75rem", lineHeight: 1.2 }}>
+            {t.stepAccount}
+          </h1>
+          <p style={{ color: "#6b7280", fontSize: "1rem", lineHeight: 1.6, margin: 0 }}>
+            {t.paymentPendingNote}
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{
