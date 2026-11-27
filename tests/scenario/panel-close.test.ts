@@ -48,6 +48,38 @@ describe("Scenario Control: sizes of the open and close controls", () => {
   });
 });
 
+describe("Scenario Control: the tabs", () => {
+  const tabs = panel.slice(panel.indexOf("{/* Tabs */}"), panel.indexOf("{/* Tab content */}"));
+
+  it("are a full-height row of larger text for a finger", () => {
+    const touch = panelCloseSizes(true).tabs;
+    assert.ok(touch.minHeight >= TOUCH_TARGET);
+    assert.ok(touch.fontSize >= 12);
+    // As wide as the word needs: five equal columns are too narrow for "Demo Flows".
+    assert.equal(touch.flex, "1 0 auto");
+    // One weight, so the row does not shift when another tab is chosen.
+    assert.equal(touch.weight, touch.activeWeight);
+    assert.equal(touch.scroll, true);
+  });
+
+  it("stay as they were for a mouse", () => {
+    assert.deepEqual(panelCloseSizes(false).tabs,
+      { minHeight: 0, padding: "6px 3px", fontSize: 10, flex: "1", weight: 500, activeWeight: 700, scroll: false });
+  });
+
+  it("take every size from the helper and never wrap a label", () => {
+    assert.match(tabs, /flex: closeSizes\.tabs\.flex, minHeight: closeSizes\.tabs\.minHeight/);
+    assert.match(tabs, /padding: closeSizes\.tabs\.padding/);
+    assert.match(tabs, /fontSize: closeSizes\.tabs\.fontSize/);
+    assert.match(tabs, /fontWeight: tab === t\.key \? closeSizes\.tabs\.activeWeight : closeSizes\.tabs\.weight/);
+    assert.match(tabs, /whiteSpace: "nowrap"/);
+    assert.match(tabs, /overflowX: closeSizes\.tabs\.scroll \? "auto" : "visible"/);
+    // The chosen tab is still marked by its colour and the line under it.
+    assert.match(tabs, /borderBottom: tab === t\.key \? "2px solid #6366f1" : "2px solid transparent"/);
+    assert.match(tabs, /onClick=\{\(\) => setTab\(t\.key\)\}/);
+  });
+});
+
 describe("Scenario Control: Exit in the header", () => {
   it("is a full-size target for a finger, and the small chip it was for a mouse", () => {
     const touch = panelCloseSizes(true);

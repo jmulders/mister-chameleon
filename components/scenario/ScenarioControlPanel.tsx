@@ -2649,18 +2649,24 @@ export function ScenarioControlPanel({ scenarioPanel, scenarioPresets, scenarioO
           )}
 
           {/* Tabs */}
-          <div style={{
-            display: "flex", borderBottom: "1px solid #e5e7eb",
-            background: "#f8fafc", flexShrink: 0,
-          }}>
+          <div
+            data-part="scenario-tabs"
+            style={{
+              display: "flex", borderBottom: "1px solid #e5e7eb",
+              background: "#f8fafc", flexShrink: 0,
+              overflowX: closeSizes.tabs.scroll ? "auto" : "visible",
+            }}>
             {TABS.map((t) => (
-              <button key={t.key} onClick={() => setTab(t.key)}
+              <button key={t.key} type="button" data-part="scenario-tab" onClick={() => setTab(t.key)}
+                aria-pressed={tab === t.key}
                 style={{
-                  flex: 1, padding: "6px 3px", border: "none", background: "transparent",
+                  flex: closeSizes.tabs.flex, minHeight: closeSizes.tabs.minHeight,
+                  padding: closeSizes.tabs.padding, border: "none", background: "transparent",
                   borderBottom: tab === t.key ? "2px solid #6366f1" : "2px solid transparent",
-                  fontSize: 10, fontWeight: tab === t.key ? 700 : 500,
+                  fontSize: closeSizes.tabs.fontSize,
+                  fontWeight: tab === t.key ? closeSizes.tabs.activeWeight : closeSizes.tabs.weight,
                   color: tab === t.key ? "#4f46e5" : "#9ca3af",
-                  cursor: "pointer",
+                  cursor: "pointer", whiteSpace: "nowrap",
                 }}>
                 {t.label}
               </button>
