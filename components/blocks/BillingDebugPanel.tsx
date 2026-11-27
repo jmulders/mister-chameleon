@@ -175,7 +175,10 @@ export function BillingDebugPanel({ debug }: { debug: BillingRequestDebug }) {
       <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 10 }}>
 
         {/* ── Request summary ─────────────────────────────────────────────────── */}
-        <div style={{
+        {/* Six counters in a row need about 480px. On a phone they go three
+            by three, or the last one falls off the screen. */}
+        <style>{`@media (max-width: 640px) { .mc-billing-stats { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; } }`}</style>
+        <div className="mc-billing-stats" style={{
           display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: 6,
         }}>
           {[

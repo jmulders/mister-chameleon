@@ -43,6 +43,21 @@ type PageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
 
+// ── Layout ────────────────────────────────────────────────────────────────────
+//
+// The page is all inline styles, which cannot follow the screen width. The few
+// rules that must differ on a phone are here. Wide content (a JSON dump, a
+// table of another panel) scrolls inside its own box instead of pushing the
+// page sideways.
+const DEBUG_PAGE_CSS = `
+.mc-debug-page { padding: 2rem 4rem; }
+@media (max-width: 640px) {
+  .mc-debug-page { padding: 1rem 0.75rem; }
+  .mc-debug-page pre { max-width: 100%; overflow-x: auto; }
+  .mc-debug-page h1 { font-size: 1.15rem; }
+}
+`;
+
 export default async function DemoDebugPage({ searchParams }: PageProps) {
   const params = await searchParams;
   const r      = await runHomepagePipeline({ params, includeDebug: true });
@@ -128,7 +143,10 @@ export default async function DemoDebugPage({ searchParams }: PageProps) {
   // ── Render ────────────────────────────────────────────────────────────────
   return (
     <main>
-      <section style={{ padding: "2rem 4rem", fontFamily: "Arial, sans-serif" }}>
+      {/* The side padding lives in a class so a phone can have less of it: with
+          the fixed 4rem a 390px screen kept 262px for the panels. */}
+      <style>{DEBUG_PAGE_CSS}</style>
+      <section className="mc-debug-page" style={{ fontFamily: "Arial, sans-serif" }}>
 
         {/* Page heading */}
         <h1 style={{

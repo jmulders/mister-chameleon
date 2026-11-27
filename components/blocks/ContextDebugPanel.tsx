@@ -249,6 +249,51 @@ function ScenarioOverrideSummary({ overrides }: { overrides: ScenarioOverrides }
   );
 }
 
+// ── Phone layout ──────────────────────────────────────────────────────────────
+//
+// The panel is inline styles throughout, and those cannot follow the screen
+// width. Six table columns do not fit a phone: the type badge ran into the
+// rules and AI ticks and their three titles printed on top of each other.
+//
+// Below 640px a variable is no longer a table row but a small stack:
+//
+//   key                       type  rules ✓  AI ✓
+//   value (wraps, never cut off)
+//   label
+//
+// The column titles go, so "rules" and "AI" are written in front of their
+// ticks. A variable without a value shows no value line: its grey key already
+// says so, and most variables are unresolved on a first visit.
+const CONTEXT_PANEL_CSS = `
+@media (max-width: 640px) {
+  .mc-ctx-head { flex-wrap: wrap; row-gap: 0.4rem; }
+  .mc-ctx-pills { margin-left: 0 !important; width: 100%; }
+  .mc-ctx-table, .mc-ctx-table tbody { display: block; width: 100%; }
+  .mc-ctx-table colgroup, .mc-ctx-table thead { display: none; }
+  .mc-ctx-table tr {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto auto;
+    grid-template-areas: "key type rules ai" "value value value value" "label label label label";
+    column-gap: 8px;
+    row-gap: 2px;
+    align-items: center;
+    padding: 6px 10px;
+  }
+  .mc-ctx-table td { padding: 0 !important; text-align: left !important; min-width: 0; }
+  .mc-ctx-key   { grid-area: key; font-size: 12px; }
+  .mc-ctx-type  { grid-area: type; }
+  .mc-ctx-rules { grid-area: rules; white-space: nowrap; }
+  .mc-ctx-ai    { grid-area: ai; white-space: nowrap; }
+  .mc-ctx-rules::before { content: "rules "; color: #94a3b8; font-size: 10px; }
+  .mc-ctx-ai::before    { content: "AI "; color: #94a3b8; font-size: 10px; }
+  .mc-ctx-value { grid-area: value; font-size: 12px; }
+  .mc-ctx-value .mc-ctx-text { white-space: normal !important; overflow-wrap: anywhere; }
+  .mc-ctx-value > span { flex-wrap: wrap !important; }
+  .mc-ctx-row-null .mc-ctx-value { display: none; }
+  .mc-ctx-label { grid-area: label; white-space: normal !important; font-size: 10px; }
+}
+`;
+
 // ── Main component ─────────────────────────────────────────────────────────────
 
 export function ContextDebugPanel({ snapshot, scenarioOverrides }: ContextDebugPanelProps) {
@@ -285,6 +330,7 @@ export function ContextDebugPanel({ snapshot, scenarioOverrides }: ContextDebugP
         <MatchedContextsSection matches={matchedContexts} />
       )}
 
+    <style>{CONTEXT_PANEL_CSS}</style>
     <details
       open
       style={{
@@ -298,6 +344,7 @@ export function ContextDebugPanel({ snapshot, scenarioOverrides }: ContextDebugP
     >
       {/* ── Panel header / summary ─────────────────────────────────────── */}
       <summary
+        className="mc-ctx-head"
         style={{
           cursor:          "pointer",
           padding:         "0.5rem 0.75rem",
@@ -333,7 +380,7 @@ export function ContextDebugPanel({ snapshot, scenarioOverrides }: ContextDebugP
         </span>
 
         {/* Compact per-source summary pills */}
-        <span style={{ marginLeft: "auto", display: "flex", gap: "0.4rem", flexWrap: "wrap" }}>
+        <span className="mc-ctx-pills" style={{ marginLeft: "auto", display: "flex", gap: "0.4rem", flexWrap: "wrap" }}>
           {orderedSources.map((src) => {
             const entries = bySource[src] ?? [];
             const resolved = entries.filter((e) => e.isResolved).length;
@@ -418,6 +465,7 @@ export function ContextDebugPanel({ snapshot, scenarioOverrides }: ContextDebugP
 
               {/* Variable rows */}
               <table
+                className="mc-ctx-table"
                 style={{
                   width:           "100%",
                   borderCollapse:  "collapse",
@@ -457,6 +505,7 @@ export function ContextDebugPanel({ snapshot, scenarioOverrides }: ContextDebugP
                     return (
                       <tr
                         key={entry.key}
+                        className={displayValue === null ? "mc-ctx-row-null" : undefined}
                         style={{
                           background:   entry.isOverridden
                             ? "#fffbeb"   // amber-50 — overridden by Scenario Control
@@ -469,6 +518,7 @@ export function ContextDebugPanel({ snapshot, scenarioOverrides }: ContextDebugP
                       >
                         {/* key */}
                         <td
+                          className="mc-ctx-key"
                           style={{
                             padding:    "4px 8px",
                             color:      entry.isResolved ? "#1e293b" : "#94a3b8",
@@ -502,6 +552,7 @@ export function ContextDebugPanel({ snapshot, scenarioOverrides }: ContextDebugP
 
                         {/* value + optional raw/override display + enrichment trace badge */}
                         <td
+                          className="mc-ctx-value"
                           style={{
                             padding:      "4px 8px",
                             overflow:     "hidden",
@@ -513,6 +564,7 @@ export function ContextDebugPanel({ snapshot, scenarioOverrides }: ContextDebugP
                               {entry.isOverridden && entry.rawValue !== undefined ? (
                                 <span style={{ display: "flex", alignItems: "center", gap: "3px", overflow: "hidden", flex: "1 1 0", minWidth: 0 }}>
                                   <span
+                                    className="mc-ctx-text"
                                     style={{
                                       color:          "#94a3b8",
                                       textDecoration: "line-through",
@@ -527,6 +579,7 @@ export function ContextDebugPanel({ snapshot, scenarioOverrides }: ContextDebugP
                                   </span>
                                   <span style={{ color: "#f59e0b", fontWeight: 700, flexShrink: 0 }}>→</span>
                                   <span
+                                    className="mc-ctx-text"
                                     style={{
                                       color:        "#b45309",
                                       fontStyle:    "italic",
@@ -541,6 +594,7 @@ export function ContextDebugPanel({ snapshot, scenarioOverrides }: ContextDebugP
                                 </span>
                               ) : (
                                 <span
+                                  className="mc-ctx-text"
                                   style={{
                                     color: entry.isOverridden
                                       ? "#b45309"   // amber-700 for overridden values
@@ -570,22 +624,23 @@ export function ContextDebugPanel({ snapshot, scenarioOverrides }: ContextDebugP
                         </td>
 
                         {/* type badge */}
-                        <td style={{ padding: "4px 8px", textAlign: "center" }}>
+                        <td className="mc-ctx-type" style={{ padding: "4px 8px", textAlign: "center" }}>
                           <TypeBadge type={entry.type} />
                         </td>
 
                         {/* rules flag */}
-                        <td style={{ padding: "4px 8px", textAlign: "center", color: entry.availableToRules ? "#2563eb" : "#d1d5db" }}>
+                        <td className="mc-ctx-rules" style={{ padding: "4px 8px", textAlign: "center", color: entry.availableToRules ? "#2563eb" : "#d1d5db" }}>
                           {entry.availableToRules ? "✓" : "·"}
                         </td>
 
                         {/* AI flag */}
-                        <td style={{ padding: "4px 8px", textAlign: "center", color: entry.availableToAI ? "#059669" : "#d1d5db" }}>
+                        <td className="mc-ctx-ai" style={{ padding: "4px 8px", textAlign: "center", color: entry.availableToAI ? "#059669" : "#d1d5db" }}>
                           {entry.availableToAI ? "✓" : "·"}
                         </td>
 
                         {/* label */}
                         <td
+                          className="mc-ctx-label"
                           style={{
                             padding:      "4px 8px",
                             color:        "#64748b",

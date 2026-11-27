@@ -368,7 +368,10 @@ export function JourneyDebugPanel({
               </div>
             )}
 
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem", marginTop: "0.75rem" }}>
+            {/* Two columns side by side, one under the other on a phone: half
+                of 366px is too narrow for an event line with its timestamp. */}
+            <style>{`@media (max-width: 640px) { .mc-journey-cols { grid-template-columns: minmax(0, 1fr) !important; } }`}</style>
+            <div className="mc-journey-cols" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem", marginTop: "0.75rem" }}>
 
               {/* ── Left column ─────────────────────────────────────── */}
               <div>
