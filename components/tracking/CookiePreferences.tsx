@@ -1,32 +1,60 @@
 "use client";
 
 /**
- * CookiePreferences — an always-available "Cookie settings" launcher + modal.
+ * CookiePreferences — the "Cookie settings" launcher + modal.
  *
- * The ConsentBanner only shows until the visitor first responds; this gives a
- * persistent way to re-open and change choices at any time (like Cookiebot's
- * badge). The modal hosts the full CookieDeclaration. Mount once in the layout.
+ * The ConsentBanner only shows until the visitor first responds; this pill is
+ * the way to re-open the choices. Once the visitor has chosen it leaves, as
+ * long as the page itself links to the cookie page, where the same choices can
+ * be changed. A page without that link keeps the pill. See
+ * tracking/cookie-launcher.ts. The modal hosts the full CookieDeclaration.
+ * Mount once in the layout.
  */
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { CookieDeclaration } from "./CookieDeclaration";
 import { consentTexts } from "@/tracking/consent-i18n";
+import { getConsent, subscribeConsent } from "@/tracking/consent-store";
+import type { ConsentState } from "@/tracking/consent-types";
+import {
+  cookieLauncherShown,
+  pageLinksToCookies,
+  subscribePageLinks,
+} from "@/tracking/cookie-launcher";
 import { claimLauncherSide } from "@/lib/layout/floating-stack";
+
+// Server + first-hydration snapshots: "chosen, and the page has its link", so
+// the pill is not in the SSR HTML. A visitor who chose earlier then never sees
+// it flash on a page load; for anyone else it appears straight after hydration,
+// together with the banner. Module constants, so the stores never loop.
+const SERVER_CONSENT: ConsentState = {
+  hasResponded:    true,
+  analytics:       false,
+  personalization: false,
+  enrichment:      false,
+  advertising:     false,
+};
+function getServerConsent(): ConsentState { return SERVER_CONSENT; }
+function getServerPageLink(): boolean { return true; }
 
 export function CookiePreferences({ locale }: { locale?: string } = {}) {
   const t = consentTexts(locale);
   const [open, setOpen] = useState(false);
 
-  // The pill takes the left side of the launcher row, so a corner toast on
-  // that side (or any toast on a narrow screen) sits above it.
+  const consent = useSyncExternalStore(subscribeConsent, getConsent, getServerConsent);
+  const linked  = useSyncExternalStore(subscribePageLinks, pageLinksToCookies, getServerPageLink);
+  const shown   = cookieLauncherShown({ responded: consent.hasResponded, pageLinksToCookies: linked });
+
+  // While it is on screen the pill takes the left side of the launcher row, so
+  // a corner toast on that side (or any toast on a narrow screen) sits above it.
   useEffect(() => {
-    claimLauncherSide("left", true);
+    claimLauncherSide("left", shown);
     return () => claimLauncherSide("left", false);
-  }, []);
+  }, [shown]);
 
   return (
     <>
-      <button
+      {shown && <button
         onClick={() => setOpen(true)}
         aria-label={t.preferences.launcher}
         style={{
@@ -39,10 +67,11 @@ export function CookiePreferences({ locale }: { locale?: string } = {}) {
         }}
       >
         {t.preferences.launcher}
-      </button>
+      </button>}
 
       {open && (
         <div
+          data-consent-ui=""
           role="dialog"
           aria-modal="true"
           aria-label={t.preferences.title}

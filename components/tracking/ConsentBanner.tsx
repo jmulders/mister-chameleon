@@ -138,6 +138,7 @@ export function ConsentBanner({ title, description, locale }: ConsentBannerProps
 
   return (
     <div
+      data-consent-ui=""
       role="dialog"
       aria-label={t.banner.dialogLabel}
       aria-live="polite"
