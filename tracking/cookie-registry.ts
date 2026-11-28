@@ -11,6 +11,20 @@
  * Dutch (`purposeNl`), and the labels cookies share (provider, lifetime, type,
  * domain) have a Dutch counterpart in NL_LABELS. `cookiesForCategory(cat, "nl")`
  * returns the rows in Dutch for the public /cookies page.
+ *
+ * ─── The registry follows the code ───────────────────────────────────────────
+ *
+ * A row's category says when the cookie is set, and the code has to agree:
+ *
+ *   essential        set without asking. Only for a cookie the site cannot do
+ *                    without: mc_ws, mc_consent, mc_locale.
+ *   personalization  set and read only with that consent: mc_session_id,
+ *                    mc_seen, mc_attr (lib/consent/visitor-cookies.ts) and
+ *                    mc_lead (lib/abm/lead-cookie.ts).
+ *
+ * tests/consent/cookie-story.test.ts holds the two together: lifetime, category
+ * and the HttpOnly flag of these rows are checked against the constants the
+ * code sets the cookies with.
  */
 
 import type { ConsentCategory } from "./consent-types";
@@ -71,10 +85,10 @@ export const COOKIE_CATEGORY_ORDER: CookieCategory[] = ["essential", "analytics"
 
 export const COOKIE_REGISTRY: CookieDef[] = [
   // ── Strictly necessary ──────────────────────────────────────────────────────
-  { name: "mc_session_id", provider: "This site", category: "essential",
-    purpose: "First-party pseudonymous visitor id for session continuity (also the analytics visitor key).",
-    purposeNl: "Een pseudoniem bezoekersnummer dat je bezoek bij elkaar houdt. De statistieken gebruiken hetzelfde nummer.",
-    expiry: "1 year", type: "HTTP Cookie", domain: "First-party", httpOnly: false },
+  { name: "mc_ws", provider: "This site", category: "essential",
+    purpose: "A random number that keeps the pages of one visit together, so a visit is counted once. It is not linked to a profile and expires after 30 minutes without activity.",
+    purposeNl: "Een willekeurig nummer dat de pagina's van één bezoek bij elkaar houdt, zodat een bezoek één keer wordt geteld. Er hangt geen profiel aan en het vervalt na 30 minuten zonder activiteit.",
+    expiry: "30 minutes", type: "HTTP Cookie", domain: "First-party", httpOnly: true },
   { name: "mc_consent", provider: "This site", category: "essential",
     purpose: "Stores your cookie-consent choices so we can honour them.",
     purposeNl: "Onthoudt welke cookies je hebt toegestaan.",
@@ -85,10 +99,23 @@ export const COOKIE_REGISTRY: CookieDef[] = [
     expiry: "1 year", type: "HTTP Cookie", domain: "First-party", httpOnly: false },
 
   // ── Personalization ─────────────────────────────────────────────────────────
+  // All four are set and read only with personalization consent.
+  { name: "mc_session_id", provider: "This site", category: "personalization",
+    purpose: "First-party pseudonymous visitor id that links your visits, so content can build on what you viewed before (also the analytics visitor key).",
+    purposeNl: "Een pseudoniem bezoekersnummer dat je bezoeken aan elkaar koppelt, zodat de content kan aansluiten op wat je eerder bekeek. De statistieken gebruiken hetzelfde nummer.",
+    expiry: "30 days", type: "HTTP Cookie", domain: "First-party", httpOnly: true },
+  { name: "mc_seen", provider: "This site", category: "personalization",
+    purpose: "Remembers that you have visited before, so a returning visitor can be shown different content than a first-time visitor.",
+    purposeNl: "Onthoudt dat je hier eerder bent geweest, zodat je bij een volgend bezoek andere content kunt zien dan een nieuwe bezoeker.",
+    expiry: "1 year", type: "HTTP Cookie", domain: "First-party", httpOnly: true },
+  { name: "mc_attr", provider: "This site", category: "personalization",
+    purpose: "Remembers the campaign (UTM tags) and the website you came from, so later pages and visits can still adapt to it.",
+    purposeNl: "Onthoudt via welke campagne (UTM-tags) en welke website je binnenkwam, zodat latere pagina's en bezoeken daarop kunnen blijven aansluiten.",
+    expiry: "30 days", type: "HTTP Cookie", domain: "First-party", httpOnly: true },
   { name: "mc_lead", provider: "This site", category: "personalization",
     purpose: "Identifies you to a personalized campaign link (ABM) so the page adapts to your account.",
     purposeNl: "Herkent je als je via een persoonlijke campagnelink komt. Zo past de pagina zich aan jouw bedrijf aan.",
-    expiry: "30 days", type: "HTTP Cookie", domain: "First-party", httpOnly: false },
+    expiry: "30 days", type: "HTTP Cookie", domain: "First-party", httpOnly: true },
 
   // ── Analytics (Google Analytics 4 via GTM, when enabled) ────────────────────
   { name: "_ga", provider: "Google Analytics", category: "analytics",
@@ -106,9 +133,9 @@ export const COOKIE_REGISTRY: CookieDef[] = [
 
   // ── Enrichment (Leadinfo, when enabled) ─────────────────────────────────────
   { name: "mc_li", provider: "This site", category: "enrichment",
-    purpose: "Stores the company-identification result from Leadinfo for this visit.",
-    purposeNl: "Bewaart voor dit bezoek welk bedrijf Leadinfo heeft herkend.",
-    expiry: "30 days", type: "HTTP Cookie", domain: "First-party", httpOnly: false },
+    purpose: "Stores the company-identification result from Leadinfo, so it is not looked up again on every page.",
+    purposeNl: "Bewaart welk bedrijf Leadinfo heeft herkend, zodat dat niet bij elke pagina opnieuw wordt opgezocht.",
+    expiry: "7 days", type: "HTTP Cookie", domain: "First-party", httpOnly: true },
   { name: "_li_id / leadinfo", provider: "Leadinfo", category: "enrichment",
     purpose: "Leadinfo company-identification tracking.",
     purposeNl: "Laat Leadinfo herkennen vanuit welk bedrijf je de site bezoekt.",
@@ -127,6 +154,8 @@ const NL_LABELS: Record<string, string> = {
   "1 year":                         "1 jaar",
   "2 years":                        "2 jaar",
   "30 days":                        "30 dagen",
+  "7 days":                         "7 dagen",
+  "30 minutes":                     "30 minuten",
   "24 hours":                       "24 uur",
   "Varies (Leadinfo)":              "Wisselt (Leadinfo)",
   // type

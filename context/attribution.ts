@@ -12,6 +12,20 @@
  *              Read by detectVisitorContext() as a fallback when URL params are absent.
  *              Lifetime: 30 days (sliding window, refreshed on each UTM touch).
  *
+ * ─── Consent ──────────────────────────────────────────────────────────────────
+ *
+ *   The campaign and referrer of the CURRENT request are part of the anonymous
+ *   context layer and are always used: they come with the request, nothing is
+ *   stored for them.
+ *
+ *   The cookie is something else. It remembers where a visitor came from for 30
+ *   days so later pages and later visits can still adapt to it. The site works
+ *   without it, so it is not strictly necessary, and remembering a visitor
+ *   across visits is what the "personalization" choice is for. So the cookie is
+ *   written and read only with personalization consent (read from mc_consent in
+ *   the same Cookie header). Without it a stored cookie is ignored here and
+ *   removed by the proxy (lib/consent/visitor-cookies.ts).
+ *
  * ─── Priority for each field ──────────────────────────────────────────────────
  *
  *   1. Fresh URL query params (utm_source, utm_medium, …)  — highest trust
@@ -41,6 +55,7 @@
  */
 
 import { readCookies } from "./helpers";
+import { readConsentFromCookieHeader } from "@/lib/consent/server-consent";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -89,6 +104,8 @@ export interface AttributionResolution {
    * This is the case when:
    *   a) Fresh UTM params are present in the URL, or
    *   b) No cookie exists yet and an external referrer was captured.
+   *
+   * Always false without personalization consent.
    */
   shouldSetCookie: boolean;
 
@@ -97,6 +114,18 @@ export interface AttributionResolution {
    * null when shouldSetCookie is false.
    */
   serialized: string | null;
+}
+
+// ── Consent ───────────────────────────────────────────────────────────────────
+
+/**
+ * May the attribution cookie be written or read for this request?
+ *
+ * Only with personalization consent, read from the mc_consent cookie in the
+ * same Cookie header. See the "Consent" note at the top of this file.
+ */
+export function attributionStorageAllowed(cookieHeader: string | null): boolean {
+  return readConsentFromCookieHeader(cookieHeader).personalization === true;
 }
 
 // ── Serialization ─────────────────────────────────────────────────────────────
@@ -222,11 +251,14 @@ export function parseUtmFromUrl(url: URL): Partial<AttributionData> {
 export function resolveAttribution(request: Request): AttributionResolution {
   // ── Read stored cookie ───────────────────────────────────────────────────
 
+  // Without personalization consent the stored cookie is neither read nor
+  // written: the request's own campaign and referrer are all that is used.
   const cookieHeader = request.headers.get("cookie");
   const cookies      = readCookies(cookieHeader);
   const storedRaw    = cookies.get(ATTRIBUTION_COOKIE);
-  const stored       = parseAttributionCookie(storedRaw);
-  const hasCookie    = !!storedRaw;
+  const mayStore     = attributionStorageAllowed(cookieHeader);
+  const stored       = mayStore ? parseAttributionCookie(storedRaw) : {};
+  const hasCookie    = mayStore && !!storedRaw;
 
   // ── Parse URL UTM params ─────────────────────────────────────────────────
 
@@ -278,7 +310,7 @@ export function resolveAttribution(request: Request): AttributionResolution {
   //   Case A: Fresh UTM params arrived → always refresh cookie (new campaign touch).
   //   Case B: No UTM, no cookie yet, but external referrer → capture initial referrer.
   //   Otherwise: preserve existing cookie unchanged (or absent).
-  const shouldSetCookie = hasFreshUtm || (!hasCookie && isExternalReferrer);
+  const shouldSetCookie = mayStore && (hasFreshUtm || (!hasCookie && isExternalReferrer));
 
   // ── Build merged attribution data ────────────────────────────────────────
 

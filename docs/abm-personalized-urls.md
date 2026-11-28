@@ -128,6 +128,12 @@ redirect; DPIA notes; "leaked link" safe-degrade verified.
 - **Lawful basis:** named-person tracking, often pre-consent. B2B legitimate
   interest is usually defensible but needs a documented assessment + a clear
   opt-out. Loop in your privacy owner before Phase 2.
+- **The `mc_lead` cookie needs personalization consent.** Legitimate interest
+  can cover recording that a link was clicked; it does not cover storing a
+  cookie. `/go/{token}` only sets `mc_lead` when the visitor allowed
+  personalization, and every reader ignores it without that consent. Without
+  consent the redirect still works, but the page is the one every visitor gets.
+  See `lib/abm/lead-cookie.ts`.
 - **The link is personal data + can leak.** Anyone with the URL lands as that
   lead. So: keep personalization business-appropriate, **never render sensitive
   personal data** on the page, prefer opaque tokens, support expiry.

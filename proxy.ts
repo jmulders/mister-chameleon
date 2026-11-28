@@ -52,6 +52,10 @@
  *   no existing mc_attr cookie, the attribution data is serialised and written
  *   to the mc_attr cookie (30-day lifetime, refreshed on each UTM touch).
  *
+ *   Only with personalization consent. Without it the campaign of the current
+ *   request is still forwarded (x-mc-utm-*), but nothing is stored and a stored
+ *   cookie is neither read nor kept. See lib/consent/visitor-cookies.ts.
+ *
  * ─── Performance ──────────────────────────────────────────────────────────────
  *
  *   Zero I/O — reads/writes only cookies, headers, and JWT (Web Crypto).
@@ -73,13 +77,10 @@
 
 import { type NextRequest, NextResponse } from "next/server";
 import { buildContentSecurityPolicy, cspHeaderName } from "@/lib/security/csp";
-import { resolveSession, SESSION_COOKIE, WEB_SESSION_COOKIE, SEEN_COOKIE } from "@/data/session";
+import { resolveSession, SESSION_COOKIE, WEB_SESSION_COOKIE } from "@/data/session";
 import { resolveConsent } from "@/lib/consent/server-consent";
-import {
-  resolveAttribution,
-  ATTRIBUTION_COOKIE,
-  ATTRIBUTION_MAX_AGE,
-} from "@/context/attribution";
+import { planVisitorCookies } from "@/lib/consent/visitor-cookies";
+import { resolveAttribution } from "@/context/attribution";
 import {
   verifySession,
   ADMIN_TOKEN_COOKIE,
@@ -239,10 +240,12 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
   // ── Visitor session (public pages) ─────────────────────────────────────────
   const session      = resolveSession(cookieHeader);
   const attribution  = resolveAttribution(request);
-  // Anonymity boundary: the persistent visitor-identity cookies (mc_session_id 30d,
-  // mc_seen 365d) are only set with personalization consent (read from mc_consent).
-  // The billing web-session cookie (mc_ws, 30min) stays essential. Without consent
-  // the render paths already fall back to an ephemeral per-request id.
+  // Anonymity boundary: the cookies that remember a visitor across visits
+  // (mc_session_id 30d, mc_seen 365d, mc_attr 30d) are only set with
+  // personalization consent (read from mc_consent). The billing web-session
+  // cookie (mc_ws, 30min) stays essential. Without consent the render paths
+  // already fall back to an ephemeral per-request id, and resolveAttribution()
+  // above leaves a stored mc_attr unread.
   const consent = resolveConsent(cookieHeader);
 
   // Build modified request headers
@@ -449,37 +452,41 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
 
   const isSecure = process.env.NODE_ENV === "production";
 
-  // ── Visitor session cookies ────────────────────────────────────────────────
-  for (const spec of session.cookiesToSet) {
-    // Persistent identity cookies require personalization consent; the billing
-    // web-session cookie is essential and always set.
-    if (
-      !consent.personalization &&
-      (spec.name === SESSION_COOKIE || spec.name === SEEN_COOKIE)
-    ) {
-      continue;
+  // ── Visitor session + attribution cookies ─────────────────────────────────
+  // One plan for this response and for the ?lang= redirect below: which cookies
+  // may be set under the visitor's consent, and which stored ones must go.
+  const visitorCookies = planVisitorCookies({
+    session,
+    attribution,
+    consent,
+    cookieHeader,
+    secure: isSecure,
+  });
+  const applyVisitorCookies = (target: NextResponse) => {
+    for (const spec of visitorCookies.set) {
+      target.cookies.set(spec.name, spec.value, {
+        maxAge:   spec.maxAge,
+        path:     spec.path,
+        httpOnly: spec.httpOnly,
+        sameSite: spec.sameSite,
+        secure:   spec.secure,
+      });
     }
-    response.cookies.set(spec.name, spec.value, {
-      maxAge:   spec.maxAge,
-      path:     spec.path,
-      httpOnly: spec.httpOnly,
-      sameSite: spec.sameSite,
-      secure:   spec.secure,
-    });
-  }
-
-  // ── Attribution cookie ────────────────────────────────────────────────────
-  if (attribution.shouldSetCookie && attribution.serialized) {
-    response.cookies.set({
-      name:     ATTRIBUTION_COOKIE,
-      value:    attribution.serialized,
-      maxAge:   ATTRIBUTION_MAX_AGE,
-      path:     "/",
-      httpOnly: true,
-      sameSite: "lax",
-      secure:   isSecure,
-    });
-  }
+    for (const name of visitorCookies.expire) {
+      // Expires as well as Max-Age: on a rendered page Next emits the proxy's
+      // cookies a second time and drops a Max-Age of 0 there, which would leave
+      // an empty session cookie behind. The past date survives that copy.
+      target.cookies.set(name, "", {
+        maxAge:   0,
+        expires:  new Date(0),
+        path:     "/",
+        httpOnly: true,
+        sameSite: "lax",
+        secure:   isSecure,
+      });
+    }
+  };
+  applyVisitorCookies(response);
 
   // ── Dev tenant cookie (development only) ─────────────────────────────────
   if (devTenantCookieToSet) {
@@ -533,26 +540,8 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
     // These were computed above for the original response.  They must also be
     // attached to the redirect response so that a new-session visitor doesn't
     // lose their session ID between the redirect and the following GET.
-    for (const spec of session.cookiesToSet) {
-      redirectResponse.cookies.set(spec.name, spec.value, {
-        maxAge:   spec.maxAge,
-        path:     spec.path,
-        httpOnly: spec.httpOnly,
-        sameSite: spec.sameSite,
-        secure:   spec.secure,
-      });
-    }
-    if (attribution.shouldSetCookie && attribution.serialized) {
-      redirectResponse.cookies.set({
-        name:     ATTRIBUTION_COOKIE,
-        value:    attribution.serialized,
-        maxAge:   ATTRIBUTION_MAX_AGE,
-        path:     "/",
-        httpOnly: true,
-        sameSite: "lax",
-        secure:   isSecure,
-      });
-    }
+    // Same plan as above, so the redirect follows the same consent rule.
+    applyVisitorCookies(redirectResponse);
 
     return redirectResponse;
   }

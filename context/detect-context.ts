@@ -45,7 +45,7 @@
 
 import type { TrafficSource, VisitorContext } from "./types";
 import { detectDevice, parseReferrer, readCookies } from "./helpers";
-import { parseAttributionCookie, ATTRIBUTION_COOKIE } from "./attribution";
+import { parseAttributionCookie, attributionStorageAllowed, ATTRIBUTION_COOKIE } from "./attribution";
 
 /** Cookie name set by the client-side tracking layer after the first visit. */
 export const SEEN_COOKIE = "mc_seen";
@@ -136,7 +136,13 @@ export function detectVisitorContext(request: Request): VisitorContext {
   // For internal navigation (same hostname), the stored external referrer is
   // preserved so rules always see the original referral source.
 
-  const stored = parseAttributionCookie(cookies.get(ATTRIBUTION_COOKIE));
+  //
+  // The stored cookie is only read with personalization consent. Without it
+  // this request's own UTM params and referrer are all that is used.
+
+  const stored = attributionStorageAllowed(cookieHeader)
+    ? parseAttributionCookie(cookies.get(ATTRIBUTION_COOKIE))
+    : {};
 
   const utmSource   = urlUtmSource   ?? stored.utmSource   ?? null;
   const utmMedium   = urlUtmMedium   ?? stored.utmMedium   ?? null;

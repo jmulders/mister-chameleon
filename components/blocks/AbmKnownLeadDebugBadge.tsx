@@ -7,14 +7,19 @@
  * snapshot to hang the badge on. This async server component reads the `mc_lead`
  * cookie directly, resolves the active lead, and renders the same badge — gated
  * on the tenant's debug overlay being enabled. Renders nothing otherwise.
+ *
+ * Like every reader of `mc_lead`, it only reads the cookie with personalization
+ * consent (lib/abm/lead-cookie.ts), so the badge shows what the page used.
  */
 
 import "server-only";
 
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import type { TenantSettings } from "@/tenant/types";
 import { resolveActiveKnownLead } from "@/lib/abm/apply-known-lead";
 import { KnownLeadBadge } from "@/components/blocks/KnownLeadBadge";
+import { resolveConsent } from "@/lib/consent/server-consent";
+import { LEAD_COOKIE, readLeadCookie } from "@/lib/abm/lead-cookie";
 
 export async function AbmKnownLeadDebugBadge({
   tenant,
@@ -29,7 +34,10 @@ export async function AbmKnownLeadDebugBadge({
   if (!debugOn) return null;
 
   const cookieStore = await cookies();
-  const lead = await resolveActiveKnownLead(cookieStore.get("mc_lead")?.value);
+  const consent     = resolveConsent((await headers()).get("cookie"), tenant?.privacy ?? null);
+  const lead = await resolveActiveKnownLead(
+    readLeadCookie(cookieStore.get(LEAD_COOKIE)?.value, consent),
+  );
   if (!lead) return null;
 
   return (
