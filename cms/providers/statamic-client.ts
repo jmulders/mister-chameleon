@@ -854,12 +854,17 @@ export class StatamicClient {
    *
    * @param collection  The collection handle, e.g. "features"
    * @param limit       Maximum number of entries to return (default 100)
+   * @param options     `fresh: true` reads past the data cache. That cache
+   *                    answers with what it has and refreshes afterwards, so
+   *                    a caller that is asked rarely always gets the previous
+   *                    list. Meant for the sitemap, not for page renders.
    * @returns           Array of entries; empty array on 404 / missing collection
    * @throws            Error for non-404 HTTP errors
    */
   async fetchAll<TEntry>(
     collection: string,
     limit = 100,
+    options: { fresh?: boolean } = {},
   ): Promise<StatamicEntry<TEntry>[]> {
     const url = `${this.baseUrl}/api/collections/${collection}/entries?limit=${limit}`;
 
@@ -877,13 +882,9 @@ export class StatamicClient {
     }
 
     try {
-      const response = await fetch(url, {
-        headers,
-        next: {
-          revalidate: STATAMIC_REVALIDATE_SECONDS,
-          tags: [STATAMIC_CACHE_TAG],
-        },
-      });
+      const response = await fetch(url, options.fresh
+        ? { headers, cache: "no-store" }
+        : { headers, next: { revalidate: STATAMIC_REVALIDATE_SECONDS, tags: [STATAMIC_CACHE_TAG] } });
 
       if (response.status === 404) return [];
 

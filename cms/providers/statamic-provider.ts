@@ -3459,8 +3459,16 @@ export class StatamicProvider implements CMSProvider {
       { collection: PAGES_COLLECTION, prefix: "" },
       ...Object.entries(COLLECTION_PATH_MAP).map(([prefix, collection]) => ({ collection, prefix })),
     ];
+    // Read past the data cache. The cache answers with the list it has and
+    // refreshes afterwards. A sitemap is asked for rarely, so every crawler
+    // got the list as it was at the visit before: on 28 Nov 2026 the live
+    // sitemap still listed 41 addresses an hour and a half after six pages
+    // were published, and 47 on the request after that.
+    // When the fresh read fails the cached list is the fallback: a list from
+    // a minute or an hour ago is better than an error, and far better than a
+    // sitemap without that collection.
     const twice = (collection: string) =>
-      this.client.fetchAll<SitemapEntryFields>(collection, SITEMAP_ENTRY_LIMIT)
+      this.client.fetchAll<SitemapEntryFields>(collection, SITEMAP_ENTRY_LIMIT, { fresh: true })
         .catch(() => this.client.fetchAll<SitemapEntryFields>(collection, SITEMAP_ENTRY_LIMIT));
     const lists = await Promise.all(sources.map(({ collection }) =>
       collection === PAGES_COLLECTION

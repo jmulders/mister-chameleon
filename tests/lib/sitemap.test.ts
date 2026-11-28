@@ -192,3 +192,37 @@ it("the marketing site leaves out every address that only redirects", () => {
   const paths = sitemapPathsFor("https://www.misterchameleon.nl", cms).map((p) => p.path);
   assert.deepEqual(paths, ["/functies", "/blog/een-artikel", "/prijzen", "/demo", "/cookies"]);
 });
+
+describe("the sitemap reads its lists fresh", () => {
+  it("asks every collection past the data cache", async () => {
+    const asked: Array<{ collection: string; fresh: unknown }> = [];
+    const client = {
+      fetchAll: async (collection: string, _limit: number, options?: { fresh?: boolean }) => {
+        asked.push({ collection, fresh: options?.fresh });
+        return collection === "pages" ? [{ id: "1", slug: "home" }] : [];
+      },
+    } as unknown as StatamicClient;
+    await new StatamicProvider(client, undefined, null).listIndexablePaths();
+    assert.ok(asked.length >= 6, "pages and the five collections");
+    assert.deepEqual([...new Set(asked.map((a) => a.fresh))], [true]);
+  });
+
+  it("falls back on the cached list when the fresh read fails", async () => {
+    const client = {
+      fetchAll: async (collection: string, _limit: number, options?: { fresh?: boolean }) => {
+        if (options?.fresh) throw new Error("fetch failed");
+        return collection === "pages" ? [{ id: "1", slug: "home" }, { id: "2", slug: "prijzen" }] : [];
+      },
+    } as unknown as StatamicClient;
+    const paths = await new StatamicProvider(client, undefined, null).listIndexablePaths();
+    assert.deepEqual(paths.map((p) => p.path), ["/", "/prijzen"]);
+  });
+
+  it("the client then skips the cache that answers first and refreshes afterwards", () => {
+    const source = readFileSync("cms/providers/statamic-client.ts", "utf8");
+    assert.match(source, /options\.fresh\s*\? \{ headers, cache: "no-store" \}/);
+    // A page render keeps the cache: only a caller that asks for it reads fresh.
+    assert.match(source, /options: \{ fresh\?: boolean \} = \{\}/);
+  });
+});
+
