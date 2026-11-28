@@ -50,7 +50,7 @@ export default async function AdminTenantsPage() {
     <div className="flex flex-col min-h-full">
 
       {/* ── Page header ──────────────────────────────────────────────────── */}
-      <div className="border-b border-neutral-200 bg-white px-8 py-6">
+      <div className="border-b border-neutral-200 bg-white px-4 py-6 sm:px-8">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-xl font-semibold text-neutral-900">{superAdmin ? "Tenants" : "Your workspaces"}</h1>
@@ -107,7 +107,7 @@ export default async function AdminTenantsPage() {
             </Link>
           </div>
         ) : (
-          <TenantsTable tenants={tenants} />
+          <TenantsTable tenants={tenants} superAdmin={superAdmin} />
         )}
       </div>
     </div>

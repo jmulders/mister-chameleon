@@ -6,6 +6,12 @@
  * Receives the already-fetched tenants from the server page and renders the
  * same table markup, sliced through usePagination so long tenant lists
  * paginate without a server round-trip.
+ *
+ * On a phone the seven columns do not fit: the table ran off the screen and
+ * its buttons only showed on hover, which a touch screen does not have (seen
+ * on 28 Nov 2026). Below md every tenant is a card instead, with its buttons
+ * always visible. The delete button is a super admin's only: the action
+ * refuses anyone else, so others no longer see a button that cannot work.
  */
 
 import Link from "next/link";
@@ -70,12 +76,97 @@ function FeaturePill({ enabled, label }: { enabled: boolean; label: string }) {
 
 // ── Table ─────────────────────────────────────────────────────────────────────
 
-export function TenantsTable({ tenants }: { tenants: TenantSettings[] }) {
+function TenantAvatar({ tenant }: { tenant: TenantSettings }) {
+  const av       = parseAvatarConfig(tenant.avatar ?? null);
+  const initials = (tenant.name ?? tenant.tenantId).slice(0, 2).toUpperCase();
+  if (av?.kind === "image") {
+    // eslint-disable-next-line @next/next/no-img-element
+    return <img src={av.url} alt="" aria-hidden="true" className="size-8 shrink-0 rounded-lg object-cover" />;
+  }
+  return (
+    <div className={`flex size-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${av?.kind === "emoji" ? avatarEmojiBgClass(av.color, tenant.tenantId) : avatarColor(tenant.tenantId)}`}>
+      {av?.kind === "emoji" ? av.value : initials}
+    </div>
+  );
+}
+
+function SiteLink({ domain }: { domain: string }) {
+  return (
+    <a
+      href={`https://${domain}`}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="inline-flex items-center gap-1 rounded-md border border-neutral-200 bg-white px-2.5 py-1 text-xs font-medium text-neutral-600 hover:border-neutral-300 hover:text-neutral-900 transition-colors"
+      title="Open site"
+    >
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="size-3">
+        <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+        <polyline points="15 3 21 3 21 9"/>
+        <line x1="10" y1="14" x2="21" y2="3"/>
+      </svg>
+      Site
+    </a>
+  );
+}
+
+function OpenLink({ tenantId }: { tenantId: string }) {
+  return (
+    <Link
+      href={`/admin/tenants/${tenantId}`}
+      className="inline-flex items-center gap-1 rounded-lg bg-indigo-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-indigo-700 transition-colors"
+    >
+      Open
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="size-3">
+        <polyline points="9 18 15 12 9 6"/>
+      </svg>
+    </Link>
+  );
+}
+
+export function TenantsTable({ tenants, superAdmin = false }: { tenants: TenantSettings[]; superAdmin?: boolean }) {
   const pager = usePagination(tenants, 25);
 
   return (
     <div className="overflow-hidden rounded-xl border border-neutral-200 bg-white shadow-sm">
-      <table className="w-full text-left">
+      {/* Phone: one card per tenant. */}
+      <ul className="divide-y divide-neutral-100 md:hidden" data-part="tenant-cards">
+        {pager.pageItems.map((tenant) => {
+          const features = tenant.features ?? {};
+          const aiMode   = tenant.ai?.mode ?? "disabled";
+          const isActive = !!(features.analytics ?? features.experiments ?? features.ai);
+          return (
+            <li key={tenant.tenantId} className="px-4 py-4">
+              <div className="flex items-center gap-3">
+                <TenantAvatar tenant={tenant} />
+                <div className="min-w-0 flex-1">
+                  <Link href={`/admin/tenants/${tenant.tenantId}`} className="block truncate text-sm font-semibold text-neutral-900 hover:text-indigo-600">
+                    {tenant.name ?? tenant.tenantId}
+                  </Link>
+                  <p className="truncate text-xs font-mono text-neutral-400 mt-0.5">{tenant.tenantId}</p>
+                </div>
+                <Badge variant={isActive ? "success" : "outline"} size="sm" dot>
+                  {isActive ? "Active" : "Trial"}
+                </Badge>
+              </div>
+              <div className="mt-3 flex flex-wrap items-center gap-1.5">
+                <Badge variant={packageVariant(tenant.packageKey)} size="sm">{tenant.packageKey}</Badge>
+                <Badge variant={aiModeVariant(aiMode)} size="sm">AI {aiMode}</Badge>
+                {tenant.cms?.provider && <span className="text-xs text-neutral-500 capitalize">{tenant.cms.provider}</span>}
+              </div>
+              <div className="mt-3 flex items-center gap-2">
+                <OpenLink tenantId={tenant.tenantId} />
+                {tenant.primaryDomain && <SiteLink domain={tenant.primaryDomain} />}
+                {superAdmin && (
+                  <TenantDeleteButton tenantId={tenant.tenantId} tenantName={tenant.name ?? tenant.tenantId} />
+                )}
+              </div>
+            </li>
+          );
+        })}
+      </ul>
+
+      {/* From a tablet up: the table. */}
+      <table className="hidden w-full text-left md:table">
         <thead>
           <tr className="border-b border-neutral-200 bg-neutral-50/80">
             <th className="px-5 py-3.5 text-xs font-semibold uppercase tracking-wider text-neutral-500">Tenant</th>
@@ -93,24 +184,14 @@ export function TenantsTable({ tenants }: { tenants: TenantSettings[] }) {
             const aiMode      = tenant.ai?.mode   ?? "disabled";
             const cmsProvider = tenant.cms?.provider ?? "—";
             const isActive    = !!(features.analytics ?? features.experiments ?? features.ai);
-            const initials    = (tenant.name ?? tenant.tenantId).slice(0, 2).toUpperCase();
-            const color       = avatarColor(tenant.tenantId);
-            const av          = parseAvatarConfig(tenant.avatar ?? null);
-
+           
             return (
               <tr key={tenant.tenantId} className="group hover:bg-neutral-50/70 transition-colors">
 
                 {/* Avatar + name */}
                 <td className="px-5 py-3.5">
                   <div className="flex items-center gap-3">
-                    {av?.kind === "image" ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={av.url} alt="" aria-hidden="true" className="size-8 shrink-0 rounded-lg object-cover" />
-                    ) : (
-                      <div className={`flex size-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${av?.kind === "emoji" ? avatarEmojiBgClass(av.color, tenant.tenantId) : color}`}>
-                        {av?.kind === "emoji" ? av.value : initials}
-                      </div>
-                    )}
+                    <TenantAvatar tenant={tenant} />
                     <div>
                       <Link
                         href={`/admin/tenants/${tenant.tenantId}`}
@@ -160,36 +241,16 @@ export function TenantsTable({ tenants }: { tenants: TenantSettings[] }) {
 
                 {/* Actions */}
                 <td className="px-5 py-3.5 text-right">
-                  <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                    {tenant.primaryDomain && (
-                      <a
-                        href={`https://${tenant.primaryDomain}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 rounded-md border border-neutral-200 bg-white px-2.5 py-1 text-xs font-medium text-neutral-600 hover:border-neutral-300 hover:text-neutral-900 transition-colors"
-                        title="Open site"
-                      >
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="size-3">
-                          <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
-                          <polyline points="15 3 21 3 21 9"/>
-                          <line x1="10" y1="14" x2="21" y2="3"/>
-                        </svg>
-                        Site
-                      </a>
+                  {/* Shown on hover, and on keyboard focus within the row. */}
+                  <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity">
+                    {tenant.primaryDomain && <SiteLink domain={tenant.primaryDomain} />}
+                    <OpenLink tenantId={tenant.tenantId} />
+                    {superAdmin && (
+                      <TenantDeleteButton
+                        tenantId={tenant.tenantId}
+                        tenantName={tenant.name ?? tenant.tenantId}
+                      />
                     )}
-                    <Link
-                      href={`/admin/tenants/${tenant.tenantId}`}
-                      className="inline-flex items-center gap-1 rounded-lg bg-indigo-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-indigo-700 transition-colors"
-                    >
-                      Open
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="size-3">
-                        <polyline points="9 18 15 12 9 6"/>
-                      </svg>
-                    </Link>
-                    <TenantDeleteButton
-                      tenantId={tenant.tenantId}
-                      tenantName={tenant.name ?? tenant.tenantId}
-                    />
                   </div>
                 </td>
               </tr>
