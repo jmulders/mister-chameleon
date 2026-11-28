@@ -79,6 +79,12 @@ export type ShopTexts = {
    * a small verification amount now, which is also the mandate for the plan.
    */
   trialVerificationNote: (cents: number) => string;
+  /** The note when a trial asks for no payment details at all. */
+  trialNoPaymentNote: string;
+  /** The form's answer after a signup without payment: a mail is on its way. */
+  confirmTitle:       string;
+  confirmBody:        (email: string) => string;
+  confirmHint:        string;
   fullName:           string;
   fullNamePlaceholder: string;
   companyName:        string;
@@ -240,6 +246,10 @@ export const SHOP_TEXTS: SiteTexts<ShopTexts> = {
     accountDetails:      "Account details",
     trialCardNote:       `14-day free trial, up to ${TRIAL_SESSION_LIMIT} personalised sessions. You'll add a card now but won't be charged until the trial ends.`,
     trialVerificationNote: (cents) => `14-day free trial, up to ${TRIAL_SESSION_LIMIT} personalised sessions. You pay €${(cents / 100).toFixed(2)} now to verify your payment method. With it you authorise us to collect the plan once the trial ends. The plan itself is not charged before that.`,
+    trialNoPaymentNote:  `14-day free trial, up to ${TRIAL_SESSION_LIMIT} personalised sessions. No payment details needed. After the trial you decide whether to go on.`,
+    confirmTitle:        "Check your mail",
+    confirmBody:         (email) => `We sent a mail to ${email}. Click the link in it to confirm your e-mail address. After that your account is ready.`,
+    confirmHint:         "No mail? Look in your spam folder, or sign up again.",
     fullName:            "Full name",
     fullNamePlaceholder: "Jane Smith",
     companyName:         "Company name",
@@ -392,6 +402,10 @@ export const SHOP_TEXTS: SiteTexts<ShopTexts> = {
     accountDetails:      "Je gegevens",
     trialCardNote:       `14 dagen gratis proberen, tot ${TRIAL_SESSION_LIMIT} gepersonaliseerde bezoeken. Je vult nu je kaart in, maar je betaalt pas als de proefperiode voorbij is.`,
     trialVerificationNote: (cents) => `14 dagen gratis proberen, tot ${TRIAL_SESSION_LIMIT} gepersonaliseerde bezoeken. Je betaalt nu € ${(cents / 100).toFixed(2).replace(".", ",")} om je betaalmethode te controleren. Daarmee geef je ons een machtiging om het pakket af te schrijven zodra de proefperiode voorbij is. Het pakket zelf betaal je pas daarna.`,
+    trialNoPaymentNote:  `14 dagen gratis proberen, tot ${TRIAL_SESSION_LIMIT} gepersonaliseerde bezoeken. Je hoeft geen betaalgegevens in te vullen. Na de proefperiode kies je zelf of je doorgaat.`,
+    confirmTitle:        "Check je mail",
+    confirmBody:         (email) => `We hebben een mail gestuurd naar ${email}. Klik op de link in die mail om je e-mailadres te bevestigen. Daarna staat je account klaar.`,
+    confirmHint:         "Geen mail gezien? Kijk bij je spam, of meld je opnieuw aan.",
     fullName:            "Volledige naam",
     fullNamePlaceholder: "Jan Jansen",
     companyName:         "Bedrijfsnaam",

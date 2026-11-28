@@ -13,6 +13,7 @@ import { CheckoutPageClient }     from "./_components/CheckoutPageClient";
 import { getSiteLocale }          from "@/lib/site-texts/server";
 import { SHOP_TEXTS }             from "@/lib/site-texts/shop";
 import { mollieTrialSignupEnabled, TRIAL_VERIFICATION_CENTS } from "@/billing/mollie-trial";
+import { trialNeedsPayment } from "@/billing/trial-signup";
 
 // The note above the form depends on a setting, so it is read per request.
 export const dynamic = "force-dynamic";
@@ -28,6 +29,7 @@ export async function generateMetadata(): Promise<Metadata> {
 export default function CheckoutPage() {
   // With Mollie the visitor pays a small amount now to verify the payment
   // method. The form says so before they start.
-  const verificationCents = mollieTrialSignupEnabled() ? TRIAL_VERIFICATION_CENTS : null;
-  return <CheckoutPageClient verificationCents={verificationCents} />;
+  const needsPayment      = trialNeedsPayment();
+  const verificationCents = needsPayment && mollieTrialSignupEnabled() ? TRIAL_VERIFICATION_CENTS : null;
+  return <CheckoutPageClient verificationCents={verificationCents} needsPayment={needsPayment} />;
 }

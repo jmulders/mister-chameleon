@@ -195,7 +195,7 @@ export async function completeTrialSignup(
   client:    SupabaseClient,
   pendingId: string,
   trial:     ProvisionedTrial,
-  source:    "Stripe" | "Mollie",
+  source:    "Stripe" | "Mollie" | "E-mail",
   logTag:    string,
 ): Promise<void> {
   const { tenantId, name, email, company, planLabel, now, trialEndsAt } = trial;

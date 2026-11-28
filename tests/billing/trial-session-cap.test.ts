@@ -32,9 +32,10 @@ describe("trialWindow", () => {
 });
 
 describe("trialSessionLimit", () => {
-  it("is 150 for every plan on sale", () => {
-    assert.equal(TRIAL_SESSION_LIMIT, 150);
-    for (const planLimit of [1_500, 7_500, 40_000]) assert.equal(trialSessionLimit(planLimit), 150);
+  it("is 250 for every plan on sale", () => {
+    // 150 until 28 Nov 2026. The owner raised it with the trial that asks for no payment details.
+    assert.equal(TRIAL_SESSION_LIMIT, 250);
+    for (const planLimit of [1_500, 7_500, 40_000]) assert.equal(trialSessionLimit(planLimit), 250);
   });
 
   it("never gives a trial more than the plan itself", () => {
@@ -42,7 +43,7 @@ describe("trialSessionLimit", () => {
   });
 
   it("caps the trial of an unlimited plan too", () => {
-    assert.equal(trialSessionLimit(0), 150);
+    assert.equal(trialSessionLimit(0), 250);
   });
 
   it("a trial limit of zero switches the trial cap off", () => {
@@ -81,7 +82,7 @@ describe("the trial texts name the limit", () => {
 
   it("the number comes from the constant, not from a second copy", () => {
     assert.match(shop, /import \{ TRIAL_SESSION_LIMIT \} from "@\/billing\/trial-session-cap";/);
-    assert.doesNotMatch(shop, /150 (personalised|gepersonaliseerde)/);
+    assert.doesNotMatch(shop, /(150|250) (personalised|gepersonaliseerde)/);
   });
 
   it("both languages say it where the trial is offered", () => {

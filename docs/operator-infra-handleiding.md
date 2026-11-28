@@ -168,6 +168,23 @@ Dev-only toggles: `NEXT_PUBLIC_DEBUG_DIAGNOSTICS`, `NEXT_PUBLIC_SHOW_SCENARIO_PA
 | `ENABLE_DIRECT_CHECKOUT` / `STARTER_DIRECT_CHECKOUT` | nee | Self-service checkout |
 | `CHAMELEON_DEMO_MODE` / `ENABLE_BILLING_TEST_MODE` / `BILLING_DEBUG` | nee | Demo/test/logging |
 
+### Proefperiode zonder betaalgegevens
+
+Sinds 28-11-2026 vraagt een proefperiode niet om een kaart of een betaling. Dat geldt bij Stripe en bij Mollie.
+
+| Variabele | Verplicht | Uitleg |
+|---|---|---|
+| `TRIAL_REQUIRES_PAYMENT` | nee | `on` zet de oude manier terug: eerst een kaart (Stripe) of € 0,01 (Mollie, met `MOLLIE_TRIAL_SIGNUP=on`). Leeg of iets anders: geen betaalgegevens. |
+
+- **Aanmelden:** het formulier op `/checkout` slaat de aanmelding op en mailt een bevestigingslink. Het account wordt aangemaakt als de link wordt geopend (`/checkout/confirm`, `billing/trial-signup.ts`). Zo is het e-mailadres het bewijs dat de aanmelder bestaat.
+- **De link** werkt 48 uur en maakt één account, ook als hij twee keer wordt geopend. Hij is ondertekend met een eigen sleutel, afgeleid van `ADMIN_SESSION_SECRET`. Er komt geen kolom of tabel bij.
+- **Mail is nodig.** Zonder werkende mailinstelling (Integrations → Email) kan niemand zich aanmelden: het formulier zegt dan dat de bevestigingsmail niet verstuurd kon worden.
+- **De proef:** 14 dagen, tot 250 gepersonaliseerde bezoeken (`TRIAL_SESSION_LIMIT` in `billing/trial-session-cap.ts`).
+- **Einde van de proef zonder betaalmethode** (`billing/trial-end.ts`): de dagelijkse taak schrijft niets af en stuurt geen aanmaning. Het abonnement gaat op `paused`, de klant krijgt één mail, en de site toont weer de gewone pagina's (de betaalpoort behandelt `paused` als `unpaid`). Het account en alles erin blijven staan.
+- **Doorgaan:** in het dashboard staat "Your trial has ended". Bij Mollie betaalt de klant daar de eerste maand, en die betaling is meteen de machtiging voor de volgende maanden. Bij Stripe kiest de klant een pakket op het tabblad Plan.
+- **Wie tijdens de proef zelf een betaalmethode vastlegt** (bij Mollie een machtiging via een opwaardering) gaat na de proef vanzelf door: dan wordt het pakket afgeschreven, zoals voorheen.
+- **Het overzicht Tenants** toont een klant alleen zijn eigen tenants. Tot deze wijziging stonden daar de namen van alle klanten.
+
 ### Mollie (naast Stripe)
 
 Mollie neemt stap voor stap geldstromen over van Stripe. Live zijn de **losse aankopen** (sessie-bundels, AI-credits, tegoed opwaarderen), het **automatisch opwaarderen** via een machtiging, de **proefaanmelding** en het **maandelijks afschrijven van het abonnement**. Ook **pakket wisselen** en **de betaalmethode wijzigen** werken via Mollie. Op alles wat via Mollie loopt komt **btw**, en het platform schrijft er zelf de **facturen** voor.

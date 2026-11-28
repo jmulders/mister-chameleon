@@ -22,6 +22,23 @@ export type TrialTexts = {
   paymentDown:     string;
   paymentError:    string;
   accountFailed:   string;
+  /** The confirmation mail could not be sent, so the signup cannot go on. */
+  mailDown:        string;
+  // ── The page behind the link in the confirmation mail ──────────────────────
+  /** The browser tab of the confirmation page, whatever the outcome. */
+  confirmPageTitle: string;
+  confirmedTitle:  string;
+  confirmedBody:   string;
+  alreadyTitle:    string;
+  alreadyBody:     string;
+  expiredTitle:    string;
+  expiredBody:     string;
+  invalidTitle:    string;
+  invalidBody:     string;
+  failedTitle:     string;
+  failedBody:      string;
+  logIn:           string;
+  signUpAgain:     string;
 };
 
 export const TRIAL_TEXTS: SiteTexts<TrialTexts> = {
@@ -38,6 +55,20 @@ export const TRIAL_TEXTS: SiteTexts<TrialTexts> = {
     paymentDown:     "Betalen lukt op dit moment niet. Mail ons, dan helpen we je verder.",
     paymentError:    "Het betaalscherm kon niet worden geopend. Probeer het opnieuw.",
     accountFailed:   "Je account kon niet worden aangemaakt. Probeer het opnieuw.",
+    mailDown:        "We konden je geen bevestigingsmail sturen. Probeer het later opnieuw, of mail ons.",
+    confirmPageTitle: "Je proefperiode",
+    confirmedTitle:  "Je proefperiode is begonnen",
+    confirmedBody:   "Je e-mailadres is bevestigd en je account staat klaar. Log in met het e-mailadres en het wachtwoord waarmee je je aanmeldde.",
+    alreadyTitle:    "Je account staat al klaar",
+    alreadyBody:     "Deze link is al gebruikt. Je kunt gewoon inloggen.",
+    expiredTitle:    "Deze link is verlopen",
+    expiredBody:     "De link in de mail werkt 48 uur. Meld je opnieuw aan, dan krijg je een nieuwe.",
+    invalidTitle:    "Deze link werkt niet",
+    invalidBody:     "De link is niet compleet of niet van ons. Kopieer hem opnieuw uit de mail, of meld je opnieuw aan.",
+    failedTitle:     "Je account kon niet worden aangemaakt",
+    failedBody:      "Bestaat er al een account met dit e-mailadres? Log dan in. Lukt het niet, mail ons dan en we helpen je verder.",
+    logIn:           "Log in",
+    signUpAgain:     "Meld je opnieuw aan",
   },
   en: {
     invalidRequest:  "Invalid JSON body",
@@ -52,5 +83,19 @@ export const TRIAL_TEXTS: SiteTexts<TrialTexts> = {
     paymentDown:     "Payment provider not configured. Contact support.",
     paymentError:    "Payment provider error. Please try again.",
     accountFailed:   "Failed to create account. Please try again.",
+    mailDown:        "We could not send you a confirmation mail. Please try again later, or mail us.",
+    confirmPageTitle: "Your trial",
+    confirmedTitle:  "Your trial has started",
+    confirmedBody:   "Your e-mail address is confirmed and your account is ready. Log in with the e-mail address and the password you signed up with.",
+    alreadyTitle:    "Your account is ready",
+    alreadyBody:     "This link was used before. You can simply log in.",
+    expiredTitle:    "This link has expired",
+    expiredBody:     "The link in the mail works for 48 hours. Sign up again and you get a new one.",
+    invalidTitle:    "This link does not work",
+    invalidBody:     "The link is incomplete or not ours. Copy it again from the mail, or sign up again.",
+    failedTitle:     "Your account could not be created",
+    failedBody:      "Is there already an account with this e-mail address? Then log in. If that does not help, mail us and we will sort it out.",
+    logIn:           "Log in",
+    signUpAgain:     "Sign up again",
   },
 };
