@@ -502,8 +502,9 @@ export type QuickLinksVariant = "quicklinks_grid" | "quicklinks_list" | "quickli
  *   text_media_right   — text left, media right (default)
  *   text_media_left    — media left, text right
  *   text_media_stacked — media above, text below (full-width column)
+ *   text_media_below   — text above, media below (full-width column)
  */
-export type TextMediaVariant = "text_media_right" | "text_media_left" | "text_media_stacked";
+export type TextMediaVariant = "text_media_right" | "text_media_left" | "text_media_stacked" | "text_media_below";
 
 /**
  * Variant for contactSection blocks.
@@ -624,7 +625,7 @@ const BLOCK_VARIANT_SETS: Partial<Record<ContentBlockType, readonly string[]>> =
   // ── New core blocks ───────────────────────────────────────────────────────────
   timeline:       ["timeline_vertical", "timeline_compact", "timeline_milestones", "timeline_slider"] satisfies readonly TimelineVariant[],
   quickLinks:     ["quicklinks_grid", "quicklinks_list", "quicklinks_compact"]     satisfies readonly QuickLinksVariant[],
-  textMedia:      ["text_media_right", "text_media_left", "text_media_stacked"]    satisfies readonly TextMediaVariant[],
+  textMedia:      ["text_media_right", "text_media_left", "text_media_stacked", "text_media_below"] satisfies readonly TextMediaVariant[],
   contactSection: ["contact_default", "contact_split", "contact_minimal"]          satisfies readonly ContactSectionVariant[],
 } as const;
 
