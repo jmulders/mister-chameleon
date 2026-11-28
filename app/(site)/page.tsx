@@ -19,7 +19,7 @@
 import { isFeatureEnabled }                from "@/tenant/server";
 import { upsertSession, sessionInputFromContext } from "@/data/repositories";
 import { logServedVariants }               from "@/experience/log-served-variants";
-import { recordPersonalizedSession }       from "@/billing/plan-enforcement";
+import { countsAsPersonalizedSession, recordPersonalizedSession } from "@/billing/plan-enforcement";
 import { TemplateRenderer }                from "@/components/platform/TemplateRenderer";
 import { logger }                          from "@/lib/logger";
 import { runHomepagePipeline }             from "@/lib/pipeline/homepage-pipeline";
@@ -160,8 +160,18 @@ async function HomeBody({ params }: { params: Record<string, string | string[] |
   // A keep-warm ping is not a visit: it is counted nowhere. Without this each
   // ping would arrive without a cookie, get a fresh session id and take one
   // session from the tenant's monthly bundle.
+  //
+  // The same goes for a bot by User-Agent. The pipeline serves it the default
+  // plan, and a crawler or headless browser keeps no cookie either: every
+  // request of it was a new session (seen on production on 27 Nov 2026: every
+  // visit of a headless Chromium left new rows). The rule itself lives in
+  // countsAsPersonalizedSession().
   const logAnalytics = isFeatureEnabled(tenant, "analytics") && result.analyticsAllowed && !result.isWarmup;
-  const countSession = !result.sessionCap.overLimit && !result.isWarmup;
+  const countSession = countsAsPersonalizedSession({
+    overLimit: result.sessionCap.overLimit,
+    isBot:     result.isUaBot,
+    isWarmup:  result.isWarmup,
+  });
   const sessionInput = sessionInputFromContext(input, input.pathname ?? "/");
 
   after(async () => {

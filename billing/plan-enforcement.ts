@@ -265,6 +265,38 @@ export function shouldSpendSessionCredit(
 }
 
 /**
+ * Whether this pageview may count as a personalised session.
+ *
+ * A session is counted when the visitor was served the product: a page the
+ * rules were allowed to adapt. Three kinds of request are served the default
+ * page on purpose and count nothing:
+ *
+ *   - over the cap: the bundle ran out, and counting the visit would inflate
+ *     the very counter that decides the cap;
+ *   - a bot by User-Agent (isBotUserAgent): the render paths force the default
+ *     plan for it, so there is nothing to bill. A crawler or a headless
+ *     browser also keeps no cookies, so every request of it arrives as a new
+ *     visit and each one would take a session from the bundle;
+ *   - a keep-warm ping, which is nobody.
+ *
+ * `isBot` must be the same verdict that forced the default plan. Pass the
+ * value the render path computed, do not test the User-Agent a second time.
+ *
+ * The control group of a holdout is not in this list: it is counted today,
+ * like before. Whether a held-out visitor uses the bundle is a commercial
+ * choice, not a correction.
+ *
+ * Pure, so the rule is testable without a request or a database.
+ */
+export function countsAsPersonalizedSession(visit: {
+  overLimit: boolean;
+  isBot:     boolean;
+  isWarmup?: boolean;
+}): boolean {
+  return !visit.overLimit && !visit.isBot && !visit.isWarmup;
+}
+
+/**
  * Record a single personalised visitor session for billing purposes.
  *
  * Uses INSERT … ON CONFLICT DO NOTHING so the same (tenant, month, session)

@@ -361,7 +361,11 @@ export async function runHomepagePipeline({ params, includeDebug = false }: Home
   // personalization). Kept separate from `isControl` so the holdout distribution
   // is unaffected — bot measurement exclusion is handled in recordVisitorProfile.
   // A warm-up ping is nobody: it gets the default experience as well.
-  const forceDefaultForBot = isControl || isWarmup || isBotUserAgent(h.get("user-agent"));
+  //
+  // The bot verdict is kept on its own: the caller needs it to count no session
+  // for a visitor that was served the default page for being a bot.
+  const isUaBot = isBotUserAgent(h.get("user-agent"));
+  const forceDefaultForBot = isControl || isWarmup || isUaBot;
 
   const rulesProvider = new RulesDecisionProvider(tenantRulesConfig ?? undefined, forceDefaultForBot, tenantConfig.tenantId, sessionId, consent);
   const baseDecisionProvider = new ExperimentDecisionProvider(
@@ -1006,6 +1010,9 @@ export async function runHomepagePipeline({ params, includeDebug = false }: Home
     // A keep-warm ping, proven by its header. The caller counts no session
     // and writes no analytics for it.
     isWarmup,
+    // A bot by User-Agent, the same verdict that forced the default plan
+    // above. The caller counts no session for it.
+    isUaBot,
     personalizationGroup,
     // Experiment
     appliedExperiment,
