@@ -133,3 +133,25 @@ describe("the sitemap of the marketing site", () => {
     assert.deepEqual(sitemapPathsFor("https://www.example.org", [{ path: "/over" }]).map((p) => p.path), ["/over"]);
   });
 });
+
+describe("the demo pages", () => {
+  // A page's Open Graph object replaces the layout's as a whole. Written out by
+  // hand these three lost the type and the share image (seen live on /demo,
+  // 28 Nov 2026).
+  for (const file of ["app/(site)/demo/page.tsx", "app/(site)/book-demo/page.tsx", "app/(site)/de/book-demo/page.tsx"]) {
+    it(`${file} builds its Open Graph with the helper`, () => {
+      const source = readFileSync(file, "utf8");
+      assert.match(source, /\.\.\.ownOpenGraph\(\{ ogTitle: t\.ogTitle, ogDescription: t\.ogDescription \}\)/);
+      assert.doesNotMatch(source, /openGraph: \{/);
+    });
+  }
+
+  it("the helper gives such a page its own texts, the type and the site's share image", () => {
+    const { openGraph } = ownOpenGraph({ ogTitle: "Plan een demo", ogDescription: "Kies een moment." }) as { openGraph: Record<string, unknown> };
+    assert.equal(openGraph.title, "Plan een demo");
+    assert.equal(openGraph.description, "Kies een moment.");
+    assert.equal(openGraph.type, "website");
+    assert.equal((openGraph.images as unknown[]).length, 1);
+  });
+});
+
