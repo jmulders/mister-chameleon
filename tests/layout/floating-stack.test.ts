@@ -33,7 +33,7 @@ describe("launchers", () => {
   });
 
   it("are the ones that set the attributes", () => {
-    assert.match(readFileSync("components/tracking/CookiePreferences.tsx", "utf8"), /claimLauncherSide\("left", true\)/);
+    assert.match(readFileSync("components/tracking/CookiePreferences.tsx", "utf8"), /claimLauncherSide\("left", shown\)/);
     assert.match(readFileSync("components/scenario/ScenarioControlPanel.tsx", "utf8"), /claimLauncherSide\("right", shown\)/);
   });
 });
