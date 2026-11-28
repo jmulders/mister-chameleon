@@ -1570,6 +1570,7 @@ export interface QuickLinksBlockData {
  *   text_media_right  — text left, media right (default)
  *   text_media_left   — media left, text right
  *   text_media_stacked — media above, text below (full-width)
+ *   text_media_below   — text above, media below (full-width)
  */
 export interface TextMediaBlockData {
   readonly eyebrow?:     string;

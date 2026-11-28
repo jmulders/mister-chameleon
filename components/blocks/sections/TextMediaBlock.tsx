@@ -18,6 +18,7 @@
  *   text_media_right   — text left, media right (default)
  *   text_media_left    — media left, text right
  *   text_media_stacked — media above, text below (full-width single-column)
+ *   text_media_below   — text above, media below (full-width single-column)
  *
  * ─── Design tokens consumed ──────────────────────────────────────────────────
  *
@@ -335,6 +336,23 @@ export function TextMediaBlock({ data, variant: rawVariant, surface }: TextMedia
           <Stack gap={8}>
             {media}
             {text}
+          </Stack>
+        </Container>
+      </Section>
+    );
+  }
+
+  // ── text_media_below ─────────────────────────────────────────────────────────
+  // The stacked layout the other way round: the heading and the text introduce
+  // the image. For a drawing or a diagram a reader first needs to know what he
+  // is looking at.
+  if (variant === "text_media_below") {
+    return (
+      <Section spacing="xl" style={{ background: resolveSurface(surface) ?? "var(--bg)" }}>
+        <Container size="lg">
+          <Stack gap={8}>
+            {text}
+            {media}
           </Stack>
         </Container>
       </Section>

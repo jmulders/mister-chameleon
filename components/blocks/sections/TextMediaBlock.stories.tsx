@@ -45,7 +45,7 @@ const meta: Meta<typeof TextMediaBlock> = {
           "Editorial text + image/video split block. " +
           "Three variants: `text_media_right` (text left, media right), " +
           "`text_media_left` (media left, text right), " +
-          "`text_media_stacked` (media above, text below).",
+          "`text_media_stacked` (media above, text below), `text_media_below` (text above, media below).",
       },
     },
   },
@@ -75,6 +75,14 @@ export const Stacked: Story = {
   args: {
     data:    base,
     variant: "text_media_stacked",
+  },
+};
+
+export const Below: Story = {
+  name: "text_media_below — text above, media below",
+  args: {
+    data:    base,
+    variant: "text_media_below",
   },
 };
 

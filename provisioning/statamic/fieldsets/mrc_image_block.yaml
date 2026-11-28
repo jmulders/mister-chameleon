@@ -15,6 +15,7 @@ fields:
         text_media_right: 'Text left, media right'
         text_media_left: 'Media left, text right'
         text_media_stacked: 'Stacked (media above text)'
+        text_media_below: 'Stacked (text above media)'
   -
     handle: eyebrow
     field:

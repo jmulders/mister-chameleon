@@ -380,7 +380,7 @@ const BLOCK_DEFINITIONS: readonly BlockDefinition[] = [
     key:             "textMedia",
     displayName:     "Text + media",
     category:        "content",
-    allowedVariants: ["text_media_right", "text_media_left", "text_media_stacked"],
+    allowedVariants: ["text_media_right", "text_media_left", "text_media_stacked", "text_media_below"],
     dataType:        "TextMediaBlockData",
     status:          "live",
   },

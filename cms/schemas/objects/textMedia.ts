@@ -28,6 +28,7 @@
  *   text_media_right   — text left, media right (default)
  *   text_media_left    — media left, text right
  *   text_media_stacked — media above, text below (full-width column)
+ *   text_media_below   — text above, media below (full-width column)
  */
 
 import { defineArrayMember, defineField, defineType } from "sanity";
@@ -49,6 +50,7 @@ export default defineType({
           { title: "Media right — text left, media right (default)", value: "text_media_right"   },
           { title: "Media left — media left, text right",            value: "text_media_left"    },
           { title: "Stacked — media above, text below full-width",   value: "text_media_stacked" },
+          { title: "Stacked — text above, media below full-width",   value: "text_media_below"   },
         ],
       },
       initialValue: "text_media_right",
