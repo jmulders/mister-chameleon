@@ -196,7 +196,9 @@ describe("the wiring", () => {
     const realign = src.indexOf("const move = trialRealign(sub);");
     const charge  = src.indexOf("await chargeMollieRenewal(client, {");
     assert.ok(realign > 0 && charge > realign);
-    assert.match(src, /if \(viaMollie\) \{\s+const move = trialRealign\(sub\);/);
+    // Only for a trial that has a mandate: a trial without payment details
+    // has nothing to charge on the 1st and ends on its fourteenth day.
+    assert.match(src, /if \(viaMollie && \(sub\.status !== "trialing" \|\| await mollieReloadSource\(client, tenant_id\)\)\) \{\s+const move = trialRealign\(sub\);/);
   });
 
   it("the period that moved on is noted on the charge", () => {

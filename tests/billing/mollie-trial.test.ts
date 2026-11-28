@@ -266,10 +266,11 @@ describe("the wiring", () => {
     const nl = SHOP_TEXTS.nl.trialVerificationNote(1);
     assert.match(nl, /Je betaalt nu € 0,01 om je betaalmethode te controleren\./);
     assert.match(nl, /machtiging om het pakket af te schrijven zodra de proefperiode voorbij is/);
-    assert.match(nl, /tot 150 gepersonaliseerde bezoeken/);
+    assert.match(nl, /tot 250 gepersonaliseerde bezoeken/);
     const en = SHOP_TEXTS.en.trialVerificationNote(1);
     assert.match(en, /You pay €0\.01 now to verify your payment method\./);
-    assert.match(read("app/(site)/checkout/_components/CheckoutPageClient.tsx"), /verificationCents \? t\.trialVerificationNote\(verificationCents\) : t\.trialCardNote/);
+    // Shown when a trial asks for a payment method (TRIAL_REQUIRES_PAYMENT=on). Without it the form says no payment details are needed.
+    assert.match(read("app/(site)/checkout/_components/CheckoutPageClient.tsx"), /!needsPayment \? t\.trialNoPaymentNote : verificationCents \? t\.trialVerificationNote\(verificationCents\) : t\.trialCardNote/);
   });
 });
 

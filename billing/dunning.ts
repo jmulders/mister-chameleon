@@ -106,7 +106,10 @@ export function getDunningState(
   paymentDueSince:  string | null | undefined,
   quarantineDays:   number = DEFAULT_QUARANTINE_DAYS,
 ): DunningState {
-  if (status === "unpaid") {
+  // Unpaid: the quarantine after a missed payment ran out. Paused: a trial
+  // ended with nothing to charge (billing/trial-end.ts). Nothing is owed
+  // there, but the service stops just the same until the tenant goes on.
+  if (status === "unpaid" || status === "paused") {
     return { isQuarantined: false, isBlocked: true, quarantineUntil: null, daysRemaining: 0 };
   }
 

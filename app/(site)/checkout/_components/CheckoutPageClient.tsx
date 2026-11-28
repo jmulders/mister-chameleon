@@ -121,18 +121,20 @@ function countryOptions(locale: string): { code: string; name: string }[] {
   return [...all.filter((c) => c.code === "NL"), ...rest];
 }
 
-export function CheckoutPageClient({ verificationCents = null }: {
+export function CheckoutPageClient({ verificationCents = null, needsPayment = true }: {
   /**
    * Set when the trial signup goes through Mollie: the amount of the payment
    * that verifies the payment method. Null means Stripe, card on file.
    */
   verificationCents?: number | null;
+  /** False when a trial asks for no payment details: the form then ends in "check your mail". */
+  needsPayment?: boolean;
 } = {}) {
   const locale  = useSiteLocale();
   const t       = SHOP_TEXTS[locale];
   const fmtEuro = t.money;
 
-  const { cart, clearCart: _clearCart, totalCents: _totalCents } = useCart();
+  const { cart, clearCart, totalCents: _totalCents } = useCart();
 
   const [name,     setName]     = useState("");
   const [email,    setEmail]    = useState("");
@@ -143,7 +145,33 @@ export function CheckoutPageClient({ verificationCents = null }: {
 
   const [loading,  setLoading]  = useState(false);
   const [errors,   setErrors]   = useState<Record<string, string>>({});
+  const [confirmSent, setConfirmSent] = useState<{ email: string; devUrl: string | null } | null>(null);
   const [apiError, setApiError] = useState<string | null>(null);
+
+  // A signup without payment ends here: the account is made from the link in
+  // the mail, not on this page.
+  // Checked before the empty cart below: the signup itself empties the cart.
+  if (confirmSent) {
+    return (
+      <div data-part="checkout-confirm-sent" style={{ maxWidth: "560px", margin: "0 auto", padding: "4rem 1.5rem 5rem" }}>
+        <h1 style={{ fontWeight: 700, fontSize: "clamp(1.5rem, 3vw, 2rem)", color: "#111827", marginBottom: "1rem" }}>
+          {t.confirmTitle}
+        </h1>
+        <p style={{ fontSize: "1rem", lineHeight: 1.6, color: "#374151", margin: "0 0 0.75rem" }}>
+          {t.confirmBody(confirmSent.email)}
+        </p>
+        <p style={{ fontSize: "0.9375rem", lineHeight: 1.6, color: "#6b7280", margin: 0 }}>
+          {t.confirmHint}
+        </p>
+        {confirmSent.devUrl && (
+          // Only outside production, where there is often no mail transport.
+          <p style={{ marginTop: "1.5rem", fontSize: "0.8125rem", wordBreak: "break-all" }}>
+            <a href={confirmSent.devUrl} data-part="checkout-dev-confirm">{confirmSent.devUrl}</a>
+          </p>
+        )}
+      </div>
+    );
+  }
 
   // ── Redirect if cart is empty ────────────────────────────────────────────────
 
@@ -216,9 +244,15 @@ export function CheckoutPageClient({ verificationCents = null }: {
         }),
       });
 
-      const data = await res.json() as { url?: string; error?: string };
+      const data = await res.json() as { url?: string; confirm?: boolean; devConfirmUrl?: string; error?: string };
 
-      if (!res.ok || !data.url) {
+      if (res.ok && data.confirm) {
+        // No payment: a mail is on its way and the account is made from its link.
+        setConfirmSent({ email, devUrl: data.devConfirmUrl ?? null });
+        setLoading(false);
+        // The signup is in. The plan in the cart has done its work.
+        clearCart();
+      } else if (!res.ok || !data.url) {
         setApiError(data.error ?? t.errGeneric);
         setLoading(false);
       } else {
@@ -257,7 +291,7 @@ export function CheckoutPageClient({ verificationCents = null }: {
               </h2>
               {cart.plan && (
                 <p style={{ fontSize: "0.875rem", color: "#6b7280", marginTop: "0.375rem", marginBottom: 0 }}>
-                  {verificationCents ? t.trialVerificationNote(verificationCents) : t.trialCardNote}
+                  {!needsPayment ? t.trialNoPaymentNote : verificationCents ? t.trialVerificationNote(verificationCents) : t.trialCardNote}
                 </p>
               )}
             </div>

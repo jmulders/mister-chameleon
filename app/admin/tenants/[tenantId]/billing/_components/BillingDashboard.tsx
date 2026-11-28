@@ -236,7 +236,9 @@ export interface BillingDashboardProps {
    * Set when Mollie is the provider and a subscription charge failed or was
    * reversed: what the tenant can pay to restore the subscription.
    */
-  mollieOverdue?: { amountCents: number } | null;
+  mollieOverdue?: { amountCents: number; trialEnded?: boolean } | null;
+  /** True when a trial ended with no payment method: the subscription is paused. */
+  trialEnded?: boolean;
   /**
    * Who to invoice, and the country and VAT number that decide the VAT. Set
    * when Mollie is the provider: there the platform adds the VAT itself.
@@ -518,7 +520,7 @@ function BalanceHero({
 
 // ── Mollie: pay an open subscription amount ──────────────────────────────────
 
-function PayOverdueBanner({ tenantId, amountCents }: { tenantId: string; amountCents: number }) {
+function PayOverdueBanner({ tenantId, amountCents, trialEnded = false }: { tenantId: string; amountCents: number; trialEnded?: boolean }) {
   const [busy,  setBusy]  = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -542,6 +544,30 @@ function PayOverdueBanner({ tenantId, amountCents }: { tenantId: string; amountC
       setError("Network error. Please try again.");
       setBusy(false);
     }
+  }
+
+  // A trial that ended is not a missed payment: nothing was owed. Said calmly,
+  // in blue, with the same button behind it.
+  if (trialEnded) {
+    return (
+      <div data-part="trial-ended" className="mb-4 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3">
+        <p className="text-sm font-semibold text-blue-900">Your trial has ended</p>
+        <p className="text-xs text-blue-800 mt-0.5">
+          Nothing was charged. Your site shows its ordinary pages again, and your account, rules and versions are
+          still here. Pay the first month of €{(amountCents / 100).toFixed(2)} to go on. By paying you also authorise
+          Mister Chameleon to collect the following months from the same account.
+        </p>
+        <button
+          type="button"
+          onClick={pay}
+          disabled={busy}
+          className="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-blue-700 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-800 transition-colors disabled:opacity-60"
+        >
+          {busy ? "Opening…" : "Go on with this plan →"}
+        </button>
+        {error && <p className="mt-2 text-xs text-red-700">{error}</p>}
+      </div>
+    );
   }
 
   return (
@@ -3449,6 +3475,7 @@ export function BillingDashboard({
   paymentNotice,
   mollieMandate,
   mollieOverdue,
+  trialEnded = false,
   billingDetails,
   platformInvoices,
   dunningSettings,
@@ -3478,7 +3505,17 @@ export function BillingDashboard({
 
       {/* An open subscription payment the tenant can settle themselves (Mollie) */}
       {mollieOverdue && paymentNotice !== "restored" && (
-        <PayOverdueBanner tenantId={tenantId} amountCents={mollieOverdue.amountCents} />
+        <PayOverdueBanner tenantId={tenantId} amountCents={mollieOverdue.amountCents} trialEnded={mollieOverdue.trialEnded === true} />
+      )}
+      {/* The same news without Mollie: the plans below are how the tenant goes on. */}
+      {trialEnded && !mollieOverdue && paymentNotice !== "restored" && (
+        <div data-part="trial-ended" className="mb-4 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3">
+          <p className="text-sm font-semibold text-blue-900">Your trial has ended</p>
+          <p className="text-xs text-blue-800 mt-0.5">
+            Nothing was charged. Your site shows its ordinary pages again, and your account, rules and versions are
+            still here. Choose a plan on the Plan tab to go on.
+          </p>
+        </div>
       )}
       {paymentNotice === "method" && (
         <div className="mb-4 flex items-start gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3">

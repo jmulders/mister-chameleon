@@ -1,7 +1,11 @@
 /**
  * POST /api/trial/checkout-session
  *
- * Initiates a Stripe-first trial signup:
+ * Starts a trial signup. Since 28 Nov 2026 that asks for no payment: the form
+ * is stored, a confirmation link is mailed and the account is made when the
+ * link is opened (step 5a, billing/trial-signup.ts). What follows describes
+ * the older road, still there behind TRIAL_REQUIRES_PAYMENT=on:
+ *
  *
  *   1. Validates inputs (same rules as /api/trial/start)
  *   2. Checks email is not already registered
@@ -53,6 +57,7 @@ import { resolveSession }                        from "@/data/session";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { mollieTrialSignupEnabled, startMollieTrialSignup } from "@/billing/mollie-trial";
+import { trialNeedsPayment, signTrialConfirmation, confirmationUrl, confirmationMail, sendConfirmationMail } from "@/billing/trial-signup";
 import { cleanBillingDetails } from "@/billing/billing-details";
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -148,6 +153,37 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   }
 
   const pendingId = pending.id as string;
+
+  // ── 5a. No payment ─────────────────────────────────────────────────────────
+  //
+  // The default since 28 Nov 2026: a trial asks for no payment details. The
+  // visitor's e-mail address stands in for the payment. A link goes to it and
+  // the account is made when the link is opened (billing/trial-signup.ts).
+  // TRIAL_REQUIRES_PAYMENT=on brings back the two roads below.
+
+  if (!trialNeedsPayment()) {
+    const origin = request.headers.get("origin") ?? process.env["NEXT_PUBLIC_APP_URL"] ?? "http://localhost:3000";
+    try {
+      const token = await signTrialConfirmation(pendingId, process.env["ADMIN_SESSION_SECRET"] ?? "");
+      const url   = confirmationUrl(origin, token);
+      const sent  = await sendConfirmationMail(email, confirmationMail(await getSiteLocale().catch(() => "en" as const), { name, url }));
+      if (!sent && process.env["NODE_ENV"] === "production") {
+        // No mail, no way on. Remove the row so the visitor can try again.
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        await (db as any).from("pending_trial_signups").delete().eq("id", pendingId);
+        return NextResponse.json({ error: t.mailDown }, { status: 502 });
+      }
+      console.log(`[trial/checkout-session] confirmation mail ${sent ? "sent" : "not sent (no transport)"} for pending=${pendingId}`);
+      // Outside production there is often no mail transport: hand the link
+      // back so the signup can be followed through by hand.
+      return NextResponse.json({ confirm: true, ...(sent || process.env["NODE_ENV"] === "production" ? {} : { devConfirmUrl: url }) });
+    } catch (err) {
+      console.error("[trial/checkout-session] confirmation error:", err instanceof Error ? err.message : err);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await (db as any).from("pending_trial_signups").delete().eq("id", pendingId);
+      return NextResponse.json({ error: t.tryAgain }, { status: 500 });
+    }
+  }
 
   // ── 5b. Mollie ───────────────────────────────────────────────────────────────
   //

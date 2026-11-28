@@ -691,11 +691,17 @@ export default async function TenantBillingPage({
 
   // A subscription charge on the mandate that failed or was reversed: the
   // tenant can pay it here. Only asked for a tenant that is behind.
-  let mollieOverdue: { amountCents: number } | null = null;
-  if (paymentProvider === "mollie" && (subscription?.status === "past_due" || subscription?.status === "unpaid")) {
+  //
+  // The same for a trial that ended with no payment method: the subscription
+  // is paused, the first period is open, and paying it is how the tenant goes
+  // on (billing/trial-end.ts). That one is not a missed payment, and the
+  // banner says so.
+  const trialEnded = subscription?.status === "paused";
+  let mollieOverdue: { amountCents: number; trialEnded: boolean } | null = null;
+  if (paymentProvider === "mollie" && (subscription?.status === "past_due" || subscription?.status === "unpaid" || trialEnded)) {
     try {
       const owed = await overdueAmount(client, tenantId);
-      mollieOverdue = owed ? { amountCents: owed.amountCents } : null;
+      mollieOverdue = owed ? { amountCents: owed.amountCents, trialEnded } : null;
     } catch (err) {
       rethrowNextInternal(err);
       console.warn("[billing/page] mollie overdue read failed:", err);
@@ -823,6 +829,7 @@ export default async function TenantBillingPage({
         paymentNotice={paymentNotice}
         mollieMandate={mollieMandate}
         mollieOverdue={mollieOverdue}
+        trialEnded={trialEnded}
         billingDetails={billingDetails}
         platformInvoices={platformInvoices}
         sessionBuyStatus={sessionBuyStatus}

@@ -56,6 +56,8 @@ import { renewalCharge, renewalIdempotencyKey } from "@/billing/renewal-charge";
 import { getPaymentProvider }        from "@/billing/payment-provider";
 import { chargeMollieRenewal, noteRenewalAdvanced, trialRealign } from "@/billing/mollie-renewal";
 import { renewalDescription }        from "@/billing/mollie-invoicing";
+import { mollieReloadSource }        from "@/billing/mollie-auto-reload";
+import { endTrialWithoutPayment, isTrialEndWithoutPayment } from "@/billing/trial-end";
 import {
   markTenantPastDue,
   markTenantUnpaid,
@@ -91,6 +93,7 @@ interface RenewalResult {
             | "annual_to_monthly"
             | "canceled"
             | "trial_expired"
+            | "trial_ended"
             | "trial_realigned"
             | "past_due"
             | "unpaid_escalated";
@@ -182,7 +185,11 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     // does. Nothing is charged in this run. The trial stays a trial, so its
     // session limit holds, and the run on or after the 1st charges it. A
     // trial that already ends on a 1st is not moved again.
-    if (viaMollie) {
+    //
+    // Not for a trial without a mandate. That trial asked for no payment
+    // details, so there is nothing to charge on the 1st: it ends today, in
+    // the charge step below.
+    if (viaMollie && (sub.status !== "trialing" || await mollieReloadSource(client, tenant_id))) {
       const move = trialRealign(sub);
       if (move.realign) {
         const { error } = await client
@@ -235,6 +242,24 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
             `Subscription renewal — ${planLabel}`,
             renewalIdempotencyKey(tenant_id, sub.current_period_end),
           );
+
+    if (!chargeResult.ok && isTrialEndWithoutPayment(sub, chargeResult)) {
+      // ── A trial with nothing to charge → pause, no reminder ──────────────
+      //
+      // A trial asks for no payment details. When it ends nothing is owed:
+      // the subscription is paused and the tenant is told how to go on
+      // (billing/trial-end.ts). With Mollie the charge attempt above left the
+      // first period open, which is what the dashboard lets the tenant pay.
+      try {
+        const ended = await endTrialWithoutPayment(client, tenant_id, { planName: planLabel, priceCents: amountCents });
+        console.info(`[billing-renewal] trial ended without payment: tenant=${tenant_id} paused=${ended.paused} mailed=${ended.mailed}`);
+        results.push({ tenantId: tenant_id, action: "trial_ended" });
+      } catch (endErr) {
+        console.error(`[billing-renewal] could not end the trial: tenant=${tenant_id}`, endErr);
+        results.push({ tenantId: tenant_id, action: "trial_ended", error: endErr instanceof Error ? endErr.message : String(endErr) });
+      }
+      continue;
+    }
 
     if (!chargeResult.ok) {
       // ── Charge failed → mark past_due + send dunning email ────────────────

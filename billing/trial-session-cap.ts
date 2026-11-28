@@ -21,7 +21,7 @@
  */
 
 /** Personalised sessions a trial may use, from its start to its end. */
-export const TRIAL_SESSION_LIMIT = 150;
+export const TRIAL_SESSION_LIMIT = 250;
 
 export interface TrialSubscription {
   status?:     string | null;
