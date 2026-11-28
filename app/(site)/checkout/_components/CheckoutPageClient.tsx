@@ -154,13 +154,13 @@ export function CheckoutPageClient({ verificationCents = null, needsPayment = tr
   if (confirmSent) {
     return (
       <div data-part="checkout-confirm-sent" style={{ maxWidth: "560px", margin: "0 auto", padding: "4rem 1.5rem 5rem" }}>
-        <h1 style={{ fontWeight: 700, fontSize: "clamp(1.5rem, 3vw, 2rem)", color: "#111827", marginBottom: "1rem" }}>
+        <h1 style={{ fontWeight: 700, fontSize: "clamp(1.5rem, 3vw, 2rem)", color: "var(--text, #111827)", marginBottom: "1rem" }}>
           {t.confirmTitle}
         </h1>
-        <p style={{ fontSize: "1rem", lineHeight: 1.6, color: "#374151", margin: "0 0 0.75rem" }}>
+        <p style={{ fontSize: "1rem", lineHeight: 1.6, color: "var(--text, #374151)", margin: "0 0 0.75rem" }}>
           {t.confirmBody(confirmSent.email)}
         </p>
-        <p style={{ fontSize: "0.9375rem", lineHeight: 1.6, color: "#6b7280", margin: 0 }}>
+        <p style={{ fontSize: "0.9375rem", lineHeight: 1.6, color: "var(--text-muted, #6b7280)", margin: 0 }}>
           {t.confirmHint}
         </p>
         {confirmSent.devUrl && (
@@ -179,18 +179,18 @@ export function CheckoutPageClient({ verificationCents = null, needsPayment = tr
     return (
       <div style={{ maxWidth: "480px", margin: "6rem auto", padding: "0 1.5rem", textAlign: "center" }}>
         <div style={{ fontSize: "4rem", marginBottom: "1rem" }}>🛒</div>
-        <h1 style={{ fontWeight: 700, fontSize: "1.5rem", color: "#111827", marginBottom: "0.75rem" }}>
+        <h1 style={{ fontWeight: 700, fontSize: "1.5rem", color: "var(--text, #111827)", marginBottom: "0.75rem" }}>
           {t.checkoutEmptyTitle}
         </h1>
-        <p style={{ color: "#6b7280", marginBottom: "2rem" }}>
+        <p style={{ color: "var(--text-muted, #6b7280)", marginBottom: "2rem" }}>
           {t.checkoutEmptyBody}
         </p>
         <Link
           href="/prijzen"
           style={{
             display: "inline-block",
-            background: "#111827",
-            color: "white",
+            background: "var(--primary, #111827)",
+            color: "var(--primary-text, #ffffff)",
             borderRadius: "0.75rem",
             padding: "0.75rem 1.75rem",
             fontWeight: 600,
@@ -274,7 +274,7 @@ export function CheckoutPageClient({ verificationCents = null, needsPayment = tr
   return (
     <div style={{ maxWidth: "960px", margin: "0 auto", padding: "3rem 1.5rem 5rem" }}>
 
-      <h1 style={{ fontWeight: 700, fontSize: "clamp(1.5rem, 3vw, 2rem)", color: "#111827", marginBottom: "2.5rem" }}>
+      <h1 style={{ fontWeight: 700, fontSize: "clamp(1.5rem, 3vw, 2rem)", color: "var(--text, #111827)", marginBottom: "2.5rem" }}>
         {t.createAccount}
       </h1>
 

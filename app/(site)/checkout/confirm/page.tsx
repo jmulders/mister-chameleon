@@ -51,17 +51,20 @@ export default async function CheckoutConfirmPage({
     failed:  { title: t.failedTitle,    body: t.failedBody,    href: "/admin/login", label: t.logIn },
   }[outcome.state];
 
+  // Colours come from the theme. The page stands on the site's own background,
+  // which is dark in the evening and night themes: fixed dark text could not
+  // be read there (seen live on 28 Nov 2026).
   return (
     <div data-part="checkout-confirm" data-state={outcome.state} style={{ maxWidth: "560px", margin: "0 auto", padding: "4rem 1.5rem 5rem" }}>
-      <h1 style={{ fontWeight: 700, fontSize: "clamp(1.5rem, 3vw, 2rem)", color: "#111827", marginBottom: "1rem" }}>
+      <h1 style={{ fontWeight: 700, fontSize: "clamp(1.5rem, 3vw, 2rem)", color: "var(--text, #111827)", marginBottom: "1rem" }}>
         {view.title}
       </h1>
-      <p style={{ fontSize: "1rem", lineHeight: 1.6, color: "#374151", margin: "0 0 1.75rem" }}>
+      <p style={{ fontSize: "1rem", lineHeight: 1.6, color: "var(--text, #374151)", margin: "0 0 1.75rem" }}>
         {view.body}
       </p>
       <Link
         href={view.href}
-        style={{ display: "inline-block", padding: "0.75rem 1.5rem", borderRadius: "0.5rem", background: "#111827", color: "#ffffff", fontWeight: 600, textDecoration: "none" }}
+        style={{ display: "inline-block", padding: "0.75rem 1.5rem", borderRadius: "0.5rem", background: "var(--primary, #111827)", color: "var(--primary-text, #ffffff)", fontWeight: 600, textDecoration: "none" }}
       >
         {view.label}
       </Link>

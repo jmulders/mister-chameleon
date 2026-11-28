@@ -139,18 +139,18 @@ export function CartPageClient() {
         }}
       >
         <div style={{ fontSize: "4rem", marginBottom: "1rem" }}>🛒</div>
-        <h1 style={{ fontWeight: 700, fontSize: "1.75rem", color: "#111827", marginBottom: "0.75rem" }}>
+        <h1 style={{ fontWeight: 700, fontSize: "1.75rem", color: "var(--text, #111827)", marginBottom: "0.75rem" }}>
           {t.cartEmptyTitle}
         </h1>
-        <p style={{ color: "#6b7280", marginBottom: "2rem" }}>
+        <p style={{ color: "var(--text-muted, #6b7280)", marginBottom: "2rem" }}>
           {t.cartEmptyBody}
         </p>
         <Link
           href="/prijzen"
           style={{
             display: "inline-block",
-            background: "#111827",
-            color: "white",
+            background: "var(--primary, #111827)",
+            color: "var(--primary-text, #ffffff)",
             borderRadius: "0.75rem",
             padding: "0.75rem 1.75rem",
             fontWeight: 600,
@@ -176,7 +176,7 @@ export function CartPageClient() {
         style={{
           fontWeight: 700,
           fontSize: "clamp(1.75rem, 3vw, 2.25rem)",
-          color: "#111827",
+          color: "var(--text, #111827)",
           marginBottom: "2.5rem",
           lineHeight: 1.2,
         }}
