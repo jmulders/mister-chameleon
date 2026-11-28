@@ -369,7 +369,7 @@ export function CheckoutPageClient({ verificationCents = null, needsPayment = tr
 
             {/* Trust signals footer */}
             <div style={{ padding: "1rem 2rem", borderTop: "1px solid #f3f4f6", display: "flex", justifyContent: "center", gap: "1.5rem", flexWrap: "wrap" }}>
-              {t.checkoutTrust.map((signal) => (
+              {(needsPayment ? t.checkoutTrust : t.checkoutTrustNoPayment).map((signal) => (
                 <span key={signal} style={{ fontSize: "0.8rem", color: "#9ca3af" }}>{signal}</span>
               ))}
             </div>

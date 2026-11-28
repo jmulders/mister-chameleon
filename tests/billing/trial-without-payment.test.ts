@@ -303,6 +303,22 @@ describe("the wiring", () => {
     assert.match(SHOP_TEXTS.nl.trialNoPaymentNote, /geen betaalgegevens/);
   });
 
+  it("nothing around the signup says a payment follows by itself", () => {
+    // "Je betaalt pas na 14 dagen" stood in the cart, on the form and on the
+    // price page. With no payment method on file nothing is paid after 14
+    // days unless the tenant chooses to go on.
+    const shop = read("lib/site-texts/shop.ts");
+    assert.doesNotMatch(shop, /Je betaalt pas na 14 dagen"/);
+    assert.doesNotMatch(shop, /zodra je proefperiode van 14 dagen voorbij is/);
+    assert.match(SHOP_TEXTS.nl.planChargesNote("€ 349"), /Na je proefperiode van 14 dagen kost dit pakket € 349 per maand\./);
+    // The form does not promise a secure payment where there is none.
+    assert.match(form, /\(needsPayment \? t\.checkoutTrust : t\.checkoutTrustNoPayment\)\.map/);
+    assert.equal(SHOP_TEXTS.nl.checkoutTrustNoPayment.some((l) => /Stripe|betalen/i.test(l)), false);
+    // The price page follows the switch.
+    const prices = read("app/(site)/prijzen/page.tsx");
+    assert.match(prices, /\{trialNeedsPayment\(\)\s+\? "Je kunt elk pakket 14 dagen gratis proberen\. Je betaalt pas na 14 dagen\."\s+: "Je kunt elk pakket 14 dagen gratis proberen, zonder betaalgegevens\. Daarna kies je zelf of je doorgaat\."\}/);
+  });
+
   it("the daily job pauses such a trial instead of sending a reminder", () => {
     const ended   = cron.indexOf("if (!chargeResult.ok && isTrialEndWithoutPayment(sub, chargeResult)) {");
     const pastDue = cron.indexOf("await markTenantPastDue(client, tenant_id);");

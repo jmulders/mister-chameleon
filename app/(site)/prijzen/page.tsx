@@ -38,6 +38,7 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import { BILLING_PLANS, type BillingPlan } from "@/billing/plans";
+import { trialNeedsPayment } from "@/billing/trial-signup";
 import { PlanCartButton } from "./_components/CartButtons";
 import { resolveOwnBlockVariant } from "@/lib/page-owned-variant";
 import { adviceFrom, type PricingAdvice } from "@/lib/pricing-advice";
@@ -270,7 +271,9 @@ export default async function PrijzenPage() {
         </h1>
         <p className="mx-auto mt-5 max-w-2xl text-lg" style={{ color: "var(--text-muted)" }}>
           Drie pakketten. Je betaalt per maand voor een aantal gepersonaliseerde bezoeken.
-          Je kunt elk pakket 14 dagen gratis proberen. Je betaalt pas na 14 dagen.
+          {trialNeedsPayment()
+            ? "Je kunt elk pakket 14 dagen gratis proberen. Je betaalt pas na 14 dagen."
+            : "Je kunt elk pakket 14 dagen gratis proberen, zonder betaalgegevens. Daarna kies je zelf of je doorgaat."}
         </p>
       </section>
 
