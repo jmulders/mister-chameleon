@@ -117,6 +117,8 @@ export type ShopTexts = {
   legalPrivacy:       string;
   legalAfter:         string;
   checkoutTrust:      string[];
+  /** The same row when a trial asks for no payment: there is no payment to call secure. */
+  checkoutTrustNoPayment: string[];
   creditsInvoicedSeparately: string;
   editCart:           string;
 
@@ -227,7 +229,7 @@ export const SHOP_TEXTS: SiteTexts<ShopTexts> = {
     bundleEachNote:    (price) => `${price} each · credits never expire`,
     addCreditsHeading: "Add Chameleon Credits (optional)",
     addToOrder:        "+ Add to order",
-    planChargesNote:   (price) => `Plan charges (${price}/mo) begin after your 14-day free trial.`,
+    planChargesNote:   (price) => `After your 14-day free trial this plan is ${price} a month.`,
     bundlesInvoicedSeparately: "Credit bundles are invoiced separately.",
     cartTrust: [
       "🔒 Secure — 256-bit SSL",
@@ -280,6 +282,7 @@ export const SHOP_TEXTS: SiteTexts<ShopTexts> = {
     legalPrivacy:        "Privacy Policy",
     legalAfter:          ".",
     checkoutTrust: ["🔒 256-bit SSL", "💳 Secure Stripe checkout", "✓ 14-day free trial"],
+    checkoutTrustNoPayment: ["🔒 256-bit SSL", "✉️ Confirm by e-mail", "✓ 14-day free trial"],
     creditsInvoicedSeparately: "Credits (invoiced separately)",
     editCart:            "← Edit cart",
 
@@ -383,11 +386,11 @@ export const SHOP_TEXTS: SiteTexts<ShopTexts> = {
     bundleEachNote:    (price) => `${price} per stuk · credits verlopen niet`,
     addCreditsHeading: "Voeg Chameleon Credits toe (optioneel)",
     addToOrder:        "+ Voeg toe aan je bestelling",
-    planChargesNote:   (price) => `Je betaalt ${price} per maand zodra je proefperiode van 14 dagen voorbij is.`,
+    planChargesNote:   (price) => `Na je proefperiode van 14 dagen kost dit pakket ${price} per maand.`,
     bundlesInvoicedSeparately: "Voor bundels credits krijg je een aparte factuur.",
     cartTrust: [
       "🔒 Veilig met 256-bit SSL",
-      "💳 Je betaalt pas na 14 dagen",
+      "💳 Eerst 14 dagen gratis",
       "🚀 Vandaag nog beginnen",
       "✖ Stop wanneer je wilt",
     ],
@@ -436,6 +439,7 @@ export const SHOP_TEXTS: SiteTexts<ShopTexts> = {
     legalPrivacy:        "privacyverklaring",
     legalAfter:          ".",
     checkoutTrust: ["🔒 256-bit SSL", "💳 Veilig betalen via Stripe", "✓ 14 dagen gratis proberen"],
+    checkoutTrustNoPayment: ["🔒 256-bit SSL", "✉️ Bevestigen via je e-mail", "✓ 14 dagen gratis proberen"],
     creditsInvoicedSeparately: "Credits (aparte factuur)",
     editCart:            "← Winkelwagen aanpassen",
 
@@ -449,18 +453,18 @@ export const SHOP_TEXTS: SiteTexts<ShopTexts> = {
     trialStartedNote:      `Je gratis proefperiode van 14 dagen is begonnen, met tot ${TRIAL_SESSION_LIMIT} gepersonaliseerde bezoeken. Je kunt altijd stoppen en je betaalt pas na die 14 dagen.`,
     creatingAccount:       "Je account wordt aangemaakt…",
     submitStartYourTrial:  "Start je gratis proefperiode",
-    checkoutBlockTrust: ["🔒 256-bit SSL", "💳 Je betaalt pas na 14 dagen", "✓ 14 dagen gratis proberen"],
+    checkoutBlockTrust: ["🔒 256-bit SSL", "💳 Eerst 14 dagen gratis", "✓ 14 dagen gratis proberen"],
 
     mostPopular:         "Meest gekozen",
     perMonthAfterTrial:  "per maand na de proefperiode",
     includedInTrial:     "Dit zit in je proefperiode",
     trialDaysBold:       (days) => `${days} dagen gratis proberen.`,
-    noCardCancelAnyTime: "Je betaalt pas na 14 dagen. Je kunt altijd stoppen.",
+    noCardCancelAnyTime: "Eerst 14 dagen gratis. Je kunt altijd stoppen.",
     noPlanSelected:      "Je hebt nog geen pakket gekozen.",
     creditBundles:       "Bundels credits",
     creditsAndQty:       (credits, quantity) => `${credits} credits · aantal ${quantity}`,
     trustSecureSignup:   "Veilig aanmelden",
-    trustNoCard:         "Je betaalt pas na 14 dagen",
+    trustNoCard:         "Eerst 14 dagen gratis",
     trustLiveFast:       "Vandaag nog beginnen",
 
     paymentConfirmed:   "Je betaling is gelukt!",
