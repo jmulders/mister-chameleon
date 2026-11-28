@@ -364,7 +364,7 @@ function SetupSummaryCard({
         />
         <SummaryRow
           label="Primary URL"
-          value={urlTrimmed || ": "}
+          value={urlTrimmed || "not set"}
           badge={
             !urlTrimmed ? (
               <Badge variant="warning" size="sm">Missing</Badge>

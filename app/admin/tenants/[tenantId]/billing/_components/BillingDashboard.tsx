@@ -3335,7 +3335,7 @@ function StripePaymentsTab({
               ? new Date(invoices[0].createdAt).toLocaleDateString("en-GB", {
                   day: "numeric", month: "short", year: "numeric",
                 })
-              : ": "}
+              : "none"}
           </p>
         </div>
       </div>
@@ -3398,10 +3398,10 @@ function StripePaymentsTab({
                     {inv.periodStart && inv.periodEnd ? (
                       <>
                         {new Date(inv.periodStart).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
-                        {": "}
+                        {" to "}
                         {new Date(inv.periodEnd).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}
                       </>
-                    ) : ": "}
+                    ) : "none"}
                   </td>
                   <td className="py-2.5 pr-4 text-right font-medium tabular-nums">
                     {formatCurrency(inv.status === "paid" ? inv.amountPaid : inv.amountDue, inv.currency)}

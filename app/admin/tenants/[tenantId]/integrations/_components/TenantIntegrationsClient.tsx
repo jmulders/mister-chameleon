@@ -482,7 +482,7 @@ function LeadinfoTestResultPanel({
         />
         <LeadinfoTestResultField
           label="Company matched"
-          value={result.matched === null ? ", " : result.matched ? "yes" : "no"}
+          value={result.matched === null ? "unknown" : result.matched ? "yes" : "no"}
         />
         {result.matched && (
           <>
