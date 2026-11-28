@@ -281,6 +281,28 @@ export interface BuildDecisionContextParams {
   deferSlowEnrichmentOnMiss?: boolean;
 
   /**
+   * Serve the session's cached enrichment when no staged chain is given.
+   *
+   * For a caller that deliberately runs no enrichment pipeline (the inner-page
+   * pipeline, lib/cms-page-decision.ts) but must show the visitor the same
+   * context as the page that did run it. Without this such a caller only has
+   * the CDN header geo, so a visitor whose company was recognised on the
+   * homepage got `city` from the company there and from IP geolocation on
+   * every inner page: `{{location}}` named two different towns in one visit.
+   *
+   * Read-only reuse: the same lookup and the same invalidation as the staged
+   * path (IP, tenant, TTL, form location), but on a hit no stage runs, nothing
+   * is billed and no refresh is scheduled, and on a miss the call behaves
+   * exactly as without the flag. Needs a `sessionId`. Has no effect when
+   * `stagedEnrichers` is given: that path reads the cache already.
+   *
+   * The cached entry holds firmographics, so pass true only under the consent
+   * that allowed the pipeline to run (enrichment) and with the persistent
+   * session id (personalization). Default false.
+   */
+  reuseSessionEnrichment?: boolean;
+
+  /**
    * Optional scheduler for fire-and-forget background work (the stale-refresh
    * and deferred-enrichment cache-warm + billing runs). Request-scoped callers
    * (the homepage pipeline) pass `after` from next/server so the background
@@ -515,6 +537,7 @@ export async function buildDecisionContext(
     seedEnrichment,
     customAttributes = null,
     deferSlowEnrichmentOnMiss = false,
+    reuseSessionEnrichment = false,
     scheduleBackgroundWork,
     timezone            = null,
     sessionId           = null,
@@ -763,7 +786,12 @@ export async function buildDecisionContext(
   const runInBackground: (fn: () => void | Promise<void>) => void =
     scheduleBackgroundWork ?? ((fn) => { void Promise.resolve().then(fn); });
 
-  if (sessionId && stagedEnrichers && stagedEnrichers.length > 0) {
+  // The cache is read by a caller that runs the staged chain, and by one that
+  // runs no chain but asked to reuse what the chain stored for this session
+  // (`reuseSessionEnrichment`). Only the first can refresh or rebuild an entry.
+  const hasStagedChain = Boolean(stagedEnrichers && stagedEnrichers.length > 0);
+
+  if (sessionId && (hasStagedChain || reuseSessionEnrichment)) {
     const cacheResult = await getSessionEnrichment(sessionId, ip, tenantId, formLocationHash);
 
     if (cacheResult.hit) {
@@ -773,6 +801,10 @@ export async function buildDecisionContext(
       // it immediately for this render and fire a background pipeline run to
       // refresh the cache.  This avoids blocking on a full enrichment pipeline
       // just because the TTL expired while the visitor is actively browsing.
+      //
+      // A caller without a chain (`reuseSessionEnrichment`) is served the stale
+      // entry too, but has nothing to refresh it with: the entry stays as it is
+      // until a page that runs the chain refreshes it or the grace window ends.
       const cachedEnrichment = cacheResult.enrichment;
       const isStale          = cacheResult.stale === true;
 
@@ -782,7 +814,7 @@ export async function buildDecisionContext(
         });
       }
 
-      if (isStale && sessionId) {
+      if (isStale && stagedEnrichers && stagedEnrichers.length > 0) {
         // Fire-and-forget background refresh.  Errors are intentionally absorbed —
         // this is best-effort; the stale data has already been returned for this render.
         //
@@ -872,16 +904,21 @@ export async function buildDecisionContext(
       // enrichment was already charged on the first request in this session.
       // This is correct behaviour.  Demo mode overrides it so developers can
       // watch credits decrease in the dashboard on every reload.
-      if (isDemoMode()) {
-        logDemoModeActive(tenantId, sessionId, "cache-hit");
-        if (billingClient && tenantId) {
-          void runDemoBilling(billingClient, tenantId, sessionId).then(
-            (r) => logDemoBillingResult(r),
-          ).catch(() => {/* billing failures must never crash the render */});
+      //
+      // Neither applies to a caller without a chain: it never runs a billable
+      // stage, so there is no charge to simulate and none that was skipped.
+      if (hasStagedChain) {
+        if (isDemoMode()) {
+          logDemoModeActive(tenantId, sessionId, "cache-hit");
+          if (billingClient && tenantId) {
+            void runDemoBilling(billingClient, tenantId, sessionId).then(
+              (r) => logDemoBillingResult(r),
+            ).catch(() => {/* billing failures must never crash the render */});
+          }
+        } else {
+          // Real mode: log that billing was intentionally skipped for this reload.
+          logCacheHitBillingSkipped(tenantId, sessionId);
         }
-      } else {
-        // Real mode: log that billing was intentionally skipped for this reload.
-        logCacheHitBillingSkipped(tenantId, sessionId);
       }
 
       // Fall through to the shared post-enrichment steps (Leadinfo merge,
